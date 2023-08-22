@@ -14,8 +14,9 @@ Training
   with more complex situations and more demanding needs for training resources.
 * Train a policy that can drive the test track successfully from any random initial
   conditions, with variable amounts of traffic, at least 90% of the time.
-	* An episode is considered successful for a given RL agent if it crosses the
-	  course finish line without
+	* An episode is considered successful for a given RL agent if it either reaches
+	  a designated course end point or completes the specified number of time steps
+	  without:
 		* Crashing into any other vehicle
 		* Driving off the designated roadway
 		* Coming to a stop in the roadway
@@ -29,14 +30,24 @@ Training
   test track) will define the limits of what will be seen as an "episode" by the
   training algo. This segmenting will allow future use of multiple training tracks, if
   desired.
+	* Each training episode will be N time steps unless the agent reaches a
+	  designated end point earlier.
 
 Environment Model
 -----------------
-* The roadway will include multiple lanes with a variety of connectivities and speed
-  limits. Any given lane may have a different speed limit than the lane next to it
-  (e.g. such as a restricted HOV lane), and any lane may change speed limits at any
-  longitudinal location. It is assumed that speed limit info is communicated to the
-  vehicles by some unnamed perfect communication mechanism.
+* Roadway
+	* The roadway will include multiple lanes with a variety of connectivities and
+	  speed limits. Any given lane may have a different speed limit than the lane
+	  next to it (e.g. such as a restricted HOV lane), and any lane may change speed
+	  limits at any longitudinal location. It is assumed that speed limit info is
+	  communicated to the vehicles by some unnamed perfect communication mechanism.
+	* The roadway will have two types of endpoints:
+		* Type S - success endpoints for RL agents in training as well as policy
+		  N agents.
+		* Type N - possible targets for policy N agents that represent
+		  background traffic. If an RL agent reaches one of these (e.g. the end
+		  of an exit ramp), it is the same as running off the road, and
+		  considered a failure.
 * Vehicle "sensor" observations
 	* The RL agent will be able to sense the physical characteristics of the nearby
 	  roadway via a grid of observation zones surrounding the vehicle. This will be
@@ -82,8 +93,34 @@ Environment Model
 	* Lane change maneuvers will always occur over a period of time, nominally
 	  3 sec.
 
+* World dynamics - everything outside of the vehicle
+	* The world is flat. There is no elevation change.
+	* There is perfect traction and the pavement type is uniform. There is no
+	  noticeable wheel slip, skidding, or lateral acceleration limits (other than
+	  a simulated comfort level by taking 3 sec for a lane change).
+	* Weather is not a factor - sensors always work perfectly, and vehicle handling
+	  is never a consideration.
+
 * Simulation will run at a frequency of 5 Hz. While this should be configurable, there
   is a strong desire to keep it at least this high, to support future extensions.
+
+* Behavior consequences
+	* While there is minimal required reward structure for the agent in training,
+	  there are physical consequences for certain behaviors.
+	* Each vehicle model has a physical upper limit on speed of 36 m/s.
+	* If a vehicle comes to a stop (or nearly so) in the roadway, it will be
+	  terminated.
+	* If a vehicle crashes into another vehicle, then both involved vehicles will
+	  be terminated.
+	* If a vehicle drives off the pavement, by going straight on a lane that is
+	  ending, or by making an illegal lane change (to the grass or into a jersey
+	  wall), then the vehicle will be terminated.
+	* It is expected that all vehicles will make a "reasonable attempt" to drive
+	  close to the speed limit. While this can't be physically enforced by the
+	  environment (we don't have police pulling vehicles over for violations), the
+	  environment model needs a reward structure that discourages driving either
+	  slower or faster than the local speed limit at the vehicle's current
+	  location.
 
 Inference
 ---------
@@ -93,3 +130,6 @@ Inference
 * The inference program will provide a simple graphical display of the track geometry
   and the vehicles as the drive on it. The type of vehicle will be visually obvious, by
   color, shape or other indicator.
+* An inference episode will run until all vehicles reach a designated course end point.
+  If one or more vehicles is terminated early (e.g. a crash), then the remaining
+  vehicles will continue to drive until they reach an endpoint or are terminated.
