@@ -1,0 +1,7 @@
+This is John's personal developer notes for the CDA1 project.  Probably pretty boring reading
+for anyone not intently helping out.
+
+8/21/23
+
+* Project setup & Github repo creation.
+* Completed first version of rqmts spec.

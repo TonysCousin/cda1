@@ -8,6 +8,9 @@ This new environment could be used to duplicate the CDA0 project by using that A
 However, the goal here is to train an AI agent to drive all of the vehicles at once, and have it learn something about safe driving and anticipating others' actions in the process.
 Again, as in CDA0, there is no communication between vehicles, and all sensors are perfect.
 
+## Detailed Requirements
+A statement of the detailed software requirements [can be found here](docs/cda1_rqmts.txt).
+
 ## Project Progress
 **8/21/23** - Just getting started. New definition docs & skeleton code should appear shortly.
 

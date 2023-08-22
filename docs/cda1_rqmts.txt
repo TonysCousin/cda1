@@ -1,0 +1,95 @@
+REQUIREMENTS FOR THE CDA1 SOFTWARE
+----------------------------------
+
+The software will train a single RL agent to drive a simple highway scenario in variable
+amounts of traffic. This agent then can be loaded into any number of the simulated
+vehicles such that each instance must cooperate with other instances of the same policy
+and possibly with instances of one other policy (the non-RL "policy N", which will be a
+very simplistic model of a human driving an ACC-equipped vehicle. Since this is developed
+by a one-person team, the documentation can be very informal.
+
+Training
+--------
+* Use the Ray platform, as that provides the most promising pathway to future RL work
+  with more complex situations and more demanding needs for training resources.
+* Train a policy that can drive the test track successfully from any random initial
+  conditions, with variable amounts of traffic, at least 90% of the time.
+	* An episode is considered successful for a given RL agent if it crosses the
+	  course finish line without
+		* Crashing into any other vehicle
+		* Driving off the designated roadway
+		* Coming to a stop in the roadway
+	* For the 90% success threshold, we measure this on a per-agent basis. So if
+	  there are 5 instances of the agent driving in the same episode and four of
+	  them complete successfully, that is an 80% success rate. However, an
+	  evaulation will be done over many episodes, to better capture the policy's
+	  capabilities across a range of conditions.
+* Since real-life driving is a non-episodic task, training is to be done over arbitrary
+  segments of highway, not end-to-end on the test track. Each segment (shorter than the
+  test track) will define the limits of what will be seen as an "episode" by the
+  training algo. This segmenting will allow future use of multiple training tracks, if
+  desired.
+
+Environment Model
+-----------------
+* The roadway will include multiple lanes with a variety of connectivities and speed
+  limits. Any given lane may have a different speed limit than the lane next to it
+  (e.g. such as a restricted HOV lane), and any lane may change speed limits at any
+  longitudinal location. It is assumed that speed limit info is communicated to the
+  vehicles by some unnamed perfect communication mechanism.
+* Vehicle "sensor" observations
+	* The RL agent will be able to sense the physical characteristics of the nearby
+	  roadway via a grid of observation zones surrounding the vehicle. This will be
+	  a larger and more granular grid than used in CDA0.
+	* Each sensor zone will indicate:
+		* Existence of drivable pavement in that zone (it is fully covered by
+		  a paved lane)
+		* Whether it is occupied (by a crash-able object, which can only be a
+		  vehicle in this project, but could be extended further to anything)
+		* The velocity of the object in that zone, if one exists
+		* For zones in the ego vehicle's current lane only, there will be
+		  indicators of lane edge type (solid, permeable).
+		* Posted speed limit
+	* The agent will have self-knowledge, understanding its own speed and
+	  acceleration and any other intrisic attributes needed.
+	* Since we are abstracting out lateral control details, it can be assumed that
+	  the vehicle somehow know about its current lane change status (i.e. if a
+	  lane change is in progress).
+	* It may be valuable to also store one or more historical values of any of the
+	  observations.
+	* It may also be valuable to store timers since a previous event.
+* The observation space may also include configuration params, which could act like
+  vehicle operator preferences, such as dialing in certain types of comfort or
+  aggressiveness.
+* RL agents don't have access to a map or other understanding of the overall roadway
+  structure. The only things they know about the roadway are what is visible in its
+  observation zones.
+* Note that there is no mechanism for vehicles to use turn signals or communicate with
+  each other in any way.
+
+* Action space - we assume that there exists a low-level controller that can translate
+  these commands into physical actuation that makes the vehicle obey them within its
+  operating limits
+	* Speed command (desired speed)
+	* Lane change command (left, right, no change)
+
+* Vehicle dynamics - these rules apply to all vehicle models, not just RL agents
+	* Each vehicle model must specify realistic physical limits on longitudinal
+	  acceleration capability and jerk (which probably represents a passenger
+	  comfort level more than a hardware limitation). Not all vehicle models need
+	  to be the same. Acceleration limits are the same for forward and rearward
+	  directions.
+	* Lane change maneuvers will always occur over a period of time, nominally
+	  3 sec.
+
+* Simulation will run at a frequency of 5 Hz. While this should be configurable, there
+  is a strong desire to keep it at least this high, to support future extensions.
+
+Inference
+---------
+* An inference program will allow configuration and running of a single episode with
+  all of the scenario variability used in training (e.g. number of vehicles, assignment
+  of agent type to each vehicle, random starting locations, etc).
+* The inference program will provide a simple graphical display of the track geometry
+  and the vehicles as the drive on it. The type of vehicle will be visually obvious, by
+  color, shape or other indicator.
