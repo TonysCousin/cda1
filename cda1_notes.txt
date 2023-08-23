@@ -6,5 +6,9 @@ for anyone not intently helping out.
 * Project setup & Github repo creation.
 * Completed first version of rqmts spec.
 
+8/22/23
+
+* Got legacy cda0 code running after breaking up all the classes in the main environment file
+  so they are now in their own files.
+
 TODO:
-- Run existing code to ensure separated classes have proper import stmts, and missing curriculum function is no longer needed.

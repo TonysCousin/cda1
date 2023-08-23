@@ -1,3 +1,6 @@
+from constants import Constants
+from typing import Tuple, Dict, List
+from lane import Lane
 
 class Roadway:
     """Defines the geometry of the roadway lanes and their drivable connections.  All dimensions are
@@ -33,7 +36,7 @@ class Roadway:
 
         # Full length of the modeled lane, extends beyond the length of the scenario so the agent
         # views the road as a continuing situation, rather than an episodic game.
-        really_long = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
+        really_long = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
 
         # Lane 0 - single segment as the left through lane
         L0_Y = 300.0 #arbitrary y value for the east-bound lane
@@ -121,8 +124,8 @@ class Roadway:
         rem_this_lane = self.lanes[lane_id].length - (p_loc - self.map_to_param_frame(self.lanes[lane_id].start_x, lane_id))
 
         la = 0.0
-        lb = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
-        l_rem = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
+        lb = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
+        l_rem = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
         left_id = self.lanes[lane_id].left_id
         if left_id >= 0:
             la = self.lanes[lane_id].left_join - p_loc
@@ -130,8 +133,8 @@ class Roadway:
             l_rem = self.lanes[left_id].length - (p_loc - self.map_to_param_frame(self.lanes[left_id].start_x, left_id))
 
         ra = 0.0
-        rb = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
-        r_rem = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
+        rb = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
+        r_rem = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
         right_id = self.lanes[lane_id].right_id
         if right_id >= 0:
             ra = self.lanes[lane_id].right_join - p_loc

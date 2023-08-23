@@ -1,3 +1,5 @@
+from constants import Constants
+from typing import Tuple, Dict, List
 
 class Vehicle:
     """Represents a single vehicle on the Roadway."""
@@ -53,8 +55,8 @@ class Vehicle:
 
         # Determine new jerk, accel, speed & location of the vehicle
         new_jerk = min(max((new_accel_cmd - self.prev_accel) / self.time_step_size, -self.max_jerk), self.max_jerk)
-        new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -SimpleHighwayRamp.MAX_ACCEL), SimpleHighwayRamp.MAX_ACCEL)
-        new_speed = min(max(self.cur_speed + self.time_step_size*new_accel, 0.0), SimpleHighwayRamp.MAX_SPEED) #vehicle won't start moving backwards
+        new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -Constants.MAX_ACCEL), Constants.MAX_ACCEL)
+        new_speed = min(max(self.cur_speed + self.time_step_size*new_accel, 0.0), Constants.MAX_SPEED) #vehicle won't start moving backwards
         new_p = max(self.p + self.time_step_size*(new_speed + 0.5*self.time_step_size*new_accel), 0.0)
 
         # Update the state variables

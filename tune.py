@@ -7,44 +7,23 @@ from ray.tune.logger import pretty_print
 from ray.air import RunConfig
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
-import ray.rllib.algorithms.ddpg as ddpg
 
 from stop_simple import StopSimple
 from simple_highway_ramp_wrapper import SimpleHighwayRampWrapper
-from cda_callbacks import CdaCallbacks
 
 """This program tunes (explores) hyperparameters to find a good set suitable for training.
-    Usage is:
-        cda0_tune <difficulty_level>
-    If a difficulty level is not provided, it will default to 0.
 """
 
 # Identify a baseline checkpoint from which to continue training
 _checkpoint_path = None
 
-# Completed level 0 on 5/30/23
-#_checkpoint_path = "/home/starkj/projects/cda0/training/PPO/p256-256-128/L0-518f4/trial09/checkpoint_000086"
-
-# Completed level 1 on 6/1/23
-#_checkpoint_path = "/home/starkj/projects/cda0/training/PPO/p256-256-128/L1-abe44/trial03/checkpoint_000059"
-
-# Completed level 3 with SAC on 6/17/23
-#_checkpoint_path = "/home/starkj/projects/cda0/training/SAC/p256-256-v256-256/L3-3bbcf/trial03/checkpoint_001600"
-
 
 def main(argv):
-
-    difficulty_level = 5
-    if len(argv) > 1:
-        difficulty_level = min(max(int(argv[1]), 0), SimpleHighwayRampWrapper.NUM_DIFFICULTY_LEVELS)
-    print("\n///// Tuning with initial environment difficulty level {}".format(difficulty_level))
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
     ray.init() #storage = "~/ray_results/cda0")
 
     # Define which learning algorithm we will use and set up is default config params
-    #algo = "DDPG"
-    #cfg = ddpg.DDPGConfig()
     algo = "SAC"
     cfg = sac.SACConfig()
     cfg.framework("torch")
@@ -61,6 +40,7 @@ def main(argv):
     max_iterations      = 12000
     burn_in             = 500   #num iters before considering failure stopping
     num_trials          = 8
+    difficulty_level = 5
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -126,23 +106,10 @@ def main(argv):
                     recreate_failed_workers     = True,
     )
 
-    # Evaluation process
-    """
-    cfg.evaluation( evaluation_interval         = 10, #iterations between evals
-                    evaluation_duration         = 15, #units specified next
-                    evaluation_duration_unit    = "episodes",
-                    evaluation_parallel_to_training = True, #True requires evaluation_num_workers > 0
-                    evaluation_num_workers      = 1,
-    )
-    """
-
     # Debugging assistance
     cfg.debugging(  log_level                   = "WARN",
                     seed                        = 17, #tune.choice([2, 17, 666, 4334, 10003, 29771, 38710, 50848, 81199])
     )
-
-    # Custom callbacks from the training algorithm - supports starting from a checkpoint
-    cfg.callbacks(  CdaCallbacks)
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
@@ -178,7 +145,6 @@ def main(argv):
     tune_config = TuneConfig(
                     metric                      = "episode_reward_mean",
                     mode                        = "max",
-                    #scheduler                   = scheduler,
                     num_samples                 = num_trials,
                 )
 

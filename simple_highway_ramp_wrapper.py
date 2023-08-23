@@ -3,8 +3,9 @@ from typing import Tuple, Dict
 from ray.rllib.env.env_context import EnvContext
 from gymnasium.spaces import Box
 
+from constants import Constants
 from simple_highway_with_ramp import SimpleHighwayRamp
-from simple_highway_with_ramp import SimpleHighwayRamp
+
 
 class SimpleHighwayRampWrapper(SimpleHighwayRamp):
     """Wraps the custom environment in order to properly convert observations and actions into usable structures for
@@ -61,7 +62,7 @@ class SimpleHighwayRampWrapper(SimpleHighwayRamp):
 
         # Unscale the action values
         #ua = [None]*2
-        #ua[0] = action[0] * SimpleHighwayRamp.MAX_SPEED #Desired speed, m/s
+        #ua[0] = action[0] * Constants.MAX_SPEED #Desired speed, m/s
         #ua[1] = math.floor(action[1] + 0.5) + 1.0       #maps desired lane from [-1, 1] into (0, 1, 2)
         #print("///// WRAPPER step: action = ", action, ", ua = ", ua)
 
@@ -88,13 +89,13 @@ class SimpleHighwayRampWrapper(SimpleHighwayRamp):
 
         scaled = [0.0]*self.OBS_SIZE
 
-        scaled[self.EGO_LANE_REM]       = min(obs[self.EGO_LANE_REM]    / SimpleHighwayRamp.SCENARIO_LENGTH, 1.1) #range [0, 1.1]
-        scaled[self.EGO_SPEED]          = obs[self.EGO_SPEED]           / SimpleHighwayRamp.MAX_SPEED           #range [0, 1]
-        scaled[self.EGO_SPEED_PREV]     = obs[self.EGO_SPEED_PREV]      / SimpleHighwayRamp.MAX_SPEED           #range [0, 1]
-        scaled[self.STEPS_SINCE_LN_CHG] = obs[self.STEPS_SINCE_LN_CHG]  / SimpleHighwayRamp.MAX_STEPS_SINCE_LC  #range [0, 1]
+        scaled[self.EGO_LANE_REM]       = min(obs[self.EGO_LANE_REM]    / Constants.SCENARIO_LENGTH, 1.1) #range [0, 1.1]
+        scaled[self.EGO_SPEED]          = obs[self.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
+        scaled[self.EGO_SPEED_PREV]     = obs[self.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
+        scaled[self.STEPS_SINCE_LN_CHG] = obs[self.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
         scaled[self.NEIGHBOR_IN_EGO_ZONE] = obs[self.NEIGHBOR_IN_EGO_ZONE]
-        scaled[self.EGO_DES_SPEED]      = obs[self.EGO_DES_SPEED]       / SimpleHighwayRamp.MAX_SPEED           #range [0, 1]
-        scaled[self.EGO_DES_SPEED_PREV] = obs[self.EGO_DES_SPEED_PREV]  / SimpleHighwayRamp.MAX_SPEED           #range [0, 1]
+        scaled[self.EGO_DES_SPEED]      = obs[self.EGO_DES_SPEED]       / Constants.MAX_SPEED           #range [0, 1]
+        scaled[self.EGO_DES_SPEED_PREV] = obs[self.EGO_DES_SPEED_PREV]  / Constants.MAX_SPEED           #range [0, 1]
         scaled[self.LC_CMD]             = obs[self.LC_CMD]
         scaled[self.LC_CMD_PREV]        = obs[self.LC_CMD_PREV]
 

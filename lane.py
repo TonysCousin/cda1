@@ -1,3 +1,4 @@
+from constants import Constants
 
 class Lane:
     """Defines the geometry of a single lane and its relationship to other lanes in the map frame.
@@ -20,11 +21,11 @@ class Lane:
                                                         # need to add up to total lane length
                     left_id     : int       = -1,       #ID of an adjoining lane to its left, or -1 for none
                     left_join   : float     = 0.0,      #X location where left lane first joins, m
-                    left_sep    : float     = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH,
+                    left_sep    : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH,
                                                         #X location where left lane separates from this one, m
                     right_id    : int       = -1,       #ID of an ajoining lane to its right, or -1 for none
                     right_join  : float     = 0.0,      #X location where right lane first joins, m
-                    right_sep   : float     = SimpleHighwayRamp.SCENARIO_LENGTH + SimpleHighwayRamp.SCENARIO_BUFFER_LENGTH
+                    right_sep   : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
                                                         #X location where right lane separates from this one, m
                 ):
 
