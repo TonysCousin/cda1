@@ -46,6 +46,7 @@ def main(argv):
                     "debug":                0,
                     "difficulty_level":     learning_level,
                     "init_ego_lane":        start_lane,
+                    "verify_obs":           True,
                     #"training":             True,           #TODO: debug only!
                     #"randomize_start_dist": True,           #TODO: debug only
                     #"neighbor_speed":       29.1,

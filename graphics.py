@@ -4,8 +4,9 @@ import pygame
 from pygame.locals import *
 import gymnasium
 from typing import List
+from constants import Constants
 from simple_highway_ramp_wrapper import SimpleHighwayRampWrapper
-from simple_highway_with_ramp    import Roadway
+from roadway import Roadway
 
 """Provides all the graphics display for the inference program."""
 
@@ -32,8 +33,8 @@ class Graphics:
     # Geometry of data plots
     PLOT_H          = 150 #height of each plot, pixels
     PLOT_W          = 200 #width of each plot, pixels
-    PLOT1_R         = WINDOW_SIZE_R/2 - PLOT_W/2 #corner of plot #1
-    PLOT1_S         = WINDOW_SIZE_S/2
+    PLOT1_R         = WINDOW_SIZE_R/8 #upper-left corner of plot #1
+    PLOT1_S         = 0.7*WINDOW_SIZE_S
 
 
     def __init__(self,
@@ -91,8 +92,8 @@ class Graphics:
         self.scale = display_height / roadway_height     #pixels/meter
         if ar_roadway > ar_display:
             self.scale = display_width / roadway_width
-        self.roadway_center_x = x_min + 0.5*(x_max - x_min)
-        self.roadway_center_y = y_min + 0.5*(y_max - y_min)
+        self.roadway_center_x = x_min + 0.5*roadway_width
+        self.roadway_center_y = y_min + 0.5*roadway_height
         self.display_center_r = Graphics.WINDOW_SIZE_R // 2
         self.display_center_s = Graphics.WINDOW_SIZE_S // 2
         #print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
@@ -110,8 +111,8 @@ class Graphics:
         self.crash_image = pygame.image.load("images/crash16.bmp").convert()
 
         # Set up lists of previous screen coords and display colors for each vehicle
-        self.prev_veh_r = [0] * (SimpleHighwayRampWrapper.NUM_NEIGHBORS+1)
-        self.prev_veh_s = [0] * (SimpleHighwayRampWrapper.NUM_NEIGHBORS+1)
+        self.prev_veh_r = [0] * (Constants.NUM_NEIGHBORS+1)
+        self.prev_veh_s = [0] * (Constants.NUM_NEIGHBORS+1)
         self.veh_colors = [Graphics.NEIGHBOR_COLOR] * (SimpleHighwayRampWrapper.NUM_NEIGHBORS+1)
         self.veh_colors[0] = Graphics.EGO_COLOR
 
@@ -129,8 +130,8 @@ class Graphics:
 
         # Plot ego speed
         self.plot_ego_speed = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
-                                   SimpleHighwayRampWrapper.MAX_SPEED, title = "Ego speed, m/s")
-        self.plot_ego_speed.add_reference_line(SimpleHighwayRampWrapper.ROAD_SPEED_LIMIT, Graphics.REFERENCE_COLOR)
+                                   Constants.MAX_SPEED, title = "Ego speed, m/s")
+        self.plot_ego_speed.add_reference_line(Constants.ROAD_SPEED_LIMIT, Graphics.REFERENCE_COLOR)
 
 
     def update(self,
@@ -190,17 +191,17 @@ class Graphics:
                       w         : float
                      ):
         """Draws a single lane segment on the display, which consists of the left and right edge lines.
-            ASSUMES that all segments are oriented with headings between 0 and 90 deg for simplicity.
+            ASSUMES that all segments are oriented with headings between 0 and 180 deg for simplicity.
         """
 
-        # Find the scaled lane end-point pixel locations (these is centerline of the lane)
+        # Find the scaled lane end-point pixel locations (these are centerline of the lane)
         r0, s0 = self._map2screen(x0, y0)
         r1, s1 = self._map2screen(x1, y1)
 
         # Find the scaled width of the lane
         ws = 0.5 * w * self.scale
 
-        angle = math.atan2(y1-y0, x1-x0) #radians in [-pi, pi]
+        angle = math.atan2(y1-y0, x1-x0) #angle above horizontal (to the right), radians in [-pi, pi]
         sin_a = math.sin(angle)
         cos_a = math.cos(angle)
 
@@ -240,7 +241,7 @@ class Graphics:
         if lane < 2:
             y = road.lanes[lane].segments[0][1]
         else:
-            ddt = (x - road.lanes[2].start_x)/Roadway.COS_LANE2_ANGLE
+            ddt = (x - road.lanes[2].start_x)/Roadway.COS_RAMP_ANGLE
             if ddt < road.lanes[2].segments[0][4]: #vehicle is in seg 0
                 seg0x0 = road.lanes[2].segments[0][0]
                 seg0y0 = road.lanes[2].segments[0][1]
@@ -261,10 +262,10 @@ class Graphics:
                      x      : float,        #X coordinate in map frame
                      y      : float,        #Y coordinate in map frame
                     ) -> tuple:             #Returns (r, s) coordinates in the screen frame (pixels)
-        """Converts an (x, y) point in the map frame to a (r, s) point in the screen coordinates."""
+        """Converts an (x, y) point in the map frame to the nearest (r, s) point in the screen coordinates."""
 
-        r = int(self.scale*(x - self.roadway_center_x)) + self.display_center_r
-        s = Graphics.WINDOW_SIZE_S - int(self.scale*(y - self.roadway_center_y)) - self.display_center_s
+        r = int(self.scale*(x - self.roadway_center_x) + 0.5) + self.display_center_r
+        s = Graphics.WINDOW_SIZE_S - int(self.scale*(y - self.roadway_center_y) + 0.5) - self.display_center_s
         return r, s
 
 

@@ -8,7 +8,7 @@ class Constants:
     MAX_ACCEL               = 3.0       #vehicle's max achievable acceleration (fwd or backward), m/s^2
     MAX_JERK                = 4.0       #max desirable jerk for occupant comfort, m/s^3
     ROAD_SPEED_LIMIT        = 29.1      #Roadway's legal speed limit on all lanes, m/s (29.1 m/s = 65 mph)
-    SCENARIO_LENGTH         = 2000.0    #total length of the roadway, m
+    SCENARIO_LENGTH         = 3000.0    #total length of the roadway, m
     SCENARIO_BUFFER_LENGTH  = 200.0     #length of buffer added to the end of continuing lanes, m
     NUM_NEIGHBORS           = 6         #total number of neighbor vehicles in scenario (some or all may not be active)
     OBS_ZONE_LENGTH         = 2.0 * ROAD_SPEED_LIMIT #the length of a roadway observation zone, m

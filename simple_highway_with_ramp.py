@@ -156,6 +156,9 @@ class SimpleHighwayRamp(TaskSettableEnv):  #Based on OpenAI gym 0.26.1 API
         Agent rewards are provided by a separate reward function.  The reward logic is documented there.
     """
 
+    NUM_NEIGHBORS = 6
+
+
     metadata = {"render_modes": None}
     #metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 

@@ -23,7 +23,7 @@ class Roadway:
         scenario being used by this version of the code.
     """
 
-    WIDTH = 20.0 #lane width, m; using a crazy large number so that grapics are pleasing
+    WIDTH = 30.0 #lane width, m; using a crazy large number so that grapics are pleasing
     COS_RAMP_ANGLE = 0.8660 #cosine of the angle of any ramp segment from the X axis
 
     def __init__(self,
@@ -82,14 +82,14 @@ class Roadway:
                 (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL),
                 (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL)]
         lane = Lane(4, 953.6, 700.0, segs, left_id = 3, left_join = 1300.0, left_sep = 1500.0,
-                    right_id = 5, right_join = 900.0, right_sep = 1350.0)                       #CAUTION: right_join is in parametric frame!
+                    right_id = 5, right_join = 953.6, right_sep = 1350.0)                       #CAUTION: right_join is in parametric frame!
         self.lanes.append(lane)
 
         # Lane 5 - secondary entrance ramp
         L5_Y = L4_Y - Roadway.WIDTH #the stubby merge segment
         segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP_SL),
                 (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL)]
-        lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = 1300.0, left_sep = 1350.0)
+        lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = 953.6, left_sep = 1350.0)
         self.lanes.append(lane)
 
 
