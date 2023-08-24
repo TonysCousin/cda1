@@ -11,4 +11,9 @@ for anyone not intently helping out.
 * Got legacy cda0 code running after breaking up all the classes in the main environment file
   so they are now in their own files.
 
+8/23/23
+
+* Rewrote the Roadway class to represent the new road geometry.
+
 TODO:
+- Check all uses of Constants.SCENARIO_LENGTH

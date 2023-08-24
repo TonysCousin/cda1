@@ -13,20 +13,21 @@ class Lane:
                     start_x     : float,                #X coordinate of the start of the lane, m
                     length      : float,                #total length of this lane, m (includes any downtrack buffer)
                     segments    : list,                 #list of straight segments that make up this lane; each item is
-                                                        # a tuple containing: (x0, y0, x1, y1, length), where
+                                                        # a tuple containing: (x0, y0, x1, y1, length, speed limit), where
                                                         # x0, y0 are map coordinates of the starting point, in m
                                                         # x1, y1 are map coordinates of the ending point, in m
                                                         # length is the length of the segment, in m
+                                                        # speed limit is the regulatory limit in m/s
                                                         #Each lane must have at least one segment, and segment lengths
                                                         # need to add up to total lane length
                     left_id     : int       = -1,       #ID of an adjoining lane to its left, or -1 for none
-                    left_join   : float     = 0.0,      #X location where left lane first joins, m
+                    left_join   : float     = 0.0,      #P location where left lane first joins, m (param frame)
                     left_sep    : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH,
-                                                        #X location where left lane separates from this one, m
+                                                        #P location where left lane separates from this one, m (param frame)
                     right_id    : int       = -1,       #ID of an ajoining lane to its right, or -1 for none
-                    right_join  : float     = 0.0,      #X location where right lane first joins, m
+                    right_join  : float     = 0.0,      #P location where right lane first joins, m (param frame)
                     right_sep   : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
-                                                        #X location where right lane separates from this one, m
+                                                        #P location where right lane separates from this one, m (param frame)
                 ):
 
         self.my_id = my_id
@@ -48,15 +49,17 @@ class Lane:
         for si, s in enumerate(segments):
             seg_len += s[4]
             assert s[0] != s[2]  or  s[1] != s[3], "Lane {}, segment {} both ends have same coords.".format(my_id, si)
+            assert len(s) == 6, "Lane {}, segment {} malformed - incorrect number of elements.".format(my_id, si)
+            assert s[5] > 0.0, "Lane {}, segment {} illegal speed limit {}".format(my_id, si, s[5])
         assert abs(seg_len - length) < 1.0, "Lane {} sum of segment lengths {} don't match total lane length {}.".format(my_id, seg_len, length)
         if left_id >= 0:
             assert left_id != my_id, "Lane {} left adjoining lane has same ID".format(my_id)
-            assert left_join >= 0.0  and  left_join < length+start_x, "Lane {} left_join value invalid.".format(my_id)
+            assert left_join >= start_x  and  left_join < length+start_x, "Lane {} left_join value invalid.".format(my_id)
             assert left_sep > left_join, "Lane {} left_sep {} not larger than left_join {}".format(my_id, left_sep, left_join)
             assert left_sep <= length+start_x, "Lane {} left sep {} is beyond end of lane.".format(my_id, left_sep)
         if right_id >= 0:
             assert right_id != my_id, "Lane {} right adjoining lane has same ID".format(my_id)
-            assert right_join >= 0.0  and  right_join < length+start_x, "Lane {} right_join value invalid.".format(my_id)
+            assert right_join >= start_x  and  right_join < length+start_x, "Lane {} right_join value invalid.".format(my_id)
             assert right_sep > right_join, "Lane {} right_sep {} not larger than right_join {}".format(my_id, right_sep, right_join)
             assert right_sep <= length+start_x, "Lane {} right sep {} is beyond end of lane.".format(my_id, right_sep)
         if left_id >= 0  and  right_id >= 0:
