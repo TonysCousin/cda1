@@ -7,7 +7,7 @@ import ray
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 from ray.tune.logger import pretty_print
-from simple_highway_ramp_wrapper import SimpleHighwayRampWrapper
+from highway_b_wrapper import HighwayBWrapper
 from graphics import Graphics
 
 """This program runs the selected policy checkpoint for one episode and captures key state variables throughout."""
@@ -22,6 +22,7 @@ def main(argv):
         print("Usage is: {} <checkpoint> [learning_level, starting_lane [, relative_pos]]".format(argv[0]))
         sys.exit(1)
 
+    #TODO - reconsider all cmd line args
     checkpoint = argv[1]
     learning_level = 0
     relative_pos = 2
@@ -53,22 +54,10 @@ def main(argv):
                     #"neighbor_start_loc":   0.0, #dist downtrack from beginning of lane 1 for n3, m
                     "merge_relative_pos":   relative_pos, #neighbor vehicle that we want ego to be beside when starting in lane 2 (level 4 only)
                 }
-    env = SimpleHighwayRampWrapper(env_config)
+    env = HighwayBWrapper(env_config)
     #print("///// Environment configured. Params are:")
     #print(pretty_print(cfg.to_dict()))
     env.reset()
-
-    # Algorithm-specific configs - NN structure needs to match the checkpoint being read
-    """
-    cfg = ppo.PPOConfig()
-    cfg.framework("torch").exploration(explore = False)
-    model = cfg.to_dict()["model"]
-    model["no_final_linear"]                = True
-    model["fcnet_hiddens"]                  = [256, 256, 4]
-    model["fcnet_activation"]               = "relu"
-    model["post_fcnet_activation"]          = "linear"
-    cfg.training(model = model)
-    """
 
     cfg = sac.SACConfig()
     cfg.framework("torch").exploration(explore = False)
@@ -81,7 +70,7 @@ def main(argv):
     q_config["fcnet_activation"]                = "relu"
     cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
-    cfg.environment(env = SimpleHighwayRampWrapper, env_config = env_config)
+    cfg.environment(env = HighwayBWrapper, env_config = env_config)
 
     # Restore the selected checkpoint file
     # Note that the raw environment class is passed to the algo, but we are only using the algo to run the NN model,

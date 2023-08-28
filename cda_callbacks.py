@@ -4,27 +4,35 @@ from ray.rllib.algorithms import Algorithm
 from ray.rllib.algorithms.ppo.ppo import PPO
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.tune.logger import pretty_print
-#from perturbation_control import PerturbationController
 
 
 class CdaCallbacks (DefaultCallbacks):
     """This class provides utility callbacks that RLlib training algorithms invoke at various points.
         This needs to be the path to an algorithm-level directory. This class currently only handles a one-policy
         situation (could be used by multiple agents), with the policy named "default_policy".
+
+        TODO - verify the below, and ensure all is correct.
+        Even though we have no active code here, this class needs to exist to support restoration of checkpoints
+        by the inference program.
     """
 
     def __init__(self,
-                 legacy_callbacks_dict: Dict[str, callable]      = None,
-                 use_perturbation_controller :              bool = False,
+                 legacy_callbacks_dict: Dict[str, callable]      = None,    #required by RLlib
+                 use_perturbation_controller :              bool = False,   #deprecated - no longer supported
                 ):
-        super().__init__(legacy_callbacks_dict)
 
-        self._use_perturbation_controller = use_perturbation_controller
+        super().__init__(legacy_callbacks_dict)
+        if use_perturbation_controller:
+            raise NotImplementedError("CdaCallbacks created with use_perturbation_controller on, but it is not supported.")
+
+        self._use_perturbation_controller = False
         self._checkpoint_path = None
+        """
         if use_perturbation_controller:
             self.info = PerturbationController()
             self._checkpoint_path = self.info.get_checkpoint_path()
             #print("///// CdaCallback instantiated! algo counter = ", self.info.get_algo_init_count())
+        """
 
 
     def on_algorithm_init(self, *,
@@ -32,7 +40,7 @@ class CdaCallbacks (DefaultCallbacks):
                           **kwargs,
                          ) -> None:
 
-        """Called when a new algorithm instance had finished its setup() but before training begins.
+        """Called when a new algorithm instance has finished its setup() but before training begins.
             We will use it to load NN weights from a previous checkpoint.  No kwargs are passed in,
             so we have to resort to some tricks to retrieve the deisred checkpoint name.  The RLlib
             algorithm object creates its own object of this class, so we get info into that object
@@ -41,9 +49,6 @@ class CdaCallbacks (DefaultCallbacks):
             ASSUMES that the NN structure in the checkpoint is identical to the current run config,
             and belongs to the one and only policy, named "default_policy".
         """
-
-        #TODO: skip for now, since this default_policy logic won't work for SAC
-        #return
 
         # Update the initialize counter
         if self._use_perturbation_controller:

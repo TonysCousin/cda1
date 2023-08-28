@@ -4,10 +4,10 @@ from ray.rllib.env.env_context import EnvContext
 from gymnasium.spaces import Box
 
 from constants import Constants
-from simple_highway_with_ramp import SimpleHighwayRamp
+from highway_b_wrapper import HighwayB
 
 
-class SimpleHighwayRampWrapper(SimpleHighwayRamp):
+class HighwayBWrapper(HighwayB):
     """Wraps the custom environment in order to properly convert observations and actions into usable structures for
         use by a torch NN.
     """

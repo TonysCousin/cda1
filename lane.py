@@ -1,4 +1,4 @@
-from constants import Constants
+import math
 
 class Lane:
     """Defines the geometry of a single lane and its relationship to other lanes in the map frame.
@@ -22,11 +22,11 @@ class Lane:
                                                         # need to add up to total lane length
                     left_id     : int       = -1,       #ID of an adjoining lane to its left, or -1 for none
                     left_join   : float     = 0.0,      #P location where left lane first joins, m (param frame)
-                    left_sep    : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH,
+                    left_sep    : float     = math.inf,
                                                         #P location where left lane separates from this one, m (param frame)
                     right_id    : int       = -1,       #ID of an ajoining lane to its right, or -1 for none
                     right_join  : float     = 0.0,      #P location where right lane first joins, m (param frame)
-                    right_sep   : float     = Constants.SCENARIO_LENGTH + Constants.SCENARIO_BUFFER_LENGTH
+                    right_sep   : float     = math.inf
                                                         #P location where right lane separates from this one, m (param frame)
                 ):
 

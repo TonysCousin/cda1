@@ -15,5 +15,23 @@ for anyone not intently helping out.
 
 * Rewrote the Roadway class to represent the new road geometry.
 
+8/24/23
+
+* Fixed some things in inference prgm and got it to display the new roadway.
+
+8/27/23
+
+* Began revamping the environment model to be more generalized with roadway definition and vehicle population.
+
+
 TODO:
+- Rename HighwayB to something more generic that doesn't imply a specific roadway geometry. Rename Roadway to HighwayB?
+- Define the Vehicle interface and set up configs to specify the vehicles in a given scenario.
+- Review all TODOs
+- Overhaul the env to execute any number of vehicles, each with possibly a different dynamics model and control model.
+- Adapt the cda0 neighbor basic vehicle dynamics model for the first derived type.
+- Allow env ctor to be called with an initialization code. 
+	- value lane_exercise -> cycles reset() through 6 episodes, and each episode places a single vehicle at the
+	  beginning of each lane, in sequence, and lets it run the entire lane. Use this to verify the basic functions
+	  of the env, roadway, and graphics all work correctly.
 - Check all uses of Constants.SCENARIO_LENGTH

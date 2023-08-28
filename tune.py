@@ -9,7 +9,7 @@ import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 
 from stop_simple import StopSimple
-from simple_highway_ramp_wrapper import SimpleHighwayRampWrapper
+from highway_b_wrapper import HighwayBWrapper
 
 """This program tunes (explores) hyperparameters to find a good set suitable for training.
 """
@@ -55,15 +55,12 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["difficulty_level"]              = difficulty_level
-    env_config["time_step_size"]                = 0.5
+    env_config["time_step_size"]                = 0.2
     env_config["debug"]                         = 0
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
-    env_config["randomize_start_dist"]          = False
-    env_config["neighbor_speed"]                = 29.1  #29.1 m/s is posted speed limit; only applies for appropriate diff levels
-    env_config["neighbor_start_loc"]            = 0.0   #dist downtrack from beginning of lane 1 for n3, m
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
-    cfg.environment(env = SimpleHighwayRampWrapper, env_config = env_config)
+    cfg.environment(env = HighwayBWrapper, env_config = env_config)
 
     # Add exploration noise params
     #cfg.rl_module(_enable_rl_module_api = False) #disables the RL module API, which allows exploration config to be defined for ray 2.6

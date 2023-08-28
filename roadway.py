@@ -13,21 +13,60 @@ class Roadway:
         considered parallel and physically next to each other (even though the boundary separating two
         lanes may not be permeable, e.g. a jersey wall).
 
-        All lanes go from left to right, with travel direction being to the right. The coordinate system
-        is oriented so that the origin is at the left end of lane 3, with the X axis
-        going to the right and Y axis going upward on the page. Not all lanes have to begin at X = 0,
-        but at least one does. Others begin at X > 0. Y locations are only used
-        for the graphics output; they are not needed for the environment calculations.
+        Traffic flows from left to right on the page, with travel direction being to the right. The coordinate
+        system is oriented so that the origin is at the left end of lane 3, with the X axis going to the right
+        and Y axis going upward on the page. Not all lanes have to begin at X = 0, but at least one does.
+        Others begin at X > 0. Y locations are only used for the graphics output; they are not needed for the
+        environment calculations.
 
-        CAUTION: This is not a general container.  This __init__ code defines the exact geometry of the
-        scenario being used by this version of the code.
+        Lane connectivities are defined by three parameters that define the adjacent lane, as shown in the following
+        series of diagrams.  These parameters work the same whether they describe a lane on the right or left of the
+        ego vehicle's lane, so we only show the case of an adjacent lane on the right side.  In this diagram, '[x]'
+        is the agent (ego) vehicle location.
+
+        Case 1, adjacent to on-ramp:
+                           |<...............rem....................>|
+                           |<................B.....................>|
+                           |<....A.....>|                           |
+                           |            |                           |
+            Ego lane  ----[x]---------------------------------------------------------------------------->
+                                        /---------------------------/
+            Adj lane  -----------------/
+
+        ==============================================================================================================
+
+        Case 2, adjacent to exit ramp:
+                           |<..................................rem.......................................>
+                           |<.........B..........>|
+                           | A < 0                |
+                           |                      |
+            Ego lane  ----[x]---------------------------------------------------------------------------->
+            Adj lane  ----------------------------\
+                                                  \------------------------------------------------------>
+
+        ==============================================================================================================
+
+        Case 3, adjacent to mainline lane drop:
+                           |<...............rem....................>|
+                           |<................B.....................>|
+                           | A < 0                                  |
+                           |                                        |
+            Ego lane  ----[x]---------------------------------------------------------------------------->
+            Adj lane  ----------------------------------------------/
+
+        Case 4, two parallel lanes indefinitely long:  no diagram needed, but A < 0 and B = inf, rem = inf.
+
+
+        CAUTION: This is not a general container.  This __init__ code defines the exact geometry of the highway.
     """
 
-    WIDTH = 30.0 #lane width, m; using a crazy large number so that grapics are pleasing
-    COS_RAMP_ANGLE = 0.8660 #cosine of the angle of any ramp segment from the X axis
+    NUM_LANES               = 6         #total number of unique lanes in the scenario
+    WIDTH                   = 30.0      #lane width, m; using a crazy large number so that grapics are pleasing
+    COS_RAMP_ANGLE          = 0.8660    #cosine of the angle of any ramp segment from the X axis
+
 
     def __init__(self,
-                 debug      : int   #debug printing level
+                 debug      : int = 0   #debug printing level
                 ):
 
         self.debug = debug
