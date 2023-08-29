@@ -3,6 +3,12 @@ from statistics import mean
 from typing import Tuple, Dict, List
 import math
 from datetime import datetime
+import yaml
+from yaml import load
+try:
+    from yaml import CLoader as Loader
+except ImportError:
+    from yaml import Loader
 from gymnasium.spaces import Box
 import numpy as np
 from ray.rllib.env.env_context import EnvContext
@@ -10,18 +16,13 @@ from ray.rllib.env.apis.task_settable_env import TaskSettableEnv
 from ray.tune.logger import pretty_print
 
 from constants import Constants
-from roadway import Roadway
+from roadway_b import Roadway
 from vehicle import Vehicle
 from hp_prng import HpPrng
+from lane_change import LaneChange
 
 
-class LaneChange:
-    CHANGE_LEFT     = -1
-    STAY_IN_LANE    = 0
-    CHANGE_RIGHT    = 1
-
-
-class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
+class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
 
     """This environment is a segment of highway with a possible variety of on-ramps, off-ramps, lane creations,
         lane drops, and speed limit changes (including lane-specific speed limits).  The specific roadway geometry in
@@ -30,7 +31,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         in [0, N], such that lane 0 is the left-most lane and IDs increase going from left to right.
 
 
-        THIS VERSION ONLY SUPPORTS A SINGLE LEARNING AGENT VEHICLE.  Once it is proven successful, it will be
+        THIS VERSION ONLY SUPPORTS A SINGLE LEARNING AGENT VEHICLE.  Once it is proven successful, the env will be
         enhanced to train multiple agents.
 
 
@@ -119,7 +120,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         try:
             self._init(config, seed, render_mode)
         except Exception as e:
-            print("\n///// Exception trapped in SimpleHighwayRamp.__init__: ", e)
+            print("\n///// Exception trapped in HighwayEnv.__init__: ", e)
 
 
     def _init(self,
@@ -142,13 +143,32 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
 
         self._set_initial_conditions(config)
         if self.debug > 0:
-            print("\n///// SimpleHighwayRamp init: config = ", config)
+            print("\n///// HighwayEnv init: config = ", config)
+
+        # Create the roadway geometry
+        self.roadway = Roadway(self.debug)
 
         # Define the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
         self.vehicles = []
-        for i in range(Constants.NUM_NEIGHBORS + 1):
-            v = Vehicle(self.time_step_size, Constants.MAX_JERK, debug = self.debug)
+        vc = self.vehicle_config
+        assert vc["num_vehicles"] > 0, "///// HighwayEnv.__init__: illegal number of vehicles specified."
+        for i in range(vc["num_vehicles"]):
+            is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
+            spec = vc["vehicles"][i]
+            model = spec["model"](max_jerk      = spec["max_jerk"],
+                                  max_accel     = spec["max_accel"],
+                                  length        = spec["length"],
+                                  lc_duration   = spec["lc_duration"],
+                                  time_step     = self.time_step_size)
+            controller = spec["controller"]() #TODO - need to figure out args
+            v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             self.vehicles.append(v)
+
+
+
+
+
+
 
         #
         #..........Define the observation space TODO - rewrite this whole section
@@ -184,6 +204,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         #   Occupant's speed relative to ego vehicle, if occupant exists (delta-S / speed limit), in approx [-1.2, 1.2]
 
         # Indices into the observation vector
+        # CAUTION: ensure these match the OBS_SIZE defined in Constants
         self.EGO_DES_SPEED      =  0 #agent's most recent speed command, m/s (action feedback from this step)
         self.EGO_DES_SPEED_PREV =  1 #desired speed from previous time step, m/s
         self.LC_CMD             =  2 #agent's most recent lane change command, quantized (values map to the enum class LaneChange)
@@ -200,16 +221,14 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         self.Z1_REL_SPEED       = 15 #occupant's speed relative to ego speed, fraction of speed limit (+ or -)
         """
 
-        self.OBS_SIZE = 7
-
         # Gymnasium requires a member variable named observation_space. Since we are dealing with world scale values here, we
         # will need a wrapper to scale the observations for NN input. That wrapper will also need to use self.observation_space.
         # So here we must anticipate that scaling and leave the limits open enough to accommodate it.
-        lower_obs = np.zeros((self.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
+        lower_obs = np.zeros((Constants.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
         lower_obs[self.LC_CMD]              = LaneChange.CHANGE_LEFT
         lower_obs[self.LC_CMD_PREV]         = LaneChange.CHANGE_LEFT
 
-        upper_obs = np.ones(self.OBS_SIZE) #most values are 1
+        upper_obs = np.ones(Constants.OBS_SIZE) #most values are 1
         upper_obs[self.EGO_SPEED]           = Constants.MAX_SPEED
         upper_obs[self.EGO_SPEED_PREV]      = Constants.MAX_SPEED
         upper_obs[self.EGO_DES_SPEED]       = Constants.MAX_SPEED
@@ -222,7 +241,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         if self.debug == 2:
             print("///// observation_space = ", self.observation_space)
 
-        self.obs = np.zeros(self.OBS_SIZE) #will be returned from reset() and step()
+        self.obs = np.zeros(Constants.OBS_SIZE) #will be returned from reset() and step()
         self._verify_obs_limits("init after space defined")
 
         #
@@ -240,11 +259,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         #..........Remaining initializations
         #
 
-        # Create the roadway geometry
-        self.roadway = Roadway(self.debug)
-
         # Other persistent data
-        self.lane_change_count = 0  #num consecutive time steps since a lane change was begun
         self.total_steps = 0        #num time steps for this trial (worker), across all episodes; NOTE that this is different from the
                                     # total steps reported by Ray tune, which is accumulated over all rollout workers
         self.steps_since_reset = 0  #length of the current episode in time steps
@@ -301,7 +316,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         try:
             return self._reset(seed = seed, options = options)
         except Exception as e:
-            print("\n///// Exception trapped in SimpleHighwayRamp.reset: ", e)
+            print("\n///// Exception trapped in HighwayEnv.reset: ", e)
             return (None, None)
 
 
@@ -329,243 +344,55 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
 
         # options may be a dict that can specify additional configurations - unique to each particular env
         if options is not None and len(options) > 0:
-            print("\n///// Constants.reset: incoming options is: ", options)
+            print("\n///// HighwayEnv.reset: incoming options is: ", options)
             raise ValueError("reset() called with options, but options are not used in this environment.")
 
-        # Redefine the vehicle data structures - the ego vehicle is index 0
-        self.vehicles = []
-        for i in range(Constants.NUM_NEIGHBORS + 1):
-            v = Vehicle(self.time_step_size, Constants.MAX_JERK, debug = self.debug)
-            self.vehicles.append(v)
-
         #
-        #..........Initialize ego vehicle for training
+        #..........Set the initial conditions for each vehicle, depending on the scenario config
         #
 
-        # If the agent is being trained then
-        perturb_ctrl = None #TODO need to remove this
-        ego_lane_id = None
-        ego_p = None
-        ego_speed = None
-        max_ego_dist = 1.0
-        if self.training:
-            ego_lane_id = self._select_init_lane() #covers all difficulty levels
-            ego_lane_start = self.roadway.get_lane_start_p(ego_lane_id)
+        # The ego vehicle (learning agent) is at index 0. Capture its observation vector to return to our caller.
+        self.obs = None
 
-            # If we are using a perturbation controller, then get its read on perturbations underway
-            has_perturb_begun = False
-            if perturb_ctrl is not None:
-                has_perturb_begun = perturb_ctrl.has_perturb_begin()
+        # Solo bot vehicle that runs each lane in sequence at its speed limit (useful for inference only)
+        if self.scenario >= 90:
+            if self.scenario - 90 >= self.roadway.NUM_LANES:
+                raise ValueError("///// Attempting to reset to unknown scenario {}".format(self.scenario))
 
-            # If we are at difficulty level 0-3, then choose widely randomized initial conditions
-            if self.difficulty_level < 4:
-                ego_p = self.prng.random() * 3.0*Constants.VEHICLE_LENGTH + ego_lane_start
-                if self.randomize_start_dist  and  not has_perturb_begun:
-                    physical_limit = min(self.roadway.get_total_lane_length(ego_lane_id), Constants.SCENARIO_LENGTH) - 10.0
-                    initial_steps = 6000000 #num steps to wait before starting to shrink the max distance
-                    if self.total_steps <= initial_steps:
-                        max_ego_dist = physical_limit
-                    else:
-                        max_ego_dist = max((self.total_steps - initial_steps) * (10.0 - physical_limit)/(1e6 - initial_steps) + physical_limit,
-                                        10.0) #decreases over time steps
-                    ego_p = self.prng.random() * max_ego_dist + ego_lane_start
-                    if ego_lane_id == 1:    #TODO: for testing lane 2 learning only!
-                        ego_p = self.prng.random() * (max_ego_dist - 800.0) + 800.0
-                ego_speed = self.prng.random() * 5.0 + 30.0 #value in [5, 35] m/s
+            print("///// HighwayEnv.reset: setting up scenario {} for episode {}".format(self.scenario, self.episode_count))
+            for i in range(len(self.vehicles)):
+                self.vehicles[i].active = False
 
-            elif self.difficulty_level == 4  or  self.difficulty_level == 5:
-                # Code block inspired from above to support training jigher levels from scratch - agent needs to learn how to find the finish line,
-                # so allow it to start anywhere along the route, sometimes very close to the finish line, then gradually force it uptrack.
-                INITIAL_STEPS   = 0 #num steps to wait before starting to shrink the max distance
-                FINAL_STEPS     = 1000000 #num steps where max distance reduction ends
-                physical_limit = min(self.roadway.get_total_lane_length(ego_lane_id), Constants.SCENARIO_LENGTH) - 10.0
-                ego_p = self.prng.random() * 3.0*Constants.VEHICLE_LENGTH + ego_lane_start
-                if self.randomize_start_dist  and  not has_perturb_begun:
-                    max_ego_dist = physical_limit
-                    if self.total_steps > INITIAL_STEPS:
-                        max_ego_dist = max((self.total_steps - INITIAL_STEPS) * (10.0 - physical_limit)/(FINAL_STEPS - INITIAL_STEPS) + physical_limit, 10.0)
-                    ego_p = self.prng.random() * max_ego_dist + ego_lane_start
-                    #print("/////+ reset: training w/physical_limit = {:.1f}, max_ego_dist = {:.1f}, ego_p = {:.1f}" #TODO debug only
-                    #      .format(physical_limit, max_ego_dist, ego_p))
+            self.vehicles[1].reset(lane_id = self.scenario - 90, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[6])
 
-                # For level 4 we want to sync the agent in lane 2 to force it to avoid a collision by positioning it right next to the neighbors
-                if self.difficulty_level == 4  and  ego_lane_id == 2:
-                    loc = int(self.prng.random()*5.0)
-                    ego_speed = self.initialize_ramp_vehicle_speed(loc, ego_p)
-                else:
-                    ego_speed = self.prng.random() * (Constants.MAX_SPEED - 5.0) + 5.0 #not practical to train at really low speeds
+            self.obs = np.zeros(Constants.OBS_SIZE, dtype = float)
 
-            else: #undefined levels
-                ego_p = self.prng.random() * 3.0*Constants.VEHICLE_LENGTH + ego_lane_start
-                ego_speed = self.prng.random() * (Constants.MAX_SPEED - 15.0) + 15.0 #not practical to train at really low speeds
-
-        #
-        #..........Initialize ego vehicle for inference
-        #
-
-        # Else, we are doing inference, so allow configrable overrides if present
+        # No starting configuration specified - randomize everything
         else:
-            ego_lane_id = int(self.prng.random()*3) if self.init_ego_lane is None  else  self.init_ego_lane
-            ego_p = self.prng.random() * 20.0*Constants.VEHICLE_LENGTH if self.init_ego_dist is None  else  self.init_ego_dist
-            ego_p += self.roadway.get_lane_start_p(ego_lane_id)
-
-            # If difficulty level 4, then always use the config value for merge relative position
-            if self.difficulty_level == 4  and  ego_lane_id == 2:
-                ego_speed = self.initialize_ramp_vehicle_speed(self.merge_relative_pos, ego_p)
-            else:
-                ego_speed = self.prng.random() * 31.0 + 5.0 if self.init_ego_speed is None  else  self.init_ego_speed
-
-        if self.debug > 1:
-            print("///// reset: ego defined: lane = {}, p = {:.1f}, speed = {:.1f}".format(ego_lane_id, ego_p, ego_speed))
-        #print("///// reset: ego_lane_id = {}, ego_p = {:6.1f}, max_ego_dist = {:6.1f}, total_steps = {}"
-        #      .format(ego_lane_id, ego_p, max_ego_dist, self.total_steps))
-
-        # Reinitialize the ego vehicle and the whole observation vector
-        ego_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(ego_lane_id, ego_p)
-        self.vehicles[0].lane_id = ego_lane_id
-        self.vehicles[0].p = ego_p
-        self.vehicles[0].cur_speed = ego_speed
-        self.vehicles[0].lane_change_status = "none"
-        # Ego vehicle doesn't use a target speed, so it can be left untouched here.
+            for i in range(len(self.vehicles)):
+                space_found = False
+                while not space_found:
+                    lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+                    lane_begin = self.roadway.get_lane_start_p(lane_id)
+                    ddt = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0)
+                    loc = ddt + lane_begin
+                    space_found = self._verify_safe_location(i, lane_id, loc)
+                speed = self.prng.random() * Constants.MAX_SPEED
+                obs = self.vehicles[i].reset(lane_id = lane_id, init_ddt = ddt, init_speed = speed)
 
         #
-        #..........Initialize neighbor vehicles, if applicable
+        #..........Gather the observations from the appropriate vehicles & wrap up
         #
 
-        # Levels 0-3, ensure no neighbors participate
-        if self.difficulty_level < 4:
-            for n in range(1, len(self.vehicles)):
-                self.vehicles[n].active = False
+        # We must do this after all vehicles have been initialized, otherwise obs from the vehicles placed first won't
+        # include sensing of vehicle placed later.
 
-        # Level 4 (3 steady speed vehicles in lane 1)
-        elif self.difficulty_level == 4:
-            n_loc = max(self.neighbor_start_loc + self.prng.random()*6.0*Constants.VEHICLE_LENGTH, 0.0)
-            n_speed = self.neighbor_speed * (self.prng.random()*0.2 + 0.9) #assigned speed +/- 10%
-            if self.prng.random() > 0.9: #sometimes there will be no neighbor vehicles participating
-                n_speed = 0.0
-            if self.neighbor_print_latch:
-                print("///// reset worker {}: Neighbor vehicles on the move in level 4. Episode {}, step {}, loc = {:.1f}, speed = {:.1f}"
-                        .format(self.rollout_id, self.episode_count, self.total_steps, n_loc, n_speed))
-                self.neighbor_print_latch = False
-
-            # Initialize the 3 neighbor vehicles. In level 4 neighbor vehicles always go a constant speed, always travel in lane 1
-            # (for this level, the neighbors don't use their target speed, so it doesn't need to be set here).
-            n_lane_id = 1
-            self.vehicles[1].lane_id = n_lane_id
-            self.vehicles[1].p = n_loc + 6.0*Constants.VEHICLE_LENGTH #in front of vehicle n2
-            self.vehicles[1].cur_speed = n_speed
-            self.vehicles[1].lane_change_status = "none"
-            self.vehicles[2].lane_id = n_lane_id
-            self.vehicles[2].p = n_loc + 3.0*Constants.VEHICLE_LENGTH #in front of vehicle n3
-            self.vehicles[2].cur_speed = n_speed
-            self.vehicles[2].lane_change_status = "none"
-            self.vehicles[3].lane_id = n_lane_id
-            self.vehicles[3].p = n_loc + 0.0 #at end of the line of 3 neighbors
-            self.vehicles[3].cur_speed = n_speed
-            self.vehicles[3].lane_change_status = "none"
-
-            # Mark the other neighbors as unavailable
-            if Constants.NUM_NEIGHBORS > 3:
-                for n in range(4, len(self.vehicles)):
-                    self.vehicles[n].active = False
-            if self.debug > 1:
-                print("      in reset: vehicles = ")
-                for i, v in enumerate(self.vehicles):
-                    v.print(i)
-
-            # If ego vehicle is in lane 1 (where neighbors start) then we need to initialize its position so that it isn't
-            # going to immediately crash with them (n1 is always the farthest downtrack and n3 is always the farthest uptrack). Give it
-            # more room if going in front of the neighbors, as ego has limited accel and may be starting much slower than they are.
-            if ego_lane_id == 1:
-                min_loc = self.vehicles[3].p - 3.0*Constants.VEHICLE_LENGTH
-                max_loc = self.vehicles[1].p + 6.0*Constants.VEHICLE_LENGTH
-                midway = 0.5*(max_loc - min_loc) + min_loc
-                if midway < ego_p < max_loc  or  min_loc < 0.0:
-                    ego_p = max_loc
-                    if self.debug > 0:
-                        print("///// reset adjusting agent to: lane = {}, speed = {:.2f}, p = {:.2f}".format(ego_lane_id, ego_speed, ego_p))
-                elif min_loc < ego_p <= midway:
-                    ego_p = min_loc
-                    if self.debug > 0:
-                        print("///// reset adjusting agent to: lane = {}, speed = {:.2f}, p = {:.2f}".format(ego_lane_id, ego_speed, ego_p))
-
-        # Level 5 (neighbors have differing speeds, lanes and starting locations, and have ACC capability to avoid forward collisions)
-        elif self.difficulty_level == 5:
-
-            # Place the neighbors, one at a time
-            for n in range(1, len(self.vehicles)): #don't look at the ego vehicle (0)
-
-                lane_id = 0
-                loc = 0.0
-
-                # For neighbor #1, frequently force it to be downtrack of the ego vehicle, and #2 similarly downtrack but in the next
-                # through lane, both to force learning of a rear-end situation
-                if n <= 2  and  self.prng.random() < 0.9:
-                    if n == 1:
-                        lane_id = ego_lane_id
-                    elif ego_lane_id == 1:
-                        lane_id = 0
-                    else:
-                        lane_id = 1
-                    loc = ego_p + min(self.prng.random()*200.0 + 3.0*Constants.VEHICLE_LENGTH, self.roadway.get_total_lane_length(lane_id))
-
-                # Else, choose the neighbor's location, but avoid being too close to another vehicle, longitudinally
-                else:
-                    space_found = False
-                    while not space_found:
-                        lane_id = 0
-                        draw = self.prng.random()
-                        if draw < 0.333:
-                            lane_id = 1
-                        elif draw < 0.667:
-                            lane_id = 2
-                        lane_begin = self.roadway.get_lane_start_p(lane_id)
-                        max_dist = min(max(max_ego_dist, 0.3*Constants.SCENARIO_LENGTH), self.roadway.get_total_lane_length(lane_id) - 50.0)
-                        loc = self.prng.random()*max_dist + lane_begin
-                        space_found = self._verify_safe_location(n, lane_id, loc)
-
-                # Store the initial state of this neighbor
-                self.vehicles[n].lane_id = lane_id
-                self.vehicles[n].p = loc
-                min_speed = 0.7*Constants.ROAD_SPEED_LIMIT
-                max_speed = Constants.MAX_SPEED
-                speed = self.prng.random()*(max_speed - min_speed) + min_speed
-                self.vehicles[n].cur_speed = speed
-                self.vehicles[n].tgt_speed = speed #this will be the speed the ACC controller always tries to hit
-                self.vehicles[n].lane_change_status = "none"
-                #print("/////+ reset: neighbor {} lane = {}, p = {:6.1f}, speed = {:4.1f}".format(n, lane_id, loc, self.vehicles[n].cur_speed))
-
-        # Undefined levels
-        else:
-            raise NotImplementedError("///// Neighbor vehicle motion not defined for difficulty level {}".format(self.difficulty_level))
-
-        #print("///// reset: training = {}, ego_lane_id = {}, ego_p = {:.2f}, ego_speed = {:.2f}".format(self.training, ego_lane_id, ego_p, ego_speed))
-        self._verify_obs_limits("reset after initializing local vars")
-
-        #
-        #..........Wrap up
-        #
-
-        # Reinitialize the remainder of the observation vector
-        self.obs = np.zeros(self.OBS_SIZE, dtype = float)
-        self.obs[self.LC_CMD]               = LaneChange.STAY_IN_LANE
-        self.obs[self.LC_CMD_PREV]          = LaneChange.STAY_IN_LANE
-        self.obs[self.EGO_SPEED]            = ego_speed
-        self.obs[self.EGO_SPEED_PREV]       = ego_speed
-        self.obs[self.EGO_DES_SPEED]        = ego_speed
-        self.obs[self.EGO_DES_SPEED_PREV]   = ego_speed
-        self.obs[self.EGO_LANE_REM]         = ego_rem
-        self.obs[self.STEPS_SINCE_LN_CHG]   = Constants.MAX_STEPS_SINCE_LC
-        self._verify_obs_limits("reset after populating main obs with ego stuff")
-        self._update_obs_zones()
+        # Get the ego vehicle's observations to return to our caller
+        self.obs = self.vehicle_config[0].get_obs_vector()
 
         # Other persistent data
-        self.lane_change_count = 0
         self.steps_since_reset = 0
-        self.stopped_count = 0
-        self.reward_for_completion = True
         self.episode_count += 1
-        self._verify_obs_limits("end of reset")
 
         if self.debug > 0:
             print("///// End of reset().")
@@ -581,7 +408,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         try:
             return self._step(cmd)
         except Exception as e:
-            print("\n///// Exception trapped in SimpleHighwayRamp.step: ", e)
+            print("\n///// Exception trapped in HighwayEnv.step: ", e)
 
 
     def _step(self,
@@ -589,7 +416,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
             ) -> Tuple[np.array, float, bool, bool, Dict]:
 
         """Executes a single time step of the environment.  Determines how the input commands (actions) will alter the
-            simulated world and returns the resulting observations to the agent.
+            simulated world and returns the resulting observations.
 
             Return is array of new observations, new reward, done flag, truncated flag, and a dict of additional info.
 
@@ -624,6 +451,19 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         lc_cmd = int(math.floor(action[1] + 0.5))
         #print("///// step: incoming cmd[1] = {:5.2f}, lc_cmd = {:2}, current lane = {}, p = {:7.2f}, steps = {}"
         #      .format(cmd[1], lc_cmd, self.vehicles[0].lane_id, self.vehicles[0].p, self.steps_since_reset))
+
+        # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state and observations.
+        # Note that the ego vehicle is always at index 0.
+
+
+
+
+
+
+
+
+
+
 
         # Move the ego vehicle downtrack. This doesn't account for possible lane changes, which are handled seperately, below.
         new_ego_speed, new_ego_p = self.vehicles[0].advance_vehicle_spd(desired_speed)
@@ -869,7 +709,7 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         """
 
         assert 0 <= vehicle_id < len(self.vehicles), \
-                "///// SimpleHighwayRamp.get_vehicle_dist_downtrack: illegal vehicle_id entered: {}".format(vehicle_id)
+                "///// HighwayEnv.get_vehicle_dist_downtrack: illegal vehicle_id entered: {}".format(vehicle_id)
 
         ddt = self.vehicles[vehicle_id].p
         lane_id = self.vehicles[vehicle_id].lane_id
@@ -1004,6 +844,14 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         if db is not None  and  db != ""  and  0 <= int(db) <= 2:
             self.debug = int(db)
 
+        self.training = False #is the environment being used in a training job? (affects scaling of observations)
+        try:
+            tr = config["training"]
+            if tr == "True":
+                self.training = True
+        except KeyError as e:
+            pass
+
         self.verify_obs = False #verify that the obs vector values are all within the specified limits (runs slower)?
         try:
             vo = config["verify_obs"]
@@ -1032,6 +880,24 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
             ed = config["init_ego_dist"]
             if 0 <= ed < Constants.SCENARIO_LENGTH:
                 self.init_ego_dist = ed
+        except KeyError as e:
+            pass
+
+        self.vehicle_config = {} #dict of configs specific to the fleet of vehicles
+        vcf = None
+        try:
+            vcf = config["vehicle_file"]
+            stream = open(vcf, 'r')
+            d = yaml.load(stream, Loader = Loader) #TODO: replace with call to safe_load() to plug security risk (https://pyyaml.org/wiki/PyYAMLDocumentation)
+            self.vehicle_config = d
+        except Exception as e:
+            print("///// Exception in loading YAML file {}: {}".format(vcf, e))
+
+        self.scenario = 0 #indicates the initial conditions of the scenario
+        try:
+            s = config["scenario"]
+            if 0 <= s < 100:
+                self.scenario = int(s)
         except KeyError as e:
             pass
 
@@ -1480,12 +1346,12 @@ class HighwayB(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEn
         hi = self.observation_space.high
 
         try:
-            for i in range(self.OBS_SIZE):
+            for i in range(Constants.OBS_SIZE):
                 assert lo[i] <= self.obs[i] <= hi[i], "\n///// obs[{}] value ({}) is outside bounds {} and {}" \
                                                         .format(i, self.obs[i], lo[i], hi[i])
 
         except AssertionError as e:
             print(e)
             print("///// Full obs vector content at: {}:".format(tag))
-            for j in range(self.OBS_SIZE):
+            for j in range(Constants.OBS_SIZE):
                 print("      {:2d}: {}".format(j, self.obs[j]))

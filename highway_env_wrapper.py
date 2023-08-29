@@ -4,16 +4,16 @@ from ray.rllib.env.env_context import EnvContext
 from gymnasium.spaces import Box
 
 from constants import Constants
-from highway_b_wrapper import HighwayB
+from highway_env import HighwayEnv
 
 
-class HighwayBWrapper(HighwayB):
+class HighwayEnvWrapper(HighwayEnv):
     """Wraps the custom environment in order to properly convert observations and actions into usable structures for
         use by a torch NN.
     """
 
     def __init__(self,
-                    config      : EnvContext
+                 config      : EnvContext
                 ):
 
         super().__init__(config)
@@ -60,12 +60,6 @@ class HighwayBWrapper(HighwayB):
             sent back to the NN for the next time step, if that action is to be taken.
         """
 
-        # Unscale the action values
-        #ua = [None]*2
-        #ua[0] = action[0] * Constants.MAX_SPEED #Desired speed, m/s
-        #ua[1] = math.floor(action[1] + 0.5) + 1.0       #maps desired lane from [-1, 1] into (0, 1, 2)
-        #print("///// WRAPPER step: action = ", action, ", ua = ", ua)
-
         # Step the environment
         raw_obs, r, d, t, i = super().step(action)
         o = None
@@ -87,25 +81,15 @@ class HighwayBWrapper(HighwayB):
 
         """Converts a raw observation vector from the parent environment to a scaled vector usable by a NN."""
 
-        scaled = [0.0]*self.OBS_SIZE
+        scaled = [0.0]*Constants.OBS_SIZE
 
-        scaled[self.EGO_LANE_REM]       = min(obs[self.EGO_LANE_REM]    / Constants.SCENARIO_LENGTH, 1.1) #range [0, 1.1]
-        scaled[self.EGO_SPEED]          = obs[self.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.EGO_SPEED_PREV]     = obs[self.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.STEPS_SINCE_LN_CHG] = obs[self.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
-        scaled[self.NEIGHBOR_IN_EGO_ZONE] = obs[self.NEIGHBOR_IN_EGO_ZONE]
         scaled[self.EGO_DES_SPEED]      = obs[self.EGO_DES_SPEED]       / Constants.MAX_SPEED           #range [0, 1]
         scaled[self.EGO_DES_SPEED_PREV] = obs[self.EGO_DES_SPEED_PREV]  / Constants.MAX_SPEED           #range [0, 1]
         scaled[self.LC_CMD]             = obs[self.LC_CMD]
         scaled[self.LC_CMD_PREV]        = obs[self.LC_CMD_PREV]
-
-        # Handle all the geometric zones - none of these need scaling at this time, so just copy each element
-        base = self.Z1_DRIVEABLE
-        zone_data_size = self.Z2_DRIVEABLE - self.Z1_DRIVEABLE
-        for zone in range(9):
-            offset = base + zone*zone_data_size
-            for i in range(zone_data_size):
-                scaled[offset + i] = obs[offset + i]
+        scaled[self.EGO_SPEED]          = obs[self.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
+        scaled[self.EGO_SPEED_PREV]     = obs[self.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
+        scaled[self.STEPS_SINCE_LN_CHG] = obs[self.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
 
         # Return the obs as an ndarray
         vec = np.array(scaled, dtype=np.float32)

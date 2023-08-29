@@ -5,8 +5,8 @@ from pygame.locals import *
 import gymnasium
 from typing import List
 from constants import Constants
-from highway_b_wrapper import HighwayBWrapper
-from roadway import Roadway
+from highway_env_wrapper import HighwayEnvWrapper
+from roadway_b import Roadway
 
 """Provides all the graphics display for the inference program."""
 
@@ -113,7 +113,7 @@ class Graphics:
         # Set up lists of previous screen coords and display colors for each vehicle
         self.prev_veh_r = [0] * (Constants.NUM_NEIGHBORS+1)
         self.prev_veh_s = [0] * (Constants.NUM_NEIGHBORS+1)
-        self.veh_colors = [Graphics.NEIGHBOR_COLOR] * (HighwayBWrapper.NUM_NEIGHBORS+1)
+        self.veh_colors = [Graphics.NEIGHBOR_COLOR] * (HighwayEnvWrapper.NUM_NEIGHBORS+1)
         self.veh_colors[0] = Graphics.EGO_COLOR
 
         # Initialize the previous vehicles' locations near the beginning of a lane (doesn't matter which lane for this step)

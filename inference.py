@@ -7,58 +7,46 @@ import ray
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 from ray.tune.logger import pretty_print
-from highway_b_wrapper import HighwayBWrapper
+
+from highway_env_wrapper import HighwayEnvWrapper
+from roadway_b import Roadway
+from hp_prng import HpPrng
 from graphics import Graphics
 
 """This program runs the selected policy checkpoint for one episode and captures key state variables throughout."""
 
 def main(argv):
 
-    prng = np.random.default_rng()
+    #prng = np.random.default_rng()
+    prng = HpPrng()
 
     # Handle any args
     num_args = len(argv)
     if num_args == 1  or  num_args == 3:
-        print("Usage is: {} <checkpoint> [learning_level, starting_lane [, relative_pos]]".format(argv[0]))
+        print("Usage is: {} <checkpoint> [starting_lane]".format(argv[0]))
         sys.exit(1)
 
-    #TODO - reconsider all cmd line args
     checkpoint = argv[1]
-    learning_level = 0
-    relative_pos = 2
-    start_lane = int(prng.random()*3)
+    start_lane = int(prng.random()*Roadway.NUM_LANES)
     if num_args > 2:
-        level = int(argv[2])
-        if 0 <= level <= 6:
-            learning_level = level
-        lane = int(argv[3])
-        if 0 <= lane <= 2:
+        lane = int(argv[2])
+        if 0 <= lane <= Roadway.NUM_LANES:
             start_lane = lane
-
-        if num_args == 5:
-            rp = int(argv[4])
-            if 0 <= rp <= 4:
-                relative_pos = rp
-
-    ray.init()
 
     # Set up the environment
     env_config = {  "time_step_size":       0.5,
                     "debug":                0,
-                    "difficulty_level":     learning_level,
-                    "init_ego_lane":        start_lane,
                     "verify_obs":           True,
-                    #"training":             True,           #TODO: debug only!
-                    #"randomize_start_dist": True,           #TODO: debug only
-                    #"neighbor_speed":       29.1,
-                    #"neighbor_start_loc":   0.0, #dist downtrack from beginning of lane 1 for n3, m
-                    "merge_relative_pos":   relative_pos, #neighbor vehicle that we want ego to be beside when starting in lane 2 (level 4 only)
+                    "scenario":             90+start_lane, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
+                    "vehicle_file":         "vehicle_config.yaml",
                 }
-    env = HighwayBWrapper(env_config)
+    env = HighwayEnvWrapper(env_config)
     #print("///// Environment configured. Params are:")
     #print(pretty_print(cfg.to_dict()))
     env.reset()
 
+    # Set up the Ray framework
+    ray.init()
     cfg = sac.SACConfig()
     cfg.framework("torch").exploration(explore = False)
     cfg_dict = cfg.to_dict()
@@ -70,7 +58,7 @@ def main(argv):
     q_config["fcnet_activation"]                = "relu"
     cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
-    cfg.environment(env = HighwayBWrapper, env_config = env_config)
+    cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
 
     # Restore the selected checkpoint file
     # Note that the raw environment class is passed to the algo, but we are only using the algo to run the NN model,

@@ -23,9 +23,12 @@ for anyone not intently helping out.
 
 * Began revamping the environment model to be more generalized with roadway definition and vehicle population.
 
+8/28/23
+
+* Continued building new environment model.
+
 
 TODO:
-- Rename HighwayB to something more generic that doesn't imply a specific roadway geometry. Rename Roadway to HighwayB?
 - Define the Vehicle interface and set up configs to specify the vehicles in a given scenario.
 - Review all TODOs
 - Overhaul the env to execute any number of vehicles, each with possibly a different dynamics model and control model.

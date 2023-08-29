@@ -1,36 +1,86 @@
-from constants import Constants
+from abc import ABC, abstractmethod
 from typing import Tuple, Dict, List
+import math
 
-class Vehicle:
-    """Represents a single vehicle on the Roadway."""
+from constants import Constants
+from vehicle_model import VehicleModel
+from vehicle_controller import VehicleController
+from hp_prng import HpPrng
+from roadway_b import Roadway
+from lane_change import LaneChange
+
+class Vehicle(ABC):
+    """Abstract base class that represents a single vehicle in the environment.  Specific vehicle types must be derived from this."""
 
     def __init__(self,
-                    step_size   : float,    #duration of a time step, s
-                    max_jerk    : float,    #max allowed jerk, m/s^3
-                    tgt_speed   : float = 0.0,  #the (constant) target speed that the vehicle will try to maintain, m/s
-                    cur_speed   : float = 0.0,  #vehicle's current speed, m/s
-                    prev_speed  : float = 0.0,  #vehicle's speed in the previous time step, m/s
-                    debug       : int = 0   #debug printing level
+                    model       : VehicleModel, #describes the specific capabilities of the vehicle type
+                    controller  : VehicleController, #provides the control algo that determines actions for this vehicle
+                    prng        : HpPrng,       #the pseudo-random number generator to be used
+                    roadway     : Roadway,      #the roadway geometry object for this scenario
+                    learning    : bool = False, #is this vehicle going to be learning from the experience?
+                    step_size   : float = 0.1,  #duration of a time step, s
+                    debug       : int   = 0     #debug printing level
                 ):
 
+        self.model = model
+        self.controller = controller
+        self.prng = prng
+        self.roadway = roadway
+        self.learning = learning
         self.time_step_size = step_size
-        self.max_jerk = max_jerk
-        self.tgt_speed = tgt_speed
-        self.cur_speed = cur_speed
-        self.prev_speed = prev_speed
         self.debug = debug
 
-        self.lane_id = -1                   #-1 is an illegal value
-        self.p = 0.0                        #P coordinate of vehicle center in parametric frame, m
-        self.prev_accel = 0.0               #Forward actual acceleration in previous time step, m/s^2
-        self.lane_change_status = "none"    #Initialized to no lane change underway
-        self.active = True                  #is the vehicle an active part of the scenario? If false, it is invisible
-        self.crashed = False                #has this vehicle crashed into another?
+        self.cur_speed = 0.0                    #current forward speed, m/s
+        self.prev_speed = 0.0                   #forward speed in previous time step, m/s
+        self.lane_id = -1                       #vehicle's current lane ID; -1 is an illegal value
+        self.p = 0.0                            #P coordinate of vehicle center in parametric frame, m
+        self.prev_accel = 0.0                   #forward actual acceleration in previous time step, m/s^2
+        self.lane_change_status = "none"        #initialized to no lane change underway; legal values are "left", "right", "none"
+        self.lane_change_count = 0              #num consecutive time steps since a lane change was begun; 0 indicates no lc maneuver underway
+        self.active = True                      #is the vehicle an active part of the scenario? If false, it cannot move and cannot be reactivated until reset
+        self.crashed = False                    #has this vehicle crashed into another?
+        self.off_road = False                   #has this vehicle driven off-road?
+        self.stopped_count = 0                  #num consecutive time steps that the vehicle's speed is very close to 0
+
+
+    def reset(self,
+              init_lane_id      : int   = -1,   #initial lane assignment; if -1 then will be randomized
+              init_ddt          : float = None, #initial dist downtrack from chosen lane start, m; if None then will be randomized
+              init_speed        : float = 0.0,  #initial speed of the vehicle, m/s
+             ):
+
+        """Reinitializes the vehicle for a new episode.
+            NOTE: this is not the same as the reset() method in an environment class, which is required to return observations.
+            This method does not return anything.
+        """
+
+        self.lane_id = init_lane_id
+        if init_lane_id == -1:
+            self.lane_id = int(self.prng.random()*self.roadway.NUM_LANES)
+
+        lane_len = self.roadway.get_total_lane_length(self.lane_id)
+        ddt = init_ddt
+        if init_ddt is None:
+            ddt = self.prng.random()*(lane_len - 50.0)
+        self.p = self.roadway.get_lane_start_p(self.lane_id) + ddt
+
+        self.cur_speed = init_speed
+        self.prev_speed = init_speed
+
+        # Reset other stuff to start the episode with a clean slate
+        self.prev_accel = 0.0
+        self.lane_change_status = "none"
+        self.lane_change_count = 0
+        self.active = True
+        self.crashed = False
+        self.off_road = False
+        self.stopped_count = 0
 
 
     def advance_vehicle_spd(self,
                             new_speed_cmd   : float,    #the newly commanded speed, m/s
                            ) -> Tuple[float, float]:
+
         """Advances a vehicle's forward motion for one time step according to the vehicle dynamics model.
             Note that this does not consider lateral motion, which needs to be handled elsewhere.
 
@@ -47,6 +97,7 @@ class Vehicle:
     def advance_vehicle_accel(self,
                               new_accel_cmd   : float,    #newest fwd accel command, m/s^2
                              ) -> Tuple[float, float]:
+
         """Advances a vehicle's forward motion for one time step according to the vehicle dynamics model.
             Note that this does not consider lateral motion, which needs to be handled elsewhere.
 
@@ -54,8 +105,8 @@ class Vehicle:
         """
 
         # Determine new jerk, accel, speed & location of the vehicle
-        new_jerk = min(max((new_accel_cmd - self.prev_accel) / self.time_step_size, -self.max_jerk), self.max_jerk)
-        new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -Constants.MAX_ACCEL), Constants.MAX_ACCEL)
+        new_jerk = min(max((new_accel_cmd - self.prev_accel) / self.time_step_size, -self.model.max_jerk), self.model.max_jerk)
+        new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -self.model.max_accel), self.model.max_accel)
         new_speed = min(max(self.cur_speed + self.time_step_size*new_accel, 0.0), Constants.MAX_SPEED) #vehicle won't start moving backwards
         new_p = max(self.p + self.time_step_size*(new_speed + 0.5*self.time_step_size*new_accel), 0.0)
 

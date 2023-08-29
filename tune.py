@@ -9,7 +9,7 @@ import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 
 from stop_simple import StopSimple
-from highway_b_wrapper import HighwayBWrapper
+from highway_env_wrapper import HighwayEnvWrapper
 
 """This program tunes (explores) hyperparameters to find a good set suitable for training.
 """
@@ -59,8 +59,8 @@ def main(argv):
     env_config["debug"]                         = 0
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
-    env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
-    cfg.environment(env = HighwayBWrapper, env_config = env_config)
+    env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode #TODO: needed?
+    cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
 
     # Add exploration noise params
     #cfg.rl_module(_enable_rl_module_api = False) #disables the RL module API, which allows exploration config to be defined for ray 2.6

@@ -1,0 +1,10 @@
+# Provides definitions for all vehicles to be used in the scenario
+num_vehicles: 1
+vehicles:
+  - vehicle: 0 ##########################
+    model:        "BotType1"
+    controller:   "BotType1Ctrl"
+    max_jerk:     4.0     #m/s^3
+    max_accel:    3.0     #m/s^2
+    length:       5.0     #m
+    lc_duration:  3.0     #sec
