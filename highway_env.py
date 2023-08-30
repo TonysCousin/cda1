@@ -17,6 +17,7 @@ from ray.rllib.env.apis.task_settable_env import TaskSettableEnv
 from ray.tune.logger import pretty_print
 
 from constants import Constants
+from obs_vec import ObsVec
 from roadway_b import Roadway
 from vehicle import Vehicle
 from hp_prng import HpPrng
@@ -210,45 +211,29 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #   Occupant's P location within the zone, if occupant exists ((P - Prear) / zone length), in [0, 1]
         #   Occupant's speed relative to ego vehicle, if occupant exists (delta-S / speed limit), in approx [-1.2, 1.2]
 
-        # Indices into the observation vector
-        # CAUTION: ensure these match the OBS_SIZE defined in Constants
-        self.EGO_DES_SPEED      =  0 #agent's most recent speed command, m/s (action feedback from this step)
-        self.EGO_DES_SPEED_PREV =  1 #desired speed from previous time step, m/s
-        self.LC_CMD             =  2 #agent's most recent lane change command, quantized (values map to the enum class LaneChange)
-        self.LC_CMD_PREV        =  3 #lane change command from previous time step, quantized
-        self.EGO_SPEED          =  4 #agent's actual forward speed, m/s
-        self.EGO_SPEED_PREV     =  5 #agent's actual speed in previous time step, m/s
-        self.STEPS_SINCE_LN_CHG =  6 #num time steps since the previous lane change was initiated
-
-        """
-        self.Z1_DRIVEABLE       = 11 #is all of this zone drivable pavement? (bool 0 or 1)
-        self.Z1_REACHABLE       = 12 #is all of this zone reachable from ego's lane? (bool 0 or 1)
-        self.Z1_OCCUPIED        = 13 #is this zone occupied by a neighbor vehicle? (bool 0 or 1)
-        self.Z1_ZONE_P          = 14 #occupant's P location relative to this zone (0 = at rear edge of zone, 1 = at front edge)
-        self.Z1_REL_SPEED       = 15 #occupant's speed relative to ego speed, fraction of speed limit (+ or -)
-        """
-
         # Gymnasium requires a member variable named observation_space. Since we are dealing with world scale values here, we
         # will need a wrapper to scale the observations for NN input. That wrapper will also need to use self.observation_space.
         # So here we must anticipate that scaling and leave the limits open enough to accommodate it.
-        lower_obs = np.zeros((Constants.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
-        lower_obs[self.LC_CMD]              = LaneChange.CHANGE_LEFT
-        lower_obs[self.LC_CMD_PREV]         = LaneChange.CHANGE_LEFT
+        lower_obs = np.zeros((ObsVec.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
+        lower_obs[ObsVec.LC_CMD]              = LaneChange.CHANGE_LEFT
+        lower_obs[ObsVec.LC_CMD_PREV]         = LaneChange.CHANGE_LEFT
 
-        upper_obs = np.ones(Constants.OBS_SIZE) #most values are 1
-        upper_obs[self.EGO_SPEED]           = Constants.MAX_SPEED
-        upper_obs[self.EGO_SPEED_PREV]      = Constants.MAX_SPEED
-        upper_obs[self.EGO_DES_SPEED]       = Constants.MAX_SPEED
-        upper_obs[self.EGO_DES_SPEED_PREV]  = Constants.MAX_SPEED
-        upper_obs[self.LC_CMD]              = LaneChange.CHANGE_RIGHT
-        upper_obs[self.LC_CMD_PREV]         = LaneChange.CHANGE_RIGHT
-        upper_obs[self.STEPS_SINCE_LN_CHG]  = Constants.MAX_STEPS_SINCE_LC
+        upper_obs = np.ones(ObsVec.OBS_SIZE) #most values are 1
+        upper_obs[ObsVec.EGO_DES_SPEED]       = Constants.MAX_SPEED
+        upper_obs[ObsVec.EGO_DES_SPEED_PREV]  = Constants.MAX_SPEED
+        upper_obs[ObsVec.LC_CMD]              = LaneChange.CHANGE_RIGHT
+        upper_obs[ObsVec.LC_CMD_PREV]         = LaneChange.CHANGE_RIGHT
+        upper_obs[ObsVec.STEPS_SINCE_LN_CHG]  = Constants.MAX_STEPS_SINCE_LC
+        upper_obs[ObsVec.EGO_SPEED]           = Constants.MAX_SPEED
+        upper_obs[ObsVec.EGO_SPEED_PREV]      = Constants.MAX_SPEED
+        upper_obs[ObsVec.FWD_DIST]            = Constants.REFERENCE_DIST
+        upper_obs[ObsVec.FWD_SPEED]           = Constants.MAX_SPEED
 
         self.observation_space = Box(low = lower_obs, high = upper_obs, dtype = float)
         if self.debug == 2:
             print("///// observation_space = ", self.observation_space)
 
-        self.obs = np.zeros(Constants.OBS_SIZE) #will be returned from reset() and step()
+        self.obs = np.zeros(ObsVec.OBS_SIZE) #will be returned from reset() and step()
         self._verify_obs_limits("init after space defined")
 
         #
@@ -369,8 +354,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lane_id = self.scenario - 90
             self.vehicles[1].reset(lane_id, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[0][5])
 
-            self.obs = np.zeros(Constants.OBS_SIZE, dtype = float)
-
         # No starting configuration specified - randomize everything
         else:
             for i in range(len(self.vehicles)):
@@ -382,7 +365,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     loc = ddt + lane_begin
                     space_found = self._verify_safe_location(i, lane_id, loc)
                 speed = self.prng.random() * Constants.MAX_SPEED
-                obs = self.vehicles[i].reset(lane_id = lane_id, init_ddt = ddt, init_speed = speed)
+                self.vehicles[i].reset(lane_id = lane_id, init_ddt = ddt, init_speed = speed)
 
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
@@ -392,7 +375,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # include sensing of vehicle placed later.
 
         # Get the ego vehicle's observations to return to our caller
-        self.obs = self.vehicles[0].model.get_obs_vector()
+        self.obs = self.vehicles[0].model.get_obs_vector(0, self.vehicles)
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -496,10 +479,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         .format(n, self.vehicles[n].lane_id, new_speed_cmd, new_speed, new_p))
 
         # Update ego vehicle obs vector
-        self.obs[self.EGO_SPEED_PREV] = self.obs[self.EGO_SPEED]
-        self.obs[self.EGO_SPEED] = new_ego_speed
-        self.obs[self.EGO_DES_SPEED_PREV] = self.obs[self.EGO_DES_SPEED]
-        self.obs[self.EGO_DES_SPEED] = desired_speed
+        self.obs[ObsVec.EGO_SPEED_PREV] = self.obs[ObsVec.EGO_SPEED]
+        self.obs[ObsVec.EGO_SPEED] = new_ego_speed
+        self.obs[ObsVec.EGO_DES_SPEED_PREV] = self.obs[ObsVec.EGO_DES_SPEED]
+        self.obs[ObsVec.EGO_DES_SPEED] = desired_speed
         if new_ego_p >= Constants.SCENARIO_LENGTH:
             done = True
             return_info["reason"] = "SUCCESS - end of scenario!"
@@ -626,24 +609,24 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("/////+ step: {} step {}, off end of terminating lane".format(self.rollout_id, self.total_steps))  #TODO debug
 
         # Update counter for time in between lane changes
-        if self.obs[self.STEPS_SINCE_LN_CHG] < Constants.MAX_STEPS_SINCE_LC:
-            self.obs[self.STEPS_SINCE_LN_CHG] += 1
+        if self.obs[ObsVec.STEPS_SINCE_LN_CHG] < Constants.MAX_STEPS_SINCE_LC:
+            self.obs[ObsVec.STEPS_SINCE_LN_CHG] += 1
 
         # If current lane change is complete, then reset its state and counter
         if self.lane_change_count >= Constants.TOTAL_LANE_CHANGE_STEPS:
             self.vehicles[0].lane_change_status = "none"
             self.lane_change_count = 0
-            self.obs[self.STEPS_SINCE_LN_CHG] = Constants.TOTAL_LANE_CHANGE_STEPS
+            self.obs[ObsVec.STEPS_SINCE_LN_CHG] = Constants.TOTAL_LANE_CHANGE_STEPS
 
         self.vehicles[0].lane_id = new_ego_lane
         if self.debug > 0:
             print("      step: done lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}, done = {}, steps since = {}"
-                    .format(self.vehicles[0].lane_change_status, new_ego_lane, tgt_lane, self.lane_change_count, done, self.obs[self.STEPS_SINCE_LN_CHG]))
+                    .format(self.vehicles[0].lane_change_status, new_ego_lane, tgt_lane, self.lane_change_count, done, self.obs[ObsVec.STEPS_SINCE_LN_CHG]))
 
         # Update the obs vector with the new state info
         self.obs[self.EGO_LANE_REM] = new_ego_rem
-        self.obs[self.LC_CMD_PREV] = self.obs[self.LC_CMD]
-        self.obs[self.LC_CMD] = lc_cmd
+        self.obs[ObsVec.LC_CMD_PREV] = self.obs[ObsVec.LC_CMD]
+        self.obs[ObsVec.LC_CMD] = lc_cmd
         self._update_obs_zones()
         self._verify_obs_limits("step after updating obs vector")
 
@@ -1195,7 +1178,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             reward += bonus
 
             # Small penalty for widely varying lane commands
-            cmd_diff = abs(self.obs[self.LC_CMD] - self.obs[self.LC_CMD_PREV])
+            cmd_diff = abs(self.obs[ObsVec.LC_CMD] - self.obs[ObsVec.LC_CMD_PREV])
             penalty = 0.1 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
@@ -1203,7 +1186,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Small penalty for widely varying speed commands
             if self.difficulty_level > 0:
-                cmd_diff = abs(self.obs[self.EGO_DES_SPEED] - self.obs[self.EGO_DES_SPEED_PREV]) / Constants.MAX_SPEED
+                cmd_diff = abs(self.obs[ObsVec.EGO_DES_SPEED] - self.obs[ObsVec.EGO_DES_SPEED_PREV]) / Constants.MAX_SPEED
                 penalty = 0.4 * cmd_diff * cmd_diff
                 reward -= penalty
                 if penalty > 0.0001:
@@ -1214,7 +1197,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if self.difficulty_level == 1  or  self.difficulty_level == 2:
                 speed_mult *= 2.0
 
-            norm_speed = self.obs[self.EGO_SPEED] / Constants.ROAD_SPEED_LIMIT #1.0 = speed limit
+            norm_speed = self.obs[ObsVec.EGO_SPEED] / Constants.ROAD_SPEED_LIMIT #1.0 = speed limit
             diff = abs(norm_speed - 1.0)
             penalty = 0.0
             if diff > 0.02:
@@ -1224,7 +1207,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.lane_change_count == 1:
-                penalty = 0.05 + 0.005*(Constants.MAX_STEPS_SINCE_LC - self.obs[self.STEPS_SINCE_LN_CHG])
+                penalty = 0.05 + 0.005*(Constants.MAX_STEPS_SINCE_LC - self.obs[ObsVec.STEPS_SINCE_LN_CHG])
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
@@ -1247,12 +1230,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         hi = self.observation_space.high
 
         try:
-            for i in range(Constants.OBS_SIZE):
+            for i in range(ObsVec.OBS_SIZE):
                 assert lo[i] <= self.obs[i] <= hi[i], "\n///// obs[{}] value ({}) is outside bounds {} and {}" \
                                                         .format(i, self.obs[i], lo[i], hi[i])
 
         except AssertionError as e:
             print(e)
             print("///// Full obs vector content at: {}:".format(tag))
-            for j in range(Constants.OBS_SIZE):
+            for j in range(ObsVec.OBS_SIZE):
                 print("      {:2d}: {}".format(j, self.obs[j]))

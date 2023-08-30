@@ -27,11 +27,15 @@ class VehicleModel(ABC):
 
 
     @abstractmethod
-    def get_obs_vector(self) -> np.array:
+    def get_obs_vector(self,
+                       my_id    : int,      #ID of this vehicle (its index into the vehicles list)
+                       vehicles : list,     #list of all Vehicles in the scenario
+                      ) -> np.array:
+
         """Gathers all of the vehicle's observations and returns them as a numpy vector.
 
             CAUTION: the returned observation vector must be at actual world scale and needs to be
                      preprocessed before going into a NN!
         """
 
-        raise NotImplementedError("///// VehicleModel.get_obs_vector().")
+        raise NotImplementedError("///// VehicleModel.get_obs_vector() must be overridden.")

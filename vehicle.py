@@ -1,6 +1,4 @@
-from abc import ABC, abstractmethod
 from typing import Tuple, Dict, List
-import math
 
 from constants import Constants
 from vehicle_model import VehicleModel
@@ -9,8 +7,10 @@ from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
 
-class Vehicle(ABC):
-    """Abstract base class that represents a single vehicle in the environment.  Specific vehicle types must be derived from this."""
+class Vehicle:
+    """Represents a single vehicle in the environment.  Specific vehicle type characteristics are embodied in the
+        _model_ and _controller_ members, so this class should never have to be sub-classed.
+    """
 
     def __init__(self,
                     model       : VehicleModel, #describes the specific capabilities of the vehicle type

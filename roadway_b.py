@@ -318,3 +318,20 @@ class Roadway:
 
         assert 0 <= lane < len(self.lanes), "Roadway.get_lane_start_p input lane ID {} invalid.".format(lane)
         return self.map_to_param_frame(self.lanes[lane].start_x, lane)
+
+
+    def get_speed_limit(self,
+                        lane    : int,  #ID of the lane in question
+                        p       : float,#P coordinate in question
+                       ) -> float:
+
+        """Returns the posted speed limit applicable to the given location."""
+
+        assert 0 <= lane < len(self.lanes), "Roadway.get_speed_limit input lane ID {} invalid.".format(lane)
+
+        x = self.param_to_map_frame(p, lane)
+        for s in range(len(self.lane[lane].segments)):
+            if s[0] <= x <= s[2]:
+                return s[5]
+
+        raise ValueError("///// Roadway.get_speed_limit requested for illegal p = {} on lane {}".format(p, lane))

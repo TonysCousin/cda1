@@ -4,8 +4,12 @@ from ray.rllib.env.env_context import EnvContext
 from gymnasium.spaces import Box
 
 from constants import Constants
+from obs_vec import ObsVec
 from highway_env import HighwayEnv
 
+
+#TODO - remove inheritance from the main env so that this class can specify its own obs space with proper boundaries
+#       without constraining the boundaries in the env class (it can have its own or none at all).
 
 class HighwayEnvWrapper(HighwayEnv):
     """Wraps the custom environment in order to properly convert observations and actions into usable structures for
@@ -83,13 +87,13 @@ class HighwayEnvWrapper(HighwayEnv):
 
         scaled = [0.0]*Constants.OBS_SIZE
 
-        scaled[self.EGO_DES_SPEED]      = obs[self.EGO_DES_SPEED]       / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.EGO_DES_SPEED_PREV] = obs[self.EGO_DES_SPEED_PREV]  / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.LC_CMD]             = obs[self.LC_CMD]
-        scaled[self.LC_CMD_PREV]        = obs[self.LC_CMD_PREV]
-        scaled[self.EGO_SPEED]          = obs[self.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.EGO_SPEED_PREV]     = obs[self.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
-        scaled[self.STEPS_SINCE_LN_CHG] = obs[self.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
+        scaled[ObsVec.EGO_DES_SPEED]      = obs[ObsVec.EGO_DES_SPEED]       / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.EGO_DES_SPEED_PREV] = obs[ObsVec.EGO_DES_SPEED_PREV]  / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.LC_CMD]             = obs[ObsVec.LC_CMD]
+        scaled[ObsVec.LC_CMD_PREV]        = obs[ObsVec.LC_CMD_PREV]
+        scaled[ObsVec.EGO_SPEED]          = obs[ObsVec.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.EGO_SPEED_PREV]     = obs[ObsVec.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.STEPS_SINCE_LN_CHG] = obs[ObsVec.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
 
         # Return the obs as an ndarray
         vec = np.array(scaled, dtype=np.float32)
