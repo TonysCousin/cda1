@@ -85,6 +85,8 @@ class Vehicle(ABC):
             Note that this does not consider lateral motion, which needs to be handled elsewhere.
 
             Returns: tuple of (new speed (m/s), new P location (m))
+
+            CAUTION: should not be overridden!
         """
 
         # Determine the current & previous effective accelerations
@@ -102,6 +104,8 @@ class Vehicle(ABC):
             Note that this does not consider lateral motion, which needs to be handled elsewhere.
 
             Returns: tuple of (new speed (m/s), new P location (m))
+
+            CAUTION: should not be overridden!
         """
 
         # Determine new jerk, accel, speed & location of the vehicle
@@ -124,5 +128,5 @@ class Vehicle(ABC):
              ):
         """Prints the attributes of this vehicle object."""
 
-        print("       [{}]: active = {:5}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}" \
+        print("       [{}]: active = {:5b}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}" \
                 .format(tag, self.active, self.lane_id, self.p, self.lane_change_status, self.cur_speed))

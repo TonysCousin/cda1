@@ -1,3 +1,4 @@
+import sys
 from collections import deque
 from statistics import mean
 from typing import Tuple, Dict, List
@@ -20,6 +21,8 @@ from roadway_b import Roadway
 from vehicle import Vehicle
 from hp_prng import HpPrng
 from lane_change import LaneChange
+from bot_type1_model import BotType1Model
+from bot_type1_ctrl import BotType1Ctrl
 
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
@@ -121,6 +124,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             self._init(config, seed, render_mode)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.__init__: ", e)
+            sys.exit(1)
 
 
     def _init(self,
@@ -148,19 +152,22 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Create the roadway geometry
         self.roadway = Roadway(self.debug)
 
-        # Define the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
+        # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
         self.vehicles = []
         vc = self.vehicle_config
-        assert vc["num_vehicles"] > 0, "///// HighwayEnv.__init__: illegal number of vehicles specified."
-        for i in range(vc["num_vehicles"]):
+        v_data = vc["vehicles"]
+
+        # Instantiate model and controller objects for each vehicle, then use them to construct the vehicle object
+        for i in range(len(v_data)):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
-            spec = vc["vehicles"][i]
-            model = spec["model"](max_jerk      = spec["max_jerk"],
+            spec = v_data[i]
+            model = getattr(sys.modules[__name__], spec["model"])(
+                                  max_jerk      = spec["max_jerk"],
                                   max_accel     = spec["max_accel"],
                                   length        = spec["length"],
                                   lc_duration   = spec["lc_duration"],
                                   time_step     = self.time_step_size)
-            controller = spec["controller"]() #TODO - need to figure out args
+            controller = getattr(sys.modules[__name__], spec["controller"])() #TODO - need to figure out args
             v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             self.vehicles.append(v)
 
@@ -266,7 +273,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
-        print("///// Initializing env environment ID {} at level {}".format(self.rollout_id, self.difficulty_level))
+        print("///// Initializing env environment ID {}".format(self.rollout_id))
 
         """
         If human-rendering is used, `self.window` will be a reference
@@ -281,7 +288,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("///// init complete.")
 
 
-    def seed(self, seed=None):
+    def seed(self, seed = None):
         """A required method that is apparently not yet supported in Ray 2.0.0."""
         pass
         #print("///// In environment seed - incoming seed value = ", seed)
@@ -295,15 +302,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         """Defines the difficulty level of the environment, which can be used for curriculum learning."""
 
         raise NotImplementedError("HighwayB.set_task() has been deprecated.") #TODO - get rid of this & getter when sure no longer needed
-        self.difficulty_level = min(max(task, 0), self.NUM_DIFFICULTY_LEVELS)
-        print("\n\n///// Environment difficulty for rollout ID {} set to {}\n".format(self.rollout_id, self.difficulty_level))
 
 
     def get_task(self) -> int:
         """Returns the environment difficulty level currently in use."""
 
         raise NotImplementedError("HighwayB.get_task() has been deprecated.")
-        return self.difficulty_level
 
 
     def reset(self, *,
@@ -317,7 +321,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             return self._reset(seed = seed, options = options)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.reset: ", e)
-            return (None, None)
+            sys.exit(1)
 
 
     def _reset(self, *,
@@ -359,11 +363,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if self.scenario - 90 >= self.roadway.NUM_LANES:
                 raise ValueError("///// Attempting to reset to unknown scenario {}".format(self.scenario))
 
-            print("///// HighwayEnv.reset: setting up scenario {} for episode {}".format(self.scenario, self.episode_count))
             for i in range(len(self.vehicles)):
                 self.vehicles[i].active = False
 
-            self.vehicles[1].reset(lane_id = self.scenario - 90, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[6])
+            lane_id = self.scenario - 90
+            self.vehicles[1].reset(lane_id, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[0][5])
 
             self.obs = np.zeros(Constants.OBS_SIZE, dtype = float)
 
@@ -388,7 +392,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # include sensing of vehicle placed later.
 
         # Get the ego vehicle's observations to return to our caller
-        self.obs = self.vehicle_config[0].get_obs_vector()
+        self.obs = self.vehicles[0].model.get_obs_vector()
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -729,89 +733,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         pass #this method not needed for this version
 
 
-    def initialize_ramp_vehicle_speed(self,
-                                      relative_pos    : int = 2,  #desired position of the ego vehicle relative to the 3 neighbors
-                                                                  # at the time it reaches the merge area
-                                      ego_p           : float = 0.0 #ego vehicle's starting P location, m
-                                     ) -> float:
-        """Returns a speed to start the ego vehicle when it starts at the beginning of lane 2, such that when it arrives at the
-            beginning of the merge area, it will approximately match the specified position relative to the approaching neighbor vehicles.
-            This location will be randomized as a normal draw near the specified relative position.  Relative position codes are:
-                0 = in front of neighbor #1
-                1 = roughly beside neighbor #1
-                2 = roughly beside neighbor #2
-                3 = roughly beside neighbor #3
-                4 = behind neighbor #3
-            Note that this method only makes sense in difficulty level 4, where the neighbors start lined up in lane 1 (neighbor 1
-            in front and neighbor 3 in the rear), and they travel at constant speed with no lane changes.  So predicting their
-            arrival at the merge area is trivial.  Estimating the ego vehicle's nominal arrival at the merge area assumes that it
-            would try to achieve a max-reward trajectory, which is max accel until it hits speed limit, then stay at that speed.
-        """
-
-        L1_DIST_TO_MERGE = 800.0 #m, depends on code in Roadway class
-        L2_DIST_TO_MERGE = 740.0 #m, depends on code in Roadway class
-        headway = 3.0 * Constants.VEHICLE_LENGTH #this is hard-coded into the reset() method
-
-        # Find the time of arrival of the target neighbor
-        tgt_arrival_time = 0.0
-        ns = self.neighbor_speed if self.neighbor_speed > 0.0  else  Constants.ROAD_SPEED_LIMIT
-        if relative_pos <= 1:
-            tgt_arrival_time = (L1_DIST_TO_MERGE - self.neighbor_start_loc - 2*headway) / ns
-        elif relative_pos == 2:
-            tgt_arrival_time = (L1_DIST_TO_MERGE - self.neighbor_start_loc - headway) / ns
-        else:
-            tgt_arrival_time = (L1_DIST_TO_MERGE - self.neighbor_start_loc) / ns
-        #print("\n///// initialize_ramp_vehicle_speed: rel pos = {}, headway = {:.1f}, n start loc = {:.1f}, n spd = {:.1f}, tgt time = {:.1f}"
-        #      .format(relative_pos, headway, self.neighbor_start_loc, ns, tgt_arrival_time))
-
-        # Get a random offset from that arrival time and apply it
-        time_headway = headway / ns
-        offset = 0.0 #self.prng.normal(scale = 0.1*time_headway)
-        if relative_pos == 0: #in front of first neighbor
-            offset -= 1.1 * time_headway
-        elif relative_pos == 4: #behind last neighbor
-            offset += 1.1 * time_headway
-        tgt_arrival_time += offset
-
-        # If our desired arrival time is large enough then
-        v0 = Constants.ROAD_SPEED_LIMIT
-        #print("///// initialize_ramp_vehicle_speed: tgt time = {:.1f}, offset = {:.1f}, ego_p = {:.1f}".format(tgt_arrival_time, offset, ego_p))
-        dist_to_merge = self.roadway.get_lane_start_p(2) + L2_DIST_TO_MERGE - ego_p
-        if tgt_arrival_time > dist_to_merge/Constants.ROAD_SPEED_LIMIT:
-
-            # Solve quadratic equation to determine the ramp vehicle's starting speed, assuming that it will
-            # accelerate at the max rate until it reaches speed limit, then stays at that speed (this would maximize its reward for
-            # the pre-merge part of the episode, so it will have a desire to stay close to this trajectory).
-            vf = Constants.ROAD_SPEED_LIMIT
-            qa = -0.5 / Constants.MAX_ACCEL
-            qb = vf / Constants.MAX_ACCEL
-            qc = vf*tgt_arrival_time - 0.5*vf*vf/Constants.MAX_ACCEL - dist_to_merge
-            #print("///// initialize_ramp_vehicle_speed: qa = {:.4f}, qb = {:.4f}, qc = {:.4f}, tgt time = {:.1f}"
-            #    .format(qa, qb, qc, tgt_arrival_time))
-            root_part = math.sqrt(qb*qb - 4.0*qa*qc)
-            v0 = (-qb + root_part) / 2.0 / qa
-            if v0 <= 0.0  or  v0 > Constants.ROAD_SPEED_LIMIT:
-                v0 = (-qb - root_part) / 2.0 / qa
-                if v0 <= 0.0  or  v0 > Constants.ROAD_SPEED_LIMIT:
-                    # Neither root works, which means target time is probably too long to be able to solve with max acceleration.
-                    # So pick a random slow speed to at least get close to what is desired.
-                    v0 = self.prng.random() * 0.3*Constants.ROAD_SPEED_LIMIT
-
-            #print("///// initialize_ramp_vehicle_speed computed desired speed = {:.1f} for relative_pos = {}, tgt arrival = {:.1f} s"
-            #    .format(v0, relative_pos, tgt_arrival_time))
-
-        else: #ego will have to start faster than speed limit to hit the selected relative position
-            v0 = self.prng.random() * (Constants.MAX_SPEED - Constants.ROAD_SPEED_LIMIT) + Constants.ROAD_SPEED_LIMIT
-            #print("///// initialize_ramp_vehicle_speed: can't do quadratic. Choosing v0 = {:.1f}".format(v0))
-
-        if v0 > Constants.MAX_SPEED:
-            v0 = Constants.MAX_SPEED
-        elif v0 <= 0.0:
-            v0 = 1.3
-
-        return v0
-
-
     ##### internal methods #####
 
 
@@ -900,26 +821,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.scenario = int(s)
         except KeyError as e:
             pass
-
-
-    def _select_init_lane(self) -> int:
-        """Chooses the initial lane for training runs, which may not be totally random."""
-
-        # Levels 0-2 are restricted to lanes 0 & 1 (the full-length lanes)
-        if self.difficulty_level < 3:
-            return int(self.prng.random()*2) #select 0 or 1
-
-        # Level 3 needs to emphasize lanes 0 & 2 since the agent naturally prefers lane 1
-        elif self.difficulty_level == 3:
-
-            draw = self.prng.random()
-            if draw < 0.3:
-                return 1
-            else:
-                return 2
-
-        else:
-            return int(self.prng.random()*3)
 
 
     def _update_obs_zones(self):

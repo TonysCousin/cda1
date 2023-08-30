@@ -1,6 +1,7 @@
 from cmath import inf
 import sys
 import time
+from datetime import datetime
 from typing import List
 import numpy as np
 import ray
@@ -18,7 +19,7 @@ from graphics import Graphics
 def main(argv):
 
     #prng = np.random.default_rng()
-    prng = HpPrng()
+    prng = HpPrng(seed = datetime.now().microsecond)
 
     # Handle any args
     num_args = len(argv)
@@ -35,7 +36,7 @@ def main(argv):
 
     # Set up the environment
     env_config = {  "time_step_size":       0.5,
-                    "debug":                0,
+                    "debug":                1,
                     "verify_obs":           True,
                     "scenario":             90+start_lane, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":         "vehicle_config.yaml",

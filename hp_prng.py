@@ -14,10 +14,12 @@ class HpPrng:
     def __init__(self,
                  seed : int = 0   #if provided, its value must be > 0
                 ):
-        """Initializes the PRNG object, possibly with a positive integer seed."""
+        """Initializes the PRNG object, possibly with a non-negative integer seed.  If None is specified for
+            the seed, then the seed will be set to 0.
+        """
 
         if isinstance(seed, int)  and  seed >= 0:
-                HpPrng._seed = float(seed) / (math.pow(2, 32) - 1.0) #Python can handle larger values, but this is good
+            HpPrng._seed = float(seed) / (math.pow(2, 32) - 1.0) #Python can handle larger values, but this is good
         elif seed != None:
             raise TypeError("HpPrng requires an integer seed >= 0. Given type & value was: {}, {}".format(type(seed), seed))
 

@@ -1,7 +1,7 @@
 import numpy as np
 from vehicle_model import VehicleModel
 
-class BotType1(VehicleModel):
+class BotType1Model(VehicleModel):
 
     """Realizes a concrete model for the Type 1 bot vehicle."""
 
@@ -13,7 +13,7 @@ class BotType1(VehicleModel):
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
-        super().__init(max_jerk, max_accel, length, lc_duration, time_step)
+        super().__init__(max_jerk, max_accel, length, lc_duration, time_step)
 
 
     def get_obs_vector(self) -> np.array:
@@ -23,9 +23,10 @@ class BotType1(VehicleModel):
                      preprocessed before going into a NN!
         """
 
-        raise NotImplementedError("///// BotType1.get_obs_vector not YET implemented.")
-
         #TODO: flesh this out - return array should be dtype=np.float32
+        obs = np.zeros(7, dtype = np.float32)
+        return obs
+
         # Reinitialize the remainder of the observation vector
         self._verify_obs_limits("reset after populating main obs with ego stuff")
         self._update_obs_zones()
