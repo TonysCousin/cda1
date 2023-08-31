@@ -440,20 +440,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Update states of all vehicles
         #
 
-        # Apply command masking for first few steps to avoid startup problems with the feedback observations
+        # Unscale the ego action inputs (both actions are in [-1, 1])
         ego_action = []*2
-        ego_action[0] = cmd[0]
-        ego_action[1] = cmd[1]
-        if self.steps_since_reset < 1:
+        ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
+        ego_action[1] = int(math.floor(cmd[1] + 0.5))
+        if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
 
-        # Unscale the ego action inputs (both actions are in [-1, 1])
-        desired_speed = (ego_action[0] + 1.0)/2.0 * Constants.MAX_SPEED
-        lc_cmd = int(math.floor(ego_action[1] + 0.5))
-        #print("///// step: incoming cmd[1] = {:5.2f}, lc_cmd = {:2}, current lane = {}, p = {:7.2f}, steps = {}"
-        #      .format(cmd[1], lc_cmd, self.vehicles[0].lane_id, self.vehicles[0].p, self.steps_since_reset))
-
-        # Loop through all vehicles. Note that the ego vehicle is always at index 0.
+        # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
         vehicle_actions = []*self._num_vehicles
         action = ego_action
         for i in range(self._num_vehicles):
@@ -468,203 +462,48 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             vehicle_actions[i] = action
 
             # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
-            new_speed, new_p = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
+            new_speed, new_p, new_lane, reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
             if self.debug > 1:
-                print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
-                        .format(i, action[0], new_speed, new_p))
+                print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}, new_lane = {}"
+                        .format(i, action[0], new_speed, new_p, new_lane))
 
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
                 if self.vehicles[0].lane_id in [1, 2]  and  new_p >= TARGET_P:
                     done = True
                     return_info["reason"] = "SUCCESS - end of scenario!"
-                    #print("/////+ step: {} step {}, success - completed the track".format(self.rollout_id, self.total_steps))  #TODO debug
+                    #print("/////+ step: {} step {}, success - completed the track".format(self.rollout_id, self.total_steps))
 
-
-
-
-
-
-
-
-
-
-
-
-
-        #
-        #..........Update lane change status for ego vehicle
-        #
-
-        # Determine if we are beginning or continuing a lane change maneuver.
-        # Accept a lane change command that lasts for several time steps or only one time step.  Once the first
-        # command is received (when currently not in a lane change), then start the maneuver and ignore future
-        # lane change commands until the underway maneuver is complete, which takes several time steps.
-        # It's legal, but not desirable, to command opposite lane change directions in consecutive time steps.
-        ran_off_road = False
-        if lc_cmd != LaneChange.STAY_IN_LANE  or  self.vehicles[0].lane_change_status != "none":
-            if self.vehicles[0].lane_change_status == "none": #count should always be 0 in this case, so initiate a new count
-                if lc_cmd == LaneChange.CHANGE_LEFT:
-                    self.vehicles[0].lane_change_status = "left"
-                else:
-                    self.vehicles[0].lane_change_status = "right"
-                self.lane_change_count = 1
-                if self.debug > 0:
-                    print("      *** New lane change maneuver initiated. lc_cmd = {}, status = {}"
-                            .format(lc_cmd, self.vehicles[0].lane_change_status))
-            else: #once a lane change is underway, continue until complete, regardless of new commands
-                self.lane_change_count += 1
-
-        # Check that an adjoining lane is available in the direction commanded until maneuver is complete
-        new_ego_lane = int(self.vehicles[0].lane_id)
-        tgt_lane = new_ego_lane
-        if self.lane_change_count > 0:
-
-            # If we are still in the original lane then
-            if self.lane_change_count <= Constants.HALF_LANE_CHANGE_STEPS:
-                # Ensure that there is a lane to change into and get its ID
-                tgt_lane = self.roadway.get_target_lane(int(self.vehicles[0].lane_id), self.vehicles[0].lane_change_status, new_ego_p)
-                if tgt_lane < 0:
+                # Else if it ran off the road or stopped, then end the episode in failure
+                elif self.vehicles[0].off_road  or  self.vehicles[0].stopped:
                     done = True
-                    ran_off_road = True
-                    return_info["reason"] = "Ran off road; illegal lane change"
-                    if self.debug > 1:
-                        print("      DONE!  illegal lane change commanded.")
-                    #print("/////+ step: {} step {}, illegal lane change".format(self.rollout_id, self.total_steps))  #TODO debug
+                    return_info["reason"] = reason
 
-                # Else, we are still going; if we are exactly half-way then change the current lane ID
-                elif self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS:
-                    new_ego_lane = tgt_lane
-
-            # Else, we have already crossed the dividing line and are now mostly in the target lane
-            else:
-                coming_from = "left"
-                if self.vehicles[0].lane_change_status == "left":
-                    coming_from = "right"
-                # Ensure the lane we were coming from is still adjoining (since we still have 2 wheels there)
-                prev_lane = self.roadway.get_target_lane(tgt_lane, coming_from, new_ego_p)
-                if prev_lane < 0: #the lane we're coming from ended before the lane change maneuver completed
-                    done = True
-                    ran_off_road = True
-                    return_info["reason"] = "Ran off road; lane change initiated too late"
-                    if self.debug > 1:
-                        print("      DONE!  original lane ended before lane change completed.")
-                    #print("/////+ step: {} step {}, late lane change".format(self.rollout_id, self.total_steps))  #TODO debug
-
-        #
-        #..........Manage lane change for any neighbors in lane 2
-        #
-
-        # Loop through all active neighbors, looking for any that are in lane 2
-        for n in range(1, self._num_vehicles):
-            v = self.vehicles[n]
-            if not v.active:
-                continue
-
-            if v.lane_id == 2:
-
-                # If it is in the merge zone, then
-                progress = v.p - self.roadway.get_lane_start_p(2)
-                l2_length = self.roadway.get_total_lane_length(2)
-                if progress > 0.7*l2_length:
-
-                    # Randomly decide if it's time to do a lane change
-                    if self.prng.random() < 0.05  or  l2_length - progress < 150.0:
-
-                        # Look for a vehicle beside it in lane 1
-                        safe = True
-                        for j in range(self._num_vehicles):
-                            if j == n:
-                                continue
-                            if self.vehicles[j].lane_id == 1  and  abs(self.vehicles[j].p - v.p) < 2.0*Constants.VEHICLE_LENGTH:
-                                safe = False
-                                break
-
-                        # If it is safe to move, then just do an immediate lane reassignment (no multi-step process like ego does)
-                        if safe:
-                            v.lane_id = 1
-
-                        # Else it is being blocked, then slow down a bit
-                        else:
-                            v.cur_speed *= 0.8
-
-        #
-        #..........Update ego vehicle's understanding of roadway geometry and various termination conditions
-        #
-
-        # Get updated metrics of ego vehicle relative to the new lane geometry
-        new_ego_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(new_ego_lane, new_ego_p)
-
-        #TODO - for debugging only, this whole section:
-        if not self.training:
-            if self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS - 1:
-                print("   ** LC next step: ego_p = {:.1f}, ego_rem = {:.1f}, lid = {}, la = {:.1f}, lb = {:.1f}, l_rem = {:.1f}".format(new_ego_p, new_ego_rem, lid, la, lb, l_rem))
-            elif self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS:
-                print("   ** LC now: ego_p = {:.1f}, ego_rem = {:.1f}, rid = {}, ra = {:.1f}, rb = {:.1f}, r_rem = {:.1f}".format(new_ego_p, new_ego_rem, rid, ra, rb, r_rem))
-
-        # If remaining lane distance has gone away, then vehicle has run straight off the end of the lane, so episode is done
-        if new_ego_rem <= 0.0:
-            new_ego_rem = 0.0 #clip it so that obs space isn't violated
-            if not done:
-                done = True
-                ran_off_road = True
-                return_info["reason"] = "Ran off end of terminating lane"
-                #print("/////+ step: {} step {}, off end of terminating lane".format(self.rollout_id, self.total_steps))  #TODO debug
-
-        # Update counter for time in between lane changes
-        if self.obs[ObsVec.STEPS_SINCE_LN_CHG] < Constants.MAX_STEPS_SINCE_LC:
-            self.obs[ObsVec.STEPS_SINCE_LN_CHG] += 1
-
-        # If current lane change is complete, then reset its state and counter
-        if self.lane_change_count >= Constants.TOTAL_LANE_CHANGE_STEPS:
-            self.vehicles[0].lane_change_status = "none"
-            self.lane_change_count = 0
-            self.obs[ObsVec.STEPS_SINCE_LN_CHG] = Constants.TOTAL_LANE_CHANGE_STEPS
-
-        self.vehicles[0].lane_id = new_ego_lane
-        if self.debug > 0:
-            print("      step: done lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}, done = {}, steps since = {}"
-                    .format(self.vehicles[0].lane_change_status, new_ego_lane, tgt_lane, self.lane_change_count, done, self.obs[ObsVec.STEPS_SINCE_LN_CHG]))
-
-        # Update the obs vector with the new state info
-        self.obs[self.EGO_LANE_REM] = new_ego_rem
-        self.obs[ObsVec.LC_CMD_PREV] = self.obs[ObsVec.LC_CMD]
-        self.obs[ObsVec.LC_CMD] = lc_cmd
-        self._update_obs_zones()
-        self._verify_obs_limits("step after updating obs vector")
-
-        # If vehicle has been stopped for several time steps, then declare the episode done as a failure
-        stopped_vehicle = False
-        if self.vehicles[0].cur_speed < 0.5:
-            self.stopped_count += 1
-            if self.stopped_count > 3:
-                done = True
-                stopped_vehicle = True
-                return_info["reason"] = "Vehicle is crawling to a stop"
-                #print("/////+ step: {} step {}, vehicle stopped".format(self.rollout_id, self.total_steps))  #TODO debug
-        else:
-            self.stopped_count = 0
-
-        # Check that none of the vehicles has crashed into another, accounting for a lane change in progress
-        # taking up both lanes. Do this check last, as it is the most severe failure, and needs to override
-        # the others in the reward evaluation.
+        # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
         if crash:
             done = True
-            return_info["reason"] = "Crashed into neighbor vehicle"
-            #print("/////+ step: {} step {}, crash!".format(self.rollout_id, self.total_steps))  #TODO debug
+            return_info["reason"] = "Two (or more) vehicles crashed."
+            #print("/////+ step: {} step {}, crash!".format(self.rollout_id, self.total_steps))
+
+
+
+
+
+
+
 
         # Determine the reward resulting from this time step's action
-        reward, expl = self._get_reward(done, crash, ran_off_road, stopped_vehicle)
+        reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped)
         return_info["reward_detail"] = expl
-        #print("/////+ step: {} step {}, returning reward of {}, {}".format(self.rollout_id, self.total_steps, reward, expl))  #TODO debug
+        #print("/////+ step: {} step {}, returning reward of {}, {}".format(self.rollout_id, self.total_steps, reward, expl))
 
         # Verify that the obs are within design limits
         self._verify_obs_limits("step after reward calc")
 
         if self.debug > 0:
             print("///// step complete. Returning obs = ")
-            print(      self.obs)
+            print(self.all_obs)
             print("      reward = ", reward, ", done = ", done)
             print("      final vehicles array =")
             for i, v in enumerate(self.vehicles):
@@ -672,7 +511,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("      reason = {}".format(return_info["reason"]))
             print("      reward_detail = {}\n".format(return_info["reward_detail"]))
 
-        truncated = False #indicates if the episode ended prematurely due to step/time limit
+        truncated = False #indicates if the episode ended due to step/time limit rather than success or failure
         return self.obs, reward, done, truncated, return_info
 
 
@@ -1035,7 +874,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if va.lane_id == vb.lane_id:
 
                     # If they are within one car length of each other, it's a crash
-                    if abs(va.p - vb.p) <= Constants.VEHICLE_LENGTH:
+                    if abs(va.p - vb.p) <= 0.5*(va.model.veh_length + vb.model.veh_length):
 
                         # Mark the involved vehicles as out of service
                         va.active = False
@@ -1063,7 +902,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         if va_tgt == vb.lane_id  or  vb_tgt == va.lane_id:
 
                             # If the two are within a vehicle length of each other, then it's a crash
-                            if abs(va.p - vb.p) <= Constants.VEHICLE_LENGTH:
+                            if abs(va.p - vb.p) <= 0.5*(va.model.veh_length + vb.model.veh_length):
 
                                 # Mark the involved vehicles as out of service
                                 va.active = False

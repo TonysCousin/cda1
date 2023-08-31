@@ -27,6 +27,46 @@ class BotType1Ctrl(VehicleController):
         action[0] = self._acc_speed_control(obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
         action[1] = LaneChange.STAY_IN_LANE
 
+        """From cda0:
+        #
+        #..........Manage lane change for any neighbors in lane 2
+        #
+
+        # Loop through all active neighbors, looking for any that are in lane 2
+        for n in range(1, self._num_vehicles):
+            v = self.vehicles[n]
+            if not v.active:
+                continue
+
+            if v.lane_id == 2:
+
+                # If it is in the merge zone, then
+                progress = v.p - self.roadway.get_lane_start_p(2)
+                l2_length = self.roadway.get_total_lane_length(2)
+                if progress > 0.7*l2_length:
+
+                    # Randomly decide if it's time to do a lane change
+                    if self.prng.random() < 0.05  or  l2_length - progress < 150.0:
+
+                        # Look for a vehicle beside it in lane 1
+                        safe = True
+                        for j in range(self._num_vehicles):
+                            if j == n:
+                                continue
+                            if self.vehicles[j].lane_id == 1  and  abs(self.vehicles[j].p - v.p) < 2.0*Constants.VEHICLE_LENGTH:
+                                safe = False
+                                break
+
+                        # If it is safe to move, then just do an immediate lane reassignment (no multi-step process like ego does)
+                        if safe:
+                            v.lane_id = 1
+
+                        # Else it is being blocked, then slow down a bit
+                        else:
+                            v.cur_speed *= 0.8
+
+        """
+
         return action
 
 

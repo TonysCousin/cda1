@@ -73,3 +73,6 @@ class BotType1Model(VehicleModel):
 
         # Reinitialize the ego vehicle and the whole observation vector
         ego_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(ego_lane_id, ego_p)
+
+        self._update_obs_zones()
+        self._verify_obs_limits("step after updating obs vector")
