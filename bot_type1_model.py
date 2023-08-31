@@ -22,6 +22,7 @@ class BotType1Model(VehicleModel):
     def get_obs_vector(self,
                        my_id    : int,      #ID of this vehicle (its index into the vehicles list)
                        vehicles : list,     #list of all Vehicles in the scenario
+                       actions  : list,     #list of action commands for this vehicle
                       ) -> np.array:
 
         """Produces the observation vector for this vehicle object.
@@ -52,20 +53,18 @@ class BotType1Model(VehicleModel):
         # Build the obs vector
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = np.float32)
         speed_limit = me.roadway.get_speed_limit(me.lane_id, me.p)
-        obs[ObsVec.EGO_DES_SPEED] = speed_limit
-        obs[ObsVec.EGO_DES_SPEED_PREV] = speed_limit
-
-        obs[ObsVec.LC_CMD] = 0.0                    #TODO: these need to come from the env's input actions - do dynamics first, then update obs
-        obs[ObsVec.LC_CMD_PREV] = 0.0               #TODO: move the dynamics calcs to VehicleModel? Then Vehicle becomes mostly a container.
-        obs[ObsVec.STEPS_SINCE_LN_CHG] = 44
-        obs[ObsVec.EGO_SPEED] = 21.8                #TODO bogus
-        obs[ObsVec.EGO_SPEED_PREV] = 21.7
+        obs[ObsVec.EGO_DES_SPEED_PREV] = obs[ObsVec.EGO_DES_SPEED]
+        obs[ObsVec.EGO_DES_SPEED] = actions[0]
+        obs[ObsVec.LC_CMD_PREV] = obs[ObsVec.LC_CMD_PREV]
+        obs[ObsVec.LC_CMD] = actions[1]
+        obs[ObsVec.STEPS_SINCE_LN_CHG] = me.lane_change_count
+        obs[ObsVec.EGO_SPEED_PREV] = obs[ObsVec.EGO_SPEED]
+        obs[ObsVec.EGO_SPEED] = me.cur_speed
 
         obs[ObsVec.FWD_DIST] = closest_dist
         obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED
         if closest_id is not None:
             obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed
-
 
         return obs
 

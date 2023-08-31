@@ -9,7 +9,3 @@ class Constants:
     MAX_STEPS_SINCE_LC      = 60 #TODO bogus
     REFERENCE_DIST          = 500.0     #an arbitrary length representative of distances we worry about, m
                                         # (may be used to normalize distances for NN i/o)
-
-    # The following are for level neighbor adaptive cruise control (ACC) functionality
-    #DISTANCE_OF_CONCERN     = 8.0 * VEHICLE_LENGTH #following distance below which the vehicle needs to start slowing to avoid forward neighbor
-    #CRITICAL_DISTANCE       = 2.0 * VEHICLE_LENGTH #following distance below which the vehicle needs to be matching its forward neighbor's speed

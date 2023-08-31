@@ -78,11 +78,11 @@ class Vehicle:
 
 
     def advance_vehicle_spd(self,
-                            new_speed_cmd   : float,    #the newly commanded speed, m/s
+                            new_speed_cmd   : float,        #the newly commanded speed, m/s
+                            new_lc_cmd      : LaneChange,   #the newly commanded lane change action (enum)
                            ) -> Tuple[float, float]:
 
-        """Advances a vehicle's forward motion for one time step according to the vehicle dynamics model.
-            Note that this does not consider lateral motion, which needs to be handled elsewhere.
+        """Advances a vehicle's motion for one time step according to the vehicle dynamics model.
 
             Returns: tuple of (new speed (m/s), new P location (m))
 
@@ -93,15 +93,15 @@ class Vehicle:
         cur_accel_cmd = (new_speed_cmd - self.cur_speed) / self.time_step_size
         #print("///// Vehicle.advance_vehicle_spd: new_speed_cmd = {:.1f}, cur_speed = {:.1f}, prev_speed = {:.1f}, cur_accel_cmd = {:.2f}, prev_accel = {:.2f}"
         #      .format(new_speed_cmd, cur_speed, prev_speed, cur_accel_cmd, prev_accel))
-        return self.advance_vehicle_accel(cur_accel_cmd)
+        return self.advance_vehicle_accel(cur_accel_cmd, new_lc_cmd)
 
 
     def advance_vehicle_accel(self,
-                              new_accel_cmd   : float,    #newest fwd accel command, m/s^2
+                              new_accel_cmd : float,        #newest fwd accel command, m/s^2
+                              new_lc_cmd    : LaneChange,   #newest lane change command (enum)
                              ) -> Tuple[float, float]:
 
-        """Advances a vehicle's forward motion for one time step according to the vehicle dynamics model.
-            Note that this does not consider lateral motion, which needs to be handled elsewhere.
+        """Advances a vehicle's motion for one time step according to the vehicle dynamics model.
 
             Returns: tuple of (new speed (m/s), new P location (m))
 
@@ -119,6 +119,15 @@ class Vehicle:
         self.prev_speed = self.cur_speed
         self.cur_speed = new_speed
         self.prev_accel = new_accel
+
+        # Since vehicles may not change lanes, we need to take them out of action if they run off the end.
+        lane_end = self.roadway.get_lane_start_p(self.lane_id) + self.roadway.get_total_lane_length(self.lane_id)
+        if new_p > lane_end:
+            self.active = False
+            self.off_road = True
+        if self.debug > 1:
+            print("      Vehicle in lane {} advanced with new_accel_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
+                    .format(self.lane_id, new_accel_cmd, new_speed, new_p))
 
         return new_speed, new_p
 

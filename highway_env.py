@@ -154,12 +154,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.roadway = Roadway(self.debug)
 
         # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
-        self.vehicles = []
         vc = self.vehicle_config
         v_data = vc["vehicles"]
+        self._num_vehicles = len(v_data)
 
         # Instantiate model and controller objects for each vehicle, then use them to construct the vehicle object
-        for i in range(len(v_data)):
+        self.vehicles = []
+        for i in range(self._num_vehicles):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
             spec = v_data[i]
             model = getattr(sys.modules[__name__], spec["model"])(
@@ -171,6 +172,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             controller = getattr(sys.modules[__name__], spec["controller"])() #TODO - need to figure out args
             v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             self.vehicles.append(v)
+            controller.set_vehicle(v) #let the new controller know about the vehicle it is driving
+
+        #TODO: do we need this?
+        # Propagate the full vehicle list
+        #for i in range(self._num_vehicles):
+        #    self.vehicles[i].controller.set_vehicle_list(self.vehicles)
 
 
 
@@ -233,8 +240,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.debug == 2:
             print("///// observation_space = ", self.observation_space)
 
-        self.obs = np.zeros(ObsVec.OBS_SIZE) #will be returned from reset() and step()
-        self._verify_obs_limits("init after space defined")
+        self.all_obs = np.zeros(self._num_vehicles, ObsVec.OBS_SIZE) #one row for each vehicle
+        self._verify_obs_limits("init after space defined") #TODO: move this to ???
 
         #
         #..........Define the action space
@@ -340,15 +347,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Set the initial conditions for each vehicle, depending on the scenario config
         #
 
-        # The ego vehicle (learning agent) is at index 0. Capture its observation vector to return to our caller.
-        self.obs = None
+        # Clear any lingering observations from the previous episode
+        self.all_obs = np.zeros(self._num_vehicles, ObsVec.OBS_SIZE)
 
         # Solo bot vehicle that runs each lane in sequence at its speed limit (useful for inference only)
         if self.scenario >= 90:
             if self.scenario - 90 >= self.roadway.NUM_LANES:
                 raise ValueError("///// Attempting to reset to unknown scenario {}".format(self.scenario))
 
-            for i in range(len(self.vehicles)):
+            for i in range(self._num_vehicles):
                 self.vehicles[i].active = False
 
             lane_id = self.scenario - 90
@@ -356,7 +363,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # No starting configuration specified - randomize everything
         else:
-            for i in range(len(self.vehicles)):
+            for i in range(self._num_vehicles):
                 space_found = False
                 while not space_found:
                     lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
@@ -374,8 +381,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # We must do this after all vehicles have been initialized, otherwise obs from the vehicles placed first won't
         # include sensing of vehicle placed later.
 
-        # Get the ego vehicle's observations to return to our caller
-        self.obs = self.vehicles[0].model.get_obs_vector(0, self.vehicles)
+        # Get the obs from each vehicle
+        for i in range(self._num_vehicles):
+            self.full_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles)
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -383,7 +391,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         if self.debug > 0:
             print("///// End of reset().")
-        return self.obs, {}
+        return self.full_obs[0, :], {} #only return the row for the ego vehicle
 
 
     def step(self,
@@ -409,10 +417,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             CAUTION: the returned observation vector is at actual world scale and needs to be
                      preprocessed before going into a NN!
+
+            The process is:
+                - gather control commands based on existing observations (for the ego vehicle, these come in as
+                  input args; for other vehicles their model needs to generate)
+                - pass those commands to the dynamic models and move each vehicle to its new state
+                - collect each entity's observations from that new state
         """
 
         if self.debug > 0:
-            print("\n///// Entering step(): cmd = ", cmd)
+            print("\n///// Entering step(): ego cmd = ", cmd)
             print("      vehicles array contains:")
             for i, v in enumerate(self.vehicles):
                 v.print(i)
@@ -423,71 +437,60 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return_info = {"reason": "Unknown"}
 
         #
-        #..........Update longitudinal state for all vehicles
+        #..........Update states of all vehicles
         #
 
         # Apply command masking for first few steps to avoid startup problems with the feedback observations
-        action = [None]*2
-        action[0] = cmd[0]
-        action[1] = cmd[1]
+        ego_action = []*2
+        ego_action[0] = cmd[0]
+        ego_action[1] = cmd[1]
         if self.steps_since_reset < 1:
-            action[1] = 0.0
+            ego_action[1] = 0.0
 
-        # Unscale the action inputs (both actions are in [-1, 1])
-        desired_speed = (action[0] + 1.0)/2.0 * Constants.MAX_SPEED
-        lc_cmd = int(math.floor(action[1] + 0.5))
+        # Unscale the ego action inputs (both actions are in [-1, 1])
+        desired_speed = (ego_action[0] + 1.0)/2.0 * Constants.MAX_SPEED
+        lc_cmd = int(math.floor(ego_action[1] + 0.5))
         #print("///// step: incoming cmd[1] = {:5.2f}, lc_cmd = {:2}, current lane = {}, p = {:7.2f}, steps = {}"
         #      .format(cmd[1], lc_cmd, self.vehicles[0].lane_id, self.vehicles[0].p, self.steps_since_reset))
 
-        # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state and observations.
-        # Note that the ego vehicle is always at index 0.
-
-
-
-
-
-
-
-
-
-
-
-        # Move the ego vehicle downtrack. This doesn't account for possible lane changes, which are handled seperately, below.
-        new_ego_speed, new_ego_p = self.vehicles[0].advance_vehicle_spd(desired_speed)
-        if new_ego_p > Constants.SCENARIO_LENGTH:
-            new_ego_p = Constants.SCENARIO_LENGTH #limit it to avoid exceeding NN input validation rules
-        if self.debug > 1:
-            print("      Vehicle 0 advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
-                    .format(desired_speed, new_ego_speed, new_ego_p))
-
-        # Move each of the active neighbor vehicles downtrack.
-        for n in range(1, len(self.vehicles)):
-            if not self.vehicles[n].active:
+        # Loop through all vehicles. Note that the ego vehicle is always at index 0.
+        vehicle_actions = []*self._num_vehicles
+        action = ego_action
+        for i in range(self._num_vehicles):
+            if not self.vehicles[i].active:
                 continue
-            new_speed_cmd = self.vehicles[n].cur_speed
-            if self.difficulty_level == 5:
-                new_speed_cmd = self._acc_speed_control(n)
-            new_speed, new_p = self.vehicles[n].advance_vehicle_spd(new_speed_cmd)
 
-            # Since neighbor vehicles may not change lanes, we need to take them out of action if they run off the end.
-            lane = self.vehicles[n].lane_id
-            lane_end = self.roadway.get_lane_start_p(lane) + self.roadway.get_total_lane_length(lane)
-            if new_p > lane_end:
-                self.vehicles[n].active = False
+            # Exercise the control algo to generate the next action commands.
+            if i > 0:
+                action = self.vehicles[i].controller.step(self.full_obs[i, :])
+
+            # Store the actions for future reference
+            vehicle_actions[i] = action
+
+            # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
+            new_speed, new_p = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
             if self.debug > 1:
-                print("      Neighbor {} (lane {}) advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
-                        .format(n, self.vehicles[n].lane_id, new_speed_cmd, new_speed, new_p))
+                print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
+                        .format(i, action[0], new_speed, new_p))
 
-        # Update ego vehicle obs vector
-        self.obs[ObsVec.EGO_SPEED_PREV] = self.obs[ObsVec.EGO_SPEED]
-        self.obs[ObsVec.EGO_SPEED] = new_ego_speed
-        self.obs[ObsVec.EGO_DES_SPEED_PREV] = self.obs[ObsVec.EGO_DES_SPEED]
-        self.obs[ObsVec.EGO_DES_SPEED] = desired_speed
-        if new_ego_p >= Constants.SCENARIO_LENGTH:
-            done = True
-            return_info["reason"] = "SUCCESS - end of scenario!"
-            #print("/////+ step: {} step {}, success - completed the track".format(self.rollout_id, self.total_steps))  #TODO debug
-        self._verify_obs_limits("step after moving vehicles forward")
+            # If the ego vehicle has reached one of its target destinations, it is a successful episode
+            if i == 0:
+                if self.vehicles[0].lane_id in [1, 2]  and  new_p >= TARGET_P:
+                    done = True
+                    return_info["reason"] = "SUCCESS - end of scenario!"
+                    #print("/////+ step: {} step {}, success - completed the track".format(self.rollout_id, self.total_steps))  #TODO debug
+
+
+
+
+
+
+
+
+
+
+
+
 
         #
         #..........Update lane change status for ego vehicle
@@ -553,7 +556,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Loop through all active neighbors, looking for any that are in lane 2
-        for n in range(1, len(self.vehicles)):
+        for n in range(1, self._num_vehicles):
             v = self.vehicles[n]
             if not v.active:
                 continue
@@ -570,7 +573,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                         # Look for a vehicle beside it in lane 1
                         safe = True
-                        for j in range(len(self.vehicles)):
+                        for j in range(self._num_vehicles):
                             if j == n:
                                 continue
                             if self.vehicles[j].lane_id == 1  and  abs(self.vehicles[j].p - v.p) < 2.0*Constants.VEHICLE_LENGTH:
@@ -695,7 +698,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             Used for inference, which needs real DDT, not X location.
         """
 
-        assert 0 <= vehicle_id < len(self.vehicles), \
+        assert 0 <= vehicle_id < self._num_vehicles, \
                 "///// HighwayEnv.get_vehicle_dist_downtrack: illegal vehicle_id entered: {}".format(vehicle_id)
 
         ddt = self.vehicles[vehicle_id].p
@@ -888,7 +891,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.obs[offset + 1] = 1.0 #reachable is guaranteed if it is driveable, since it's the same lane
 
         # Loop through the neighbor vehicles
-        for neighbor_idx in range(1, len(self.vehicles)):
+        for neighbor_idx in range(1, self._num_vehicles):
             nv = self.vehicles[neighbor_idx]
 
             # Find which zone column it is in (relative lane), if any (could be 2 lanes away) (ego is in column 1, lanes are 0-indexed, left-to-right)
@@ -988,7 +991,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         safe = True
 
         # Loop through all active vehicles
-        for o in range(len(self.vehicles)):
+        for o in range(self._num_vehicles):
             other = self.vehicles[o]
             if not other.active:
                 continue
@@ -1001,37 +1004,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     safe = False
 
         return safe
-
-
-    def _acc_speed_control(self,
-                           n        : int   #ID of the neighbor in question; ASSUMED to be > 0
-                          ) -> float:       #returns speed command, m/s
-        """Applies a crude adaptive cruise control logic to the specified neighbor vehicle so that it attempts to follow it's target speed
-            whenever possible, but slows to match the speed of a slower vehicle close in front of it to avoid a crash.
-        """
-
-        speed_cmd = self.vehicles[n].tgt_speed
-
-        # Loop through all other active vehicles in the scenario
-        for i in range(len(self.vehicles)): #includes ego vehicle as #0
-            if i != n  and  self.vehicles[i].active:
-
-                # If that vehicle is close in front of us then
-                if self.vehicles[i].lane_id == self.vehicles[n].lane_id:
-                    dist = self.vehicles[i].p - self.vehicles[n].p
-                    if 0.0 < dist <= Constants.DISTANCE_OF_CONCERN:
-
-                        # Reduce our speed command gradually toward that vehicle's speed, to avoid a collision. Since there could be multiple
-                        # vehicles within the distance of concern, the limiter must account for the results of a previous iteration of this loop.
-                        fwd_speed = self.vehicles[i].cur_speed #speed of the forward vehicle
-                        if fwd_speed < self.vehicles[n].cur_speed:
-                            f = (dist - Constants.CRITICAL_DISTANCE) / \
-                                (Constants.DISTANCE_OF_CONCERN - Constants.CRITICAL_DISTANCE)
-                            speed_cmd = min(max(f*(self.vehicles[n].tgt_speed - fwd_speed) + fwd_speed, fwd_speed), speed_cmd)
-                            #print("///// ** Neighbor {} ACC is active!  tgt_speed = {:.1f}, speed_cmd = {:.1f}, dist = {:5.1f}, fwd_speed = {:.1f}"
-                            #    .format(n, self.vehicles[n].tgt_speed, speed_cmd, dist, fwd_speed))
-
-        return speed_cmd
 
 
     def _check_for_collisions(self) -> bool:
@@ -1048,13 +1020,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         crash = False
 
         # Loop through all active vehicles but the final one to get vehicle A
-        for i in range(len(self.vehicles) - 1):
+        for i in range(self._num_vehicles - 1):
             va = self.vehicles[i]
             if not va.active:
                 continue
 
             # Loop through the remaining active vehicles to get vehicle B
-            for j in range(i + 1, len(self.vehicles)):
+            for j in range(i + 1, self._num_vehicles):
                 vb = self.vehicles[j]
                 if not vb.active:
                     continue

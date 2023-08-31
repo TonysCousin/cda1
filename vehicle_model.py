@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 class VehicleModel(ABC):
-    """Abstract base class defining the interface for models that describe specific vehicle type capabilities."""
+    """Abstract base class defining the interface for models that describe specific vehicle type capabilities, including
+        physical performance limits and the gathering of observations.
+    """
 
     def __init__(self,
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
@@ -30,6 +32,7 @@ class VehicleModel(ABC):
     def get_obs_vector(self,
                        my_id    : int,      #ID of this vehicle (its index into the vehicles list)
                        vehicles : list,     #list of all Vehicles in the scenario
+                       actions  : list,     #list of action commands for this vehicle
                       ) -> np.array:
 
         """Gathers all of the vehicle's observations and returns them as a numpy vector.
