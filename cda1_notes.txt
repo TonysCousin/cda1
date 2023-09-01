@@ -30,6 +30,8 @@ for anyone not intently helping out.
 
 TODO:
 - Review all TODOs
+- ready to try running!
+
 - Overhaul the env to execute any number of vehicles, each with possibly a different dynamics model and control model.
 - Adapt the cda0 neighbor basic vehicle dynamics model for the first derived type.
 - Allow env ctor to be called with an initialization code. 

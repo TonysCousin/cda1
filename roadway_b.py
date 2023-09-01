@@ -2,6 +2,7 @@ import math
 from typing import Tuple, Dict, List
 from constants import Constants
 from lane import Lane
+from target_destination import TargetDestiination
 
 class Roadway:
     """Defines the geometry of the roadway lanes and their drivable connections.  All dimensions are
@@ -130,6 +131,11 @@ class Roadway:
                 (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL)]
         lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = 953.6, left_sep = 1350.0)
         self.lanes.append(lane)
+
+        # Define the target destinations for the ego vehicle
+        self.targets = []
+        self.targets.append(TargetDestiination(1, 2900.0))
+        self.targets.append(TargetDestiination(2, 2900.0))
 
 
     def map_to_param_frame(self,
@@ -330,7 +336,7 @@ class Roadway:
         assert 0 <= lane < len(self.lanes), "Roadway.get_speed_limit input lane ID {} invalid.".format(lane)
 
         x = self.param_to_map_frame(p, lane)
-        for s in range(len(self.lane[lane].segments)):
+        for s in self.lanes[lane].segments:
             if s[0] <= x <= s[2]:
                 return s[5]
 

@@ -36,7 +36,7 @@ def main(argv):
 
     # Set up the environment
     env_config = {  "time_step_size":       0.5,
-                    "debug":                1,
+                    "debug":                2,
                     "verify_obs":           True,
                     "scenario":             90+start_lane, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":         "vehicle_config.yaml",
@@ -45,9 +45,11 @@ def main(argv):
     #print("///// Environment configured. Params are:")
     #print(pretty_print(cfg.to_dict()))
     env.reset()
+    print("///// inference: env reset complete.")
 
     # Set up the Ray framework
     ray.init()
+    print("///// inference: ray init complete.")
     cfg = sac.SACConfig()
     cfg.framework("torch").exploration(explore = False)
     cfg_dict = cfg.to_dict()
@@ -60,15 +62,18 @@ def main(argv):
     cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
     cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
+    print("///// inference: environment specified.")
 
     # Restore the selected checkpoint file
     # Note that the raw environment class is passed to the algo, but we are only using the algo to run the NN model,
     # not to run the environment, so any environment info we pass to the algo is irrelevant for this program.
     algo = cfg.build()
-    algo.restore(checkpoint)
-    print("///// Checkpoint {} successfully loaded.".format(checkpoint))
-    if learning_level == 4  and  start_lane == 2:
-        print("///// using ramp relative position ", relative_pos)
+    try:
+        algo.restore(checkpoint)
+        print("///// Checkpoint {} successfully loaded.".format(checkpoint))
+    except ValueError as e:
+        print("///// Checkpoint {} could not be loaded. {}. Aborting.".format(checkpoint, e))
+        sys.exit(2)
 
     # Set up the graphic display
     graphics = Graphics(env)

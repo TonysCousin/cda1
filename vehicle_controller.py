@@ -1,18 +1,24 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from vehicle import Vehicle
+from hp_prng import HpPrng
+from roadway_b import Roadway
 
 class VehicleController(ABC):
     """Abstract base class for vehicle control algorithms that map observations to action commands for a vehicle."""
 
-    def __init__(self):
+    def __init__(self,
+                 prng   : HpPrng,   #pseudo-random number generator
+                 roadway: Roadway,  #the roadway geometry
+                ):
 
+        self.prng = prng
+        self.roadway = roadway
         self.vehicles = None #TODO: remove this?
         self.my_vehicle = None
 
 
     def set_vehicle(self,
-                    vehicle         : Vehicle   #the vehicle that owns this controller
+                    vehicle         : object   #the vehicle that owns this controller (type Vehicle is not available during construction)
                    ):
         """Stores the host vehicle's info.  This must be called before step(); ideally as soon as the vehicle object is constructed."""
 

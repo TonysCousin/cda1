@@ -54,8 +54,8 @@ def main(argv):
 
     # Define the custom environment for Ray
     env_config = {}
-    env_config["difficulty_level"]              = difficulty_level
     env_config["time_step_size"]                = 0.2
+    env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True

@@ -25,7 +25,7 @@ class BotType1Model(VehicleModel):
                        actions  : list,     #list of action commands for this vehicle
                       ) -> np.array:
 
-        """Produces the observation vector for this vehicle object.
+        """Produces the observation vector for this vehicle object if it is still active. An inactive vehicle produces all 0s.
 
             CAUTION: the returned observation vector is at actual world scale and needs to be
                      preprocessed before going into a NN!
@@ -35,8 +35,16 @@ class BotType1Model(VehicleModel):
             anyway.
         """
 
-        # Identify the closest neighbor downtrack of this vehicle in the same lane
+        obs = np.zeros(ObsVec.OBS_SIZE, dtype = np.float32)
+
+        # If this vehicle is inactive, then stop now
         me = vehicles[my_id]
+        me.print("me!")
+        print("      vehicles = ", vehicles)
+        if not me.active:
+            return obs
+
+        # Identify the closest neighbor downtrack of this vehicle in the same lane
         closest_id = None
         closest_dist = Constants.REFERENCE_DIST #we don't need to worry about anything farther than this
         for i in range(len(vehicles)):
@@ -44,15 +52,18 @@ class BotType1Model(VehicleModel):
                 continue
 
             v = vehicles[i]
+            if not v.active:
+                continue
+
             if v.lane_id == me.lane_id:
                 fwd_dist = v.p - me.p
                 if fwd_dist > 0.0  and  fwd_dist < closest_dist:
                     closest_dist = fwd_dist
                     closest_id = i
+        #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
 
         # Build the obs vector
-        obs = np.zeros(ObsVec.OBS_SIZE, dtype = np.float32)
-        speed_limit = me.roadway.get_speed_limit(me.lane_id, me.p)
+        speed_limit = me.roadway.get_speed_limit(me.lane_id, me.p) #TODO do we need this for future?
         obs[ObsVec.EGO_DES_SPEED_PREV] = obs[ObsVec.EGO_DES_SPEED]
         obs[ObsVec.EGO_DES_SPEED] = actions[0]
         obs[ObsVec.LC_CMD_PREV] = obs[ObsVec.LC_CMD_PREV]
@@ -60,14 +71,15 @@ class BotType1Model(VehicleModel):
         obs[ObsVec.STEPS_SINCE_LN_CHG] = me.lane_change_count
         obs[ObsVec.EGO_SPEED_PREV] = obs[ObsVec.EGO_SPEED]
         obs[ObsVec.EGO_SPEED] = me.cur_speed
-
         obs[ObsVec.FWD_DIST] = closest_dist
         obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED
         if closest_id is not None:
             obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed
 
+        #print("///// BotType1Model.get_obs_vector returning ", obs)
         return obs
 
+        """
         # Reinitialize the remainder of the observation vector
         self._verify_obs_limits("reset after populating main obs with ego stuff")
 
@@ -76,3 +88,4 @@ class BotType1Model(VehicleModel):
 
         self._update_obs_zones()
         self._verify_obs_limits("step after updating obs vector")
+        """

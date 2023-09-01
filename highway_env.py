@@ -169,10 +169,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                   length        = spec["length"],
                                   lc_duration   = spec["lc_duration"],
                                   time_step     = self.time_step_size)
-            controller = getattr(sys.modules[__name__], spec["controller"])() #TODO - need to figure out args
+            controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway)
             v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             self.vehicles.append(v)
             controller.set_vehicle(v) #let the new controller know about the vehicle it is driving
+        if self.debug > 1:
+            print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
 
         #TODO: do we need this?
         # Propagate the full vehicle list
@@ -237,10 +239,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         upper_obs[ObsVec.FWD_SPEED]           = Constants.MAX_SPEED
 
         self.observation_space = Box(low = lower_obs, high = upper_obs, dtype = float)
-        if self.debug == 2:
+        if self.debug > 1:
             print("///// observation_space = ", self.observation_space)
 
-        self.all_obs = np.zeros(self._num_vehicles, ObsVec.OBS_SIZE) #one row for each vehicle
+        self.all_obs = np.zeros((self._num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
         self._verify_obs_limits("init after space defined") #TODO: move this to ???
 
         #
@@ -251,7 +253,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lower_action = np.array([-1.0, -1.0])
         upper_action = np.array([ 1.0,  1.0])
         self.action_space = Box(low=lower_action, high = upper_action, dtype = float)
-        if self.debug == 2:
+        if self.debug > 1:
             print("///// action_space = ", self.action_space)
 
         #
@@ -348,7 +350,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Clear any lingering observations from the previous episode
-        self.all_obs = np.zeros(self._num_vehicles, ObsVec.OBS_SIZE)
+        self.all_obs = np.zeros((self._num_vehicles, ObsVec.OBS_SIZE))
 
         # Solo bot vehicle that runs each lane in sequence at its speed limit (useful for inference only)
         if self.scenario >= 90:
@@ -374,6 +376,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 speed = self.prng.random() * Constants.MAX_SPEED
                 self.vehicles[i].reset(lane_id = lane_id, init_ddt = ddt, init_speed = speed)
 
+        if self.debug > 1:
+            print("///// HighwayEnv.reset: all vehicle starting configs defined.")
+
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
         #
@@ -382,8 +387,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # include sensing of vehicle placed later.
 
         # Get the obs from each vehicle
+        dummy_actions = [0.5*Constants.MAX_SPEED, LaneChange.STAY_IN_LANE]
         for i in range(self._num_vehicles):
-            self.full_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles)
+            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions)
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -391,7 +397,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         if self.debug > 0:
             print("///// End of reset().")
-        return self.full_obs[0, :], {} #only return the row for the ego vehicle
+        return self.all_obs[0, :], {} #only return the row for the ego vehicle
 
 
     def step(self,
@@ -441,22 +447,23 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Unscale the ego action inputs (both actions are in [-1, 1])
-        ego_action = []*2
+        ego_action = [None]*2
         ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
         ego_action[1] = int(math.floor(cmd[1] + 0.5))
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
-        vehicle_actions = []*self._num_vehicles
+        vehicle_actions = [None]*self._num_vehicles
         action = ego_action
         for i in range(self._num_vehicles):
             if not self.vehicles[i].active:
                 continue
 
+            #TODO: will need to store actions from all vehicles to pass to the get_obs_vector() call later on
             # Exercise the control algo to generate the next action commands.
             if i > 0:
-                action = self.vehicles[i].controller.step(self.full_obs[i, :])
+                action = self.vehicles[i].controller.step(self.all_obs[i, :])
 
             # Store the actions for future reference
             vehicle_actions[i] = action
@@ -469,7 +476,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
-                if self.vehicles[0].lane_id in [1, 2]  and  new_p >= TARGET_P:
+                reached_tgt = False
+                for t in self.roadway.targets:
+                    if self.vehicles[0].lane_id == t.lane_id  and  new_p >= t.p:
+                        reached_tgt = True
+                        break
+
+                if reached_tgt:
                     done = True
                     return_info["reason"] = "SUCCESS - end of scenario!"
                     #print("/////+ step: {} step {}, success - completed the track".format(self.rollout_id, self.total_steps))
@@ -479,6 +492,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     done = True
                     return_info["reason"] = reason
 
+        if self.debug > 0:
+            print("      all vehicle dynamics updated.")
+
+        #
+        #..........Gather the results and observations and set the reward
+        #
+
+        # Get the observations from each vehicle
+        for i in range(self._num_vehicles):
+            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, ego_action)
+
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
         if crash:
@@ -486,20 +510,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             return_info["reason"] = "Two (or more) vehicles crashed."
             #print("/////+ step: {} step {}, crash!".format(self.rollout_id, self.total_steps))
 
-
-
-
-
-
-
-
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped)
         return_info["reward_detail"] = expl
         #print("/////+ step: {} step {}, returning reward of {}, {}".format(self.rollout_id, self.total_steps, reward, expl))
-
-        # Verify that the obs are within design limits
-        self._verify_obs_limits("step after reward calc")
 
         if self.debug > 0:
             print("///// step complete. Returning obs = ")
@@ -511,8 +525,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("      reason = {}".format(return_info["reason"]))
             print("      reward_detail = {}\n".format(return_info["reward_detail"]))
 
-        truncated = False #indicates if the episode ended due to step/time limit rather than success or failure
-        return self.obs, reward, done, truncated, return_info
+        # Determine if we have hit the steps limit for an episode
+        truncated = False #True indicates that the episode ended due to step/time limit rather than success or failure
+        if self.steps_since_reset >= self.episode_length:
+            truncated = True #TODO: do we need done = True also in this case?
+            print("///// step marking this episode as TRUNCATED. Done = {}".format(done))
+
+        return self.all_obs[0, :], reward, done, truncated, return_info
 
 
     def get_stopper(self):
@@ -581,6 +600,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ts = None
         if ts is not None  and  ts != ""  and  float(ts) > 0.0:
             self.time_step_size = float(ts)
+
+        self.episode_length = 999999 #mas number of time steps in an episode (large default supports inference)
+        try:
+            el = config["episode_length"]
+            if el > 0:
+                self.episode_length = int(el)
+        except KeyError as e:
+            pass
 
         self.debug = 0 #level of debug printing (0=none (default), 1=moderate, 2=full details)
         try:
@@ -932,7 +959,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     off_road: bool,         #did the ego vehicle run off the road?
                     stopped : bool          #has the vehicle come to a standstill?
                    ):
-        """Returns the reward for the current time step (float).  The reward should be in [-1, 1] for any situation."""
+        """Returns the reward for the current time step (float).  The reward should be near [-1, 1] for any situation.
+            NOTE: for now we are only looking at the first vehicle's observations (the ego vehicle).
+        """
 
         if self.debug > 1:
             print("///// Entering _get_reward rollout {}, step {}. done = {}, crash = {}, off_road = {}"
@@ -940,75 +969,55 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         reward = 0.0
         explanation = ""
 
+        # Handle inactive ego vehicle
+        if not self.vehicles[0].active:
+            reward = -1.0
+            explanation = "Ego vehicle is not active!"
+            return reward, explanation
+
         # If the episode is done then
         if done:
 
             # If there was a multi-car crash or off-roading (single-car crash) then set a penalty, larger for multi-car crash
             if crash:
-                reward = -15.0
+                reward = -1.5
                 explanation = "Crashed into a vehicle. "
 
             elif off_road:
-                reward = -10.0
-                # Assign a different value if agent is in lane 2 so we can see in the logs which episodes are in this lane
-                if self.vehicles[0].lane_id == 2:
-                    reward = -10.0
+                reward = -1.0
                 explanation = "Ran off road. "
 
             # Else if the vehicle just stopped in the middle of the road then
             elif stopped:
-
-                # Subtract a penalty for no movement (needs to be as severe as off-road)
-                reward = -12.0
+                reward = -1.0
                 explanation = "Vehicle stopped. "
 
             # Else (episode ended successfully)
             else:
-
-                # If we are allowed to reward the completion bonus then add amount inversely proportional
-                # to the length of the episode.
-                if self.difficulty_level == 0:
-                    reward = 10.0
-                    explanation = "Successful episode!"
-
-                else:
-                    if self.reward_for_completion:
-                        dist = abs(self.steps_since_reset - 130)
-                        reward = min(max(10.0 - 0.2*dist, 0.0), 10.0)
-                        explanation = "Successful episode! {} steps".format(self.steps_since_reset)
-                    else:
-                        explanation = "Completed episode, but no bonus due to rule violation."
+                reward = 1.0
+                explanation = "Successful episode!"
 
         # Else, episode still underway
         else:
 
-            # Reward for staying alive
-            INITIAL_BONUS = 0.01
-            bonus = INITIAL_BONUS
-            tune_steps = 1
-            reward += bonus
-
             # Small penalty for widely varying lane commands
-            cmd_diff = abs(self.obs[ObsVec.LC_CMD] - self.obs[ObsVec.LC_CMD_PREV])
-            penalty = 0.1 * cmd_diff * cmd_diff
+            cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
+            penalty = 0.01 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
 
             # Small penalty for widely varying speed commands
-            if self.difficulty_level > 0:
-                cmd_diff = abs(self.obs[ObsVec.EGO_DES_SPEED] - self.obs[ObsVec.EGO_DES_SPEED_PREV]) / Constants.MAX_SPEED
-                penalty = 0.4 * cmd_diff * cmd_diff
-                reward -= penalty
-                if penalty > 0.0001:
-                    explanation += "Spd cmd pen {:.4f}. ".format(penalty)
+            cmd_diff = abs(self.all_obs[0, ObsVec.EGO_DES_SPEED] - self.all_obs[0, ObsVec.EGO_DES_SPEED_PREV]) / Constants.MAX_SPEED
+            penalty = 0.04 * cmd_diff * cmd_diff
+            reward -= penalty
+            if penalty > 0.0001:
+                explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit
-            speed_mult = 0.3
-            if self.difficulty_level == 1  or  self.difficulty_level == 2:
-                speed_mult *= 2.0
-
-            norm_speed = self.obs[ObsVec.EGO_SPEED] / Constants.ROAD_SPEED_LIMIT #1.0 = speed limit
+            speed_mult = 0.03
+            speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
+            norm_speed = self.all_obs[ObsVec.EGO_SPEED] / speed_limit #1.0 = speed limit
             diff = abs(norm_speed - 1.0)
             penalty = 0.0
             if diff > 0.02:
@@ -1018,7 +1027,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.lane_change_count == 1:
-                penalty = 0.05 + 0.005*(Constants.MAX_STEPS_SINCE_LC - self.obs[ObsVec.STEPS_SINCE_LN_CHG])
+                penalty = 0.005 + 0.0005*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
@@ -1041,12 +1050,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         hi = self.observation_space.high
 
         try:
-            for i in range(ObsVec.OBS_SIZE):
-                assert lo[i] <= self.obs[i] <= hi[i], "\n///// obs[{}] value ({}) is outside bounds {} and {}" \
-                                                        .format(i, self.obs[i], lo[i], hi[i])
+            for v in range(self._num_vehicles):
+                for i in range(ObsVec.OBS_SIZE):
+                    assert lo[i] <= self.all_obs[v, i] <= hi[i], "\n///// obs[{}, {}] value ({}) is outside bounds {} and {}" \
+                                                            .format(v, i, self.all_obs[i], lo[i], hi[i])
 
         except AssertionError as e:
             print(e)
             print("///// Full obs vector content at: {}:".format(tag))
-            for j in range(ObsVec.OBS_SIZE):
-                print("      {:2d}: {}".format(j, self.obs[j]))
+            for v in range(self._num_vehicles):
+                print("----- Vehicle {}:".format(v))
+                for j in range(ObsVec.OBS_SIZE):
+                    print("      {:2d}: {}".format(j, self.all_obs[j]))

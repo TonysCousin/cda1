@@ -85,7 +85,7 @@ class Vehicle:
     def advance_vehicle_spd(self,
                             new_speed_cmd   : float,        #the newly commanded speed, m/s
                             new_lc_cmd      : LaneChange,   #the newly commanded lane change action (enum)
-                           ) -> Tuple[float, float, int, bool, str]:
+                           ) -> Tuple[float, float, int, str]:
 
         """Advances a vehicle's motion for one time step according to the vehicle dynamics model.
 
@@ -93,7 +93,6 @@ class Vehicle:
                 - new speed (float, m/s)
                 - new P location (float, m)
                 - new lane ID (int)
-                - flag indicating if vehicle ran off-road (bool)
                 - reason for running off-road (str)
 
             CAUTION: should not be overridden!
@@ -109,7 +108,7 @@ class Vehicle:
     def advance_vehicle_accel(self,
                               new_accel_cmd : float,        #newest fwd accel command, m/s^2
                               new_lc_cmd    : LaneChange,   #newest lane change command (enum)
-                             ) -> Tuple[float, float, int, bool, str]:
+                             ) -> Tuple[float, float, int, str]:
 
         """Advances a vehicle's motion for one time step according to the vehicle dynamics model.
 
@@ -117,8 +116,8 @@ class Vehicle:
                 - new speed (float, m/s)
                 - new P location (float, m)
                 - new lane ID (int)
-                - flag indicating if vehicle ran off-road (bool)
                 - reason for running off-road (str)
+            Note that it also updates state member variables for the vehicle.
 
             CAUTION: should not be overridden!
         """
@@ -148,7 +147,7 @@ class Vehicle:
                 done = True
                 self.stopped = True
                 reason = "Vehicle is crawling to a stop"
-                #print("/////+ step: {} step {}, vehicle stopped".format(self.rollout_id, self.total_steps))  #TODO debug
+                #print("/////+ step: {} step {}, vehicle stopped".format(self.rollout_id, self.total_steps))
         else:
             self.stopped_count = 0
 
@@ -188,7 +187,7 @@ class Vehicle:
                     reason = "Ran off road; illegal lane change"
                     if self.debug > 1:
                         print("      DONE!  illegal lane change commanded.")
-                    #print("/////+ step: {} step {}, illegal lane change".format(self.rollout_id, self.total_steps))  #TODO debug
+                    #print("/////+ step: {} step {}, illegal lane change".format(self.rollout_id, self.total_steps))
 
                 # Else, we are still going; if we are exactly half-way then change the current lane ID
                 elif self.lane_change_count == self.model.lc_half_steps:
@@ -246,7 +245,7 @@ class Vehicle:
             print("      step: done lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}"
                     .format(self.lane_change_status, new_lane, tgt_lane, self.lane_change_count))
 
-        return new_speed, new_p, new_lane, self.off_road, reason
+        return new_speed, new_p, new_lane, reason
 
 
     def print(self,
@@ -254,5 +253,5 @@ class Vehicle:
              ):
         """Prints the attributes of this vehicle object."""
 
-        print("       [{}]: active = {:5b}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}" \
+        print("       [{}]: active = {}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}" \
                 .format(tag, self.active, self.lane_id, self.p, self.lane_change_status, self.cur_speed))

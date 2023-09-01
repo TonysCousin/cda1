@@ -85,7 +85,7 @@ class HighwayEnvWrapper(HighwayEnv):
 
         """Converts a raw observation vector from the parent environment to a scaled vector usable by a NN."""
 
-        scaled = [0.0]*Constants.OBS_SIZE
+        scaled = [0.0]*ObsVec.OBS_SIZE
 
         scaled[ObsVec.EGO_DES_SPEED]      = obs[ObsVec.EGO_DES_SPEED]       / Constants.MAX_SPEED           #range [0, 1]
         scaled[ObsVec.EGO_DES_SPEED_PREV] = obs[ObsVec.EGO_DES_SPEED_PREV]  / Constants.MAX_SPEED           #range [0, 1]
@@ -94,9 +94,11 @@ class HighwayEnvWrapper(HighwayEnv):
         scaled[ObsVec.EGO_SPEED]          = obs[ObsVec.EGO_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
         scaled[ObsVec.EGO_SPEED_PREV]     = obs[ObsVec.EGO_SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
         scaled[ObsVec.STEPS_SINCE_LN_CHG] = obs[ObsVec.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
+        scaled[ObsVec.FWD_DIST]           = min(obs[ObsVec.FWD_DIST]        / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
+        scaled[ObsVec.FWD_SPEED]          = obs[ObsVec.FWD_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
 
         # Return the obs as an ndarray
-        vec = np.array(scaled, dtype=np.float32)
+        vec = np.array(scaled, dtype = np.float32)
         if self.debug > 1:
             print("scale_obs returning vec size = ", vec.shape)
             print(vec)
