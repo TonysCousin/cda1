@@ -32,11 +32,6 @@ for anyone not intently helping out.
 * Built env model to the point that it executes one iteration in inference (prior to checkpoint loading).
 
 9/1/23
-14:39-15:25 project
-15:25-15:58 fighting ray
-17:02-17:50 fighting ray
-17:53-18:07 fighting ray
-20:36-21:28, int 10 project
 
 * Tried running inference with the final cda0 checkpoint file. It couldn't load because it was looking for
   the old class structure (simple_highway_ramp_wrapper), which is apparently baked into the checkpoint.
@@ -44,14 +39,25 @@ for anyone not intently helping out.
 * Tried running the tune program - had to make several tweaks & fixes.
 	* Got it running in the tuner.  Now to put in some real logic to get the NN to start learning.
 
+9/2/23
+15:44-
+
+* Updated inference prgm to work with the new vehicle structure and with or without a checkpoint (moving
+  neighbor vehicles only).
+
 
 TODO:
+- fix inference graphics - vehicle 1 is in the wrong location
+- start training!
+
 - Try running inference with real checkpoint.
 - Review all TODOs
 - add bot1 lane change capability when on a ramp.
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
 
+- Add lane IDs to graphics
+- Add vehicle icons to graphics
 - Allow env ctor to be called with an initialization code. 
 	- value lane_exercise -> cycles reset() through 6 episodes, and each episode places a single vehicle at the
 	  beginning of each lane, in sequence, and lets it run the entire lane. Use this to verify the basic functions

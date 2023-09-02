@@ -59,7 +59,7 @@ def main(argv):
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode #TODO: needed?
-    env_config["scenario"]                      = 90
+    env_config["scenario"]                      = 0
     cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
     #cfg.environment(env = DummyEnv, env_config = env_config)
 

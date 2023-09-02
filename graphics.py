@@ -31,11 +31,13 @@ class Graphics:
     REAL_TIME_RATIO = 5.0       #Factor faster than real time
 
     # Geometry of data plots
-    PLOT_H          = 150 #height of each plot, pixels
-    PLOT_W          = 200 #width of each plot, pixels
+    PLOT_H          = 150       #height of each plot, pixels
+    PLOT_W          = 200       #width of each plot, pixels
     PLOT1_R         = WINDOW_SIZE_R/8 #upper-left corner of plot #1
     PLOT1_S         = 0.7*WINDOW_SIZE_S
+    NOMINAL_SPEED   = 29.1      #m/s
 
+    #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
     def __init__(self,
                  env    : gymnasium.Env
@@ -111,9 +113,10 @@ class Graphics:
         self.crash_image = pygame.image.load("images/crash16.bmp").convert()
 
         # Set up lists of previous screen coords and display colors for each vehicle
-        self.prev_veh_r = [0] * (Constants.NUM_NEIGHBORS+1)
-        self.prev_veh_s = [0] * (Constants.NUM_NEIGHBORS+1)
-        self.veh_colors = [Graphics.NEIGHBOR_COLOR] * (HighwayEnvWrapper.NUM_NEIGHBORS+1)
+        vehicles = env.get_vehicle_data()
+        self.prev_veh_r = [0] * len(vehicles)
+        self.prev_veh_s = [0] * len(vehicles)
+        self.veh_colors = [Graphics.NEIGHBOR_COLOR] * len(vehicles)
         self.veh_colors[0] = Graphics.EGO_COLOR
 
         # Initialize the previous vehicles' locations near the beginning of a lane (doesn't matter which lane for this step)
@@ -131,7 +134,7 @@ class Graphics:
         # Plot ego speed
         self.plot_ego_speed = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
                                    Constants.MAX_SPEED, title = "Ego speed, m/s")
-        self.plot_ego_speed.add_reference_line(Constants.ROAD_SPEED_LIMIT, Graphics.REFERENCE_COLOR)
+        self.plot_ego_speed.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
 
 
     def update(self,
