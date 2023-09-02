@@ -7,7 +7,7 @@ vehicles:
     max_jerk:     4.0     #m/s^3
     max_accel:    3.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.0     #sec
+    lc_duration:  3.2     #sec #needs to be an even multiple of time step 0.2 sec
 
   - id:           1 ##########################
     model:        BotType1Model
@@ -15,4 +15,4 @@ vehicles:
     max_jerk:     4.0     #m/s^3
     max_accel:    3.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.0     #sec
+    lc_duration:  3.2     #sec

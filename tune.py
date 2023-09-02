@@ -10,6 +10,7 @@ import ray.rllib.algorithms.sac as sac
 
 from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
+#from dummy_env import DummyEnv
 
 """This program tunes (explores) hyperparameters to find a good set suitable for training.
 """
@@ -21,7 +22,7 @@ _checkpoint_path = None
 def main(argv):
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
-    ray.init() #storage = "~/ray_results/cda0")
+    ray.init() #storage = "~/ray_results/cda1")
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"
@@ -30,25 +31,22 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    # All list objects (min_timesteps, success_threshold, failure_threshold) must be of length equal to num phases in use.
-    # Phase...............0             1           2           3           4           5
-    success_threshold   = [9.5,         9.5,        9.5,        10.0,       8.0,        8.0]
-    min_threshold       = [None,        None,       None,       None,       None,       0.0]
-    fail_threshold      = [-12.0,       -12.0,      -12.0,      -12.0,      -12.0,      -12.0]
-    avg_over_latest     = 200   #num most recent iters that are averaged to meet stopping criteria
+    success_threshold   = 0.5
+    min_threshold       = 0.0
+    fail_threshold      = -1.2
+    avg_over_latest     = 100   #num most recent iters that are averaged to meet stopping criteria
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 12000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 8
-    difficulty_level = 5
+    num_trials          = 1
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
     stopper = StopSimple(max_iterations     = max_iterations,
                          avg_over_latest    = avg_over_latest,
-                         avg_threshold      = success_threshold[difficulty_level],
-                         min_threshold      = min_threshold[difficulty_level],
-                         max_fail_threshold = fail_threshold[difficulty_level],
+                         avg_threshold      = success_threshold,
+                         min_threshold      = min_threshold,
+                         max_fail_threshold = fail_threshold,
                          burn_in            = burn_in,
                         )
 
@@ -57,10 +55,13 @@ def main(argv):
     env_config["time_step_size"]                = 0.2
     env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode #TODO: needed?
+    env_config["scenario"]                      = 90
     cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
+    #cfg.environment(env = DummyEnv, env_config = env_config)
 
     # Add exploration noise params
     #cfg.rl_module(_enable_rl_module_api = False) #disables the RL module API, which allows exploration config to be defined for ray 2.6
@@ -72,7 +73,7 @@ def main(argv):
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
-    explore_config["scale_timesteps"]           = tune.choice([3000000, 4000000])
+    explore_config["scale_timesteps"]           = 4000000 #tune.choice([3000000, 4000000])
     exp_switch                                  = True #tune.choice([False, True, True])
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
@@ -86,6 +87,7 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
     # This config will run 5 parallel trials on the Tensorbook.
+    """
     cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
                     num_cpus_per_worker         = 2, #also applies to the local worker and evaluation workers
@@ -107,6 +109,7 @@ def main(argv):
     cfg.debugging(  log_level                   = "WARN",
                     seed                        = 17, #tune.choice([2, 17, 666, 4334, 10003, 29771, 38710, 50848, 81199])
     )
+    """
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
@@ -137,7 +140,7 @@ def main(argv):
     # ===== Final setup =========================================================================
 
     print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print(pretty_print(cfg.to_dict()))
 
     tune_config = TuneConfig(
                     metric                      = "episode_reward_mean",
@@ -146,7 +149,7 @@ def main(argv):
                 )
 
     run_config = RunConfig( #some commented-out items will allegedly be needed for Ray 2.6
-                    name                        = "cda0",
+                    name                        = "cda1",
                     local_dir                   = "~/ray_results", #for ray <= 2.5
                     #storage_path                = "~/ray_results", #required if not using remote storage for ray 2.6
                     stop                        = stopper,

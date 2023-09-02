@@ -1,5 +1,4 @@
 import sys
-from collections import deque
 from statistics import mean
 from typing import Tuple, Dict, List
 import math
@@ -121,7 +120,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         """Wrapper for the real initialization in order to trap stray exceptions."""
 
+        super().__init__()
         try:
+            print("///// Ready to call _init")
             self._init(config, seed, render_mode)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.__init__: ", e)
@@ -135,8 +136,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 ):
 
         """Initialize an object of this class.  Config options are documented in _set_initial_conditions()."""
-
-        super().__init__()
 
         # Store the arguments
         #self.seed = seed #Ray 2.0.0 chokes on the seed() method if this is defined (it checks for this attribute also)
@@ -152,25 +151,35 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Create the roadway geometry
         self.roadway = Roadway(self.debug)
+        print("///// Roadway loaded.")
 
         # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
+        #try:
         vc = self.vehicle_config
+        print("///// vc = ", vc)
         v_data = vc["vehicles"]
-        self._num_vehicles = len(v_data)
+        self.num_vehicles = len(v_data)
+        #except Exception as e:
+        #    print("///// HighwayEnv.__init__ trapped exception in loading vehicle config data: ", e)
+        #    raise e
 
         # Instantiate model and controller objects for each vehicle, then use them to construct the vehicle object
         self.vehicles = []
-        for i in range(self._num_vehicles):
+        for i in range(self.num_vehicles):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
             spec = v_data[i]
+            print("///// init: spec for ", i, " = ", spec)
             model = getattr(sys.modules[__name__], spec["model"])(
                                   max_jerk      = spec["max_jerk"],
                                   max_accel     = spec["max_accel"],
                                   length        = spec["length"],
                                   lc_duration   = spec["lc_duration"],
                                   time_step     = self.time_step_size)
+            print("----- model constructed.")
             controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway)
+            print("----- controller constructed.")
             v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
+            print("----- Vehicle constructed.")
             self.vehicles.append(v)
             controller.set_vehicle(v) #let the new controller know about the vehicle it is driving
         if self.debug > 1:
@@ -178,9 +187,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         #TODO: do we need this?
         # Propagate the full vehicle list
-        #for i in range(self._num_vehicles):
+        #for i in range(self.num_vehicles):
         #    self.vehicles[i].controller.set_vehicle_list(self.vehicles)
-
 
 
 
@@ -223,7 +231,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Gymnasium requires a member variable named observation_space. Since we are dealing with world scale values here, we
         # will need a wrapper to scale the observations for NN input. That wrapper will also need to use self.observation_space.
         # So here we must anticipate that scaling and leave the limits open enough to accommodate it.
-        lower_obs = np.zeros((ObsVec.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
+        lower_obs = np.zeros(ObsVec.OBS_SIZE) #most values are 0, so only the others are explicitly set below
         lower_obs[ObsVec.LC_CMD]              = LaneChange.CHANGE_LEFT
         lower_obs[ObsVec.LC_CMD_PREV]         = LaneChange.CHANGE_LEFT
 
@@ -242,8 +250,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.debug > 1:
             print("///// observation_space = ", self.observation_space)
 
-        self.all_obs = np.zeros((self._num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
-        self._verify_obs_limits("init after space defined") #TODO: move this to ???
+        self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
+        #self._verify_obs_limits("init after space defined") #TODO: move this to ???
 
         #
         #..........Define the action space
@@ -294,14 +302,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                  task:      int         #ID of the task (lesson difficulty) to simulate, in [0, n)
                 ) -> None:
         """Defines the difficulty level of the environment, which can be used for curriculum learning."""
-
-        raise NotImplementedError("HighwayB.set_task() has been deprecated.") #TODO - get rid of this & getter when sure no longer needed
+        pass
+        #raise NotImplementedError("HighwayB.set_task() has been deprecated.") #TODO - get rid of this & getter when sure no longer needed
 
 
     def get_task(self) -> int:
         """Returns the environment difficulty level currently in use."""
 
-        raise NotImplementedError("HighwayB.get_task() has been deprecated.")
+        return 0
 
 
     def reset(self, *,
@@ -350,14 +358,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Clear any lingering observations from the previous episode
-        self.all_obs = np.zeros((self._num_vehicles, ObsVec.OBS_SIZE))
+        self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE))
 
         # Solo bot vehicle that runs each lane in sequence at its speed limit (useful for inference only)
         if self.scenario >= 90:
             if self.scenario - 90 >= self.roadway.NUM_LANES:
                 raise ValueError("///// Attempting to reset to unknown scenario {}".format(self.scenario))
 
-            for i in range(self._num_vehicles):
+            for i in range(self.num_vehicles):
                 self.vehicles[i].active = False
 
             lane_id = self.scenario - 90
@@ -365,14 +373,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # No starting configuration specified - randomize everything
         else:
-            for i in range(self._num_vehicles):
+            for i in range(self.num_vehicles):
                 space_found = False
                 while not space_found:
                     lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
                     ddt = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0)
                     loc = ddt + lane_begin
-                    space_found = self._verify_safe_location(i, lane_id, loc)
+                    space_found = self._verify_safe_location(i, lane_id, loc)   #TODO: verify that this method works
                 speed = self.prng.random() * Constants.MAX_SPEED
                 self.vehicles[i].reset(lane_id = lane_id, init_ddt = ddt, init_speed = speed)
 
@@ -388,7 +396,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Get the obs from each vehicle
         dummy_actions = [0.5*Constants.MAX_SPEED, LaneChange.STAY_IN_LANE]
-        for i in range(self._num_vehicles):
+        for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions)
 
         # Other persistent data
@@ -396,7 +404,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.episode_count += 1
 
         if self.debug > 0:
-            print("///// End of reset().")
+            print("///// End of reset(). Returning obs ", self.all_obs[0, :])
         return self.all_obs[0, :], {} #only return the row for the ego vehicle
 
 
@@ -454,9 +462,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ego_action[1] = 0.0
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
-        vehicle_actions = [None]*self._num_vehicles
+        vehicle_actions = [None]*self.num_vehicles
         action = ego_action
-        for i in range(self._num_vehicles):
+        for i in range(self.num_vehicles):
             if not self.vehicles[i].active:
                 continue
 
@@ -492,7 +500,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     done = True
                     return_info["reason"] = reason
 
-        if self.debug > 0:
+        if self.debug > 1:
             print("      all vehicle dynamics updated.")
 
         #
@@ -500,7 +508,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Get the observations from each vehicle
-        for i in range(self._num_vehicles):
+        for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, ego_action)
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
@@ -525,11 +533,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("      reason = {}".format(return_info["reason"]))
             print("      reward_detail = {}\n".format(return_info["reward_detail"]))
 
-        # Determine if we have hit the steps limit for an episode
+        # Determine if we have hit the steps limit for an episode. To end an episode we need either truncated or done
+        # to be set, but not both, as they have mutually exclusive meanings.
         truncated = False #True indicates that the episode ended due to step/time limit rather than success or failure
         if self.steps_since_reset >= self.episode_length:
-            truncated = True #TODO: do we need done = True also in this case?
-            print("///// step marking this episode as TRUNCATED. Done = {}".format(done))
+            truncated = True
 
         return self.all_obs[0, :], reward, done, truncated, return_info
 
@@ -556,7 +564,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             Used for inference, which needs real DDT, not X location.
         """
 
-        assert 0 <= vehicle_id < self._num_vehicles, \
+        assert 0 <= vehicle_id < self.num_vehicles, \
                 "///// HighwayEnv.get_vehicle_dist_downtrack: illegal vehicle_id entered: {}".format(vehicle_id)
 
         ddt = self.vehicles[vehicle_id].p
@@ -584,6 +592,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 config:     EnvContext
                                ):
         """Sets the initial conditions of the ego vehicle in member variables."""
+        print("///// Entering _set_initial_conditions")
 
         self.burn_in_iters = 0  #TODO: still needed?
         try:
@@ -660,9 +669,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         vcf = None
         try:
             vcf = config["vehicle_file"]
-            stream = open(vcf, 'r')
-            d = yaml.load(stream, Loader = Loader) #TODO: replace with call to safe_load() to plug security risk (https://pyyaml.org/wiki/PyYAMLDocumentation)
-            self.vehicle_config = d
+            print("///// vcf = ", vcf)
+            with open(vcf, 'r') as stream:
+                print("///// stream open.")
+                d = yaml.load(stream, Loader = Loader) #TODO: replace with call to safe_load() to plug security risk (https://pyyaml.org/wiki/PyYAMLDocumentation)
+                print("///// d = ", d)
+                self.vehicle_config = d
         except Exception as e:
             print("///// Exception in loading YAML file {}: {}".format(vcf, e))
 
@@ -757,7 +769,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.obs[offset + 1] = 1.0 #reachable is guaranteed if it is driveable, since it's the same lane
 
         # Loop through the neighbor vehicles
-        for neighbor_idx in range(1, self._num_vehicles):
+        for neighbor_idx in range(1, self.num_vehicles):
             nv = self.vehicles[neighbor_idx]
 
             # Find which zone column it is in (relative lane), if any (could be 2 lanes away) (ego is in column 1, lanes are 0-indexed, left-to-right)
@@ -857,7 +869,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         safe = True
 
         # Loop through all active vehicles
-        for o in range(self._num_vehicles):
+        for o in range(self.num_vehicles):
             other = self.vehicles[o]
             if not other.active:
                 continue
@@ -886,13 +898,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         crash = False
 
         # Loop through all active vehicles but the final one to get vehicle A
-        for i in range(self._num_vehicles - 1):
+        for i in range(self.num_vehicles - 1):
             va = self.vehicles[i]
             if not va.active:
                 continue
 
             # Loop through the remaining active vehicles to get vehicle B
-            for j in range(i + 1, self._num_vehicles):
+            for j in range(i + 1, self.num_vehicles):
                 vb = self.vehicles[j]
                 if not vb.active:
                     continue
@@ -1050,7 +1062,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         hi = self.observation_space.high
 
         try:
-            for v in range(self._num_vehicles):
+            for v in range(self.num_vehicles):
                 for i in range(ObsVec.OBS_SIZE):
                     assert lo[i] <= self.all_obs[v, i] <= hi[i], "\n///// obs[{}, {}] value ({}) is outside bounds {} and {}" \
                                                             .format(v, i, self.all_obs[i], lo[i], hi[i])
@@ -1058,7 +1070,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         except AssertionError as e:
             print(e)
             print("///// Full obs vector content at: {}:".format(tag))
-            for v in range(self._num_vehicles):
+            for v in range(self.num_vehicles):
                 print("----- Vehicle {}:".format(v))
                 for j in range(ObsVec.OBS_SIZE):
                     print("      {:2d}: {}".format(j, self.all_obs[j]))

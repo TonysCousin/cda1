@@ -35,12 +35,10 @@ class BotType1Model(VehicleModel):
             anyway.
         """
 
-        obs = np.zeros(ObsVec.OBS_SIZE, dtype = np.float32)
+        obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
         # If this vehicle is inactive, then stop now
         me = vehicles[my_id]
-        me.print("me!")
-        print("      vehicles = ", vehicles)
         if not me.active:
             return obs
 
@@ -79,7 +77,7 @@ class BotType1Model(VehicleModel):
         #print("///// BotType1Model.get_obs_vector returning ", obs)
         return obs
 
-        """
+        """ For future consideration...
         # Reinitialize the remainder of the observation vector
         self._verify_obs_limits("reset after populating main obs with ego stuff")
 
