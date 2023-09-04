@@ -67,6 +67,7 @@ class Vehicle:
         if init_ddt is None:
             ddt = self.prng.random()*(lane_len - 50.0)
         self.p = self.roadway.get_lane_start_p(self.lane_id) + ddt
+        #print("///// Vehicle.reset: lane = {}, ddt = {:.3f}, p = {:.3f}".format(init_lane_id, ddt, self.p))
 
         self.cur_speed = init_speed
         self.prev_speed = init_speed
@@ -223,6 +224,7 @@ class Vehicle:
         if new_p > lane_end:
             self.off_road = True
             reason = "Ran off end of a terminating lane."
+            self.p = lane_end #don't want it to go past the end of lane, which causes graphics problems
         if self.debug > 1:
             print("      Vehicle in lane {} advanced with new_accel_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}"
                     .format(self.lane_id, new_accel_cmd, new_speed, new_p))

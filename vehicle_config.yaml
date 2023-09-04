@@ -3,7 +3,7 @@ vehicles:
 
   - id:           0 ########################## always the ego vehicle
     model:        BotType1Model
-    controller:   BotType1Ctrl
+    controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
     max_accel:    3.0     #m/s^2
     length:       5.0     #m
@@ -11,7 +11,7 @@ vehicles:
 
   - id:           1 ##########################
     model:        BotType1Model
-    controller:   BotType1Ctrl
+    controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
     max_accel:    3.0     #m/s^2
     length:       5.0     #m

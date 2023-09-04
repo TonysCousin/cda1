@@ -32,10 +32,11 @@ class Graphics:
 
     # Geometry of data plots
     PLOT_H          = 150       #height of each plot, pixels
-    PLOT_W          = 200       #width of each plot, pixels
+    PLOT_W          = 300       #width of each plot, pixels
     PLOT1_R         = WINDOW_SIZE_R/8 #upper-left corner of plot #1
     PLOT1_S         = 0.7*WINDOW_SIZE_S
     NOMINAL_SPEED   = 29.1      #m/s
+    PLOT_STEPS      = 400       #max num time steps that can be plotted
 
     #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
@@ -131,10 +132,13 @@ class Graphics:
         #..........Add live data plots to the display
         #
 
-        # Plot ego speed
-        self.plot_ego_speed = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
-                                   Constants.MAX_SPEED, title = "Ego speed, m/s")
-        self.plot_ego_speed.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
+        # Plot speed of a vehicle (ego vehicle if it is in the scenario, else vehicle 1)
+        title = "Ego speed, m/s"
+        if self.env.scenario >= 90:
+            title = "Speed, m/s"
+        self.plot = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
+                                   Constants.MAX_SPEED, max_steps = Graphics.PLOT_STEPS, title = title)
+        self.plot.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
 
 
     def update(self,
@@ -150,33 +154,41 @@ class Graphics:
             # Grab the background under where we want the vehicle to appear & erase the old vehicle
             pygame.draw.circle(self.window_surface, Graphics.BLACK, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
 
+            if not vehicles[v_idx].active:
+                continue
+
             # Get the vehicle's new location on the surface
+            print("///// Graphics.update: v_idx = {}".format(v_idx))
             new_x, new_y = self._get_vehicle_coords(vehicles, v_idx)
             new_r, new_s = self._map2screen(new_x, new_y)
+            print("      new_x = {:.3f}, new_y = {:.3f}".format(new_x, new_y))
 
-            # If the vehicle is still active display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
-            if vehicles[v_idx].active:
-                pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
-
-            # Else if the vehicle has crashed, then display the crash symbol at its location
-            elif vehicles[v_idx].crashed:
+            # If the vehicle has crashed, then display the crash symbol at its location
+            if vehicles[v_idx].crashed:
                 image_rect = list(self.crash_image.get_rect())
                 r_offset = (image_rect[2] - image_rect[0])//2
                 s_offset = (image_rect[3] - image_rect[1])//2
                 pos = self.crash_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.crash_image, pos)
 
-            # Repaint the surface
-            pygame.display.update()
-            #print("   // Graphics: moving vehicle {} from r,s = ({:4d}, {:4d}) to ({:4d}, {:4d}) and new x,y = ({:5.0f}, {:5.0f})"
-            #        .format(v_idx, self.prev_veh_r[v_idx], self.prev_veh_s[v_idx], new_r, new_s, new_x, new_y))
+            # else the vehicle is still active display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
+            else:
+                pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
 
-            # Update the previous location
+           # Update the previous location
             self.prev_veh_r[v_idx] = new_r
             self.prev_veh_s[v_idx] = new_s
 
+        # Repaint the surface
+        pygame.display.update()
+        #print("   // Graphics: moving vehicle {} from r,s = ({:4d}, {:4d}) to ({:4d}, {:4d}) and new x,y = ({:5.0f}, {:5.0f})"
+        #        .format(v_idx, self.prev_veh_r[v_idx], self.prev_veh_s[v_idx], new_r, new_s, new_x, new_y))
+
         # Update data plots
-        self.plot_ego_speed.update(vehicles[0].cur_speed)
+        pv = 0
+        if self.env.scenario >= 90:
+            pv = 1
+        self.plot.update(vehicles[pv].cur_speed)
 
         # Pause until the next time step
         self.pgclock.tick(self.display_freq)
@@ -231,8 +243,8 @@ class Graphics:
                            ) -> tuple:
         """Returns the map frame coordinates of the indicated vehicle based on its lane ID and distance downtrack.
 
-            CAUTION: these calcs are hard-coded to the specific roadway geometry in this code,
-            it is not a general solution.
+            CAUTION: this is a general solution for any geometry defined in the convention of the Roadway class,
+            but ASSUMES that all lane segments are generally pointing toward the right (heading in (0, 180)).
         """
 
         assert 0 <= vehicle_id < len(vehicles), "///// _get_vehicle_coords: invalid vehicle_id = {}".format(vehicle_id)
@@ -241,22 +253,22 @@ class Graphics:
         lane = vehicles[vehicle_id].lane_id
         x = road.param_to_map_frame(vehicles[vehicle_id].p, lane)
         y = None
-        if lane < 2:
-            y = road.lanes[lane].segments[0][1]
-        else:
-            ddt = (x - road.lanes[2].start_x)/Roadway.COS_RAMP_ANGLE
-            if ddt < road.lanes[2].segments[0][4]: #vehicle is in seg 0
-                seg0x0 = road.lanes[2].segments[0][0]
-                seg0y0 = road.lanes[2].segments[0][1]
-                seg0x1 = road.lanes[2].segments[0][2]
-                seg0y1 = road.lanes[2].segments[0][3]
 
-                factor = ddt / road.lanes[2].segments[0][4]
-                x = seg0x0 + factor*(seg0x1 - seg0x0)
-                y = seg0y0 + factor*(seg0y1 - seg0y0)
+        # Figure out which segment of the lane it is in
+        found = False
+        for seg in road.lanes[lane].segments:
+            if x <= seg[2]: #right end x coord
 
-            else: #vehicle is in seg 1
-                y = road.lanes[2].segments[1][1]
+                # Find how far down this segment we are, and use that to interpolate the y coordinate, in case it is angled.
+                assert x >= seg[0], "///// _get_vehicle_coords: vehicle X coord {:.2f} is outside of segment with X bounds {:.2f} and {:.2f} on lane {}" \
+                                    .format(x, seg[0], seg[2], lane)
+                f = (x - seg[0]) / (seg[2] - seg[0])
+                y = seg[1] + f*(seg[3] - seg[1])
+                found = True
+                break
+
+        if not found:
+            raise LookupError("///// _get_vehicle_coords: could not find segment in lane {} that contains vehicle X = {:.3f}".format(x))
 
         return x, y
 

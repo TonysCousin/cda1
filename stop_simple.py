@@ -110,7 +110,7 @@ class StopSimple(Stopper):
             self.trials[trial_id] = {"stop": False, "num_entries": 1, \
                                      "mean_rewards": mean_rew, "max_rewards": max_rew, "min_rewards": min_rew, "worst_mean": math.inf,
                                      "best_mean": -math.inf}
-            print("///// StopLogic adding new trial: {}".format(trial_id))
+            #print("///// StopSimple adding new trial: {}".format(trial_id))
 
         return False
 

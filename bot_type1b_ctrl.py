@@ -8,10 +8,10 @@ from roadway_b import Roadway
 from lane_change import LaneChange
 
 
-class BotType1Ctrl(VehicleController):
+class BotType1bCtrl(VehicleController):
 
-    """Defines the control algorithm for the Type 1 bot vehicle, which tries to drive at a constant, random, small,
-        offset from the posted speed limit, but uses crude Adaptive Cruise Control (ACC).
+    """Defines the control algorithm for the Type 1 bot vehicle, which at a small, constant, random offset to the
+        posted speed limit, but uses crude Adaptive Cruise Control (ACC).
     """
 
     def __init__(self,

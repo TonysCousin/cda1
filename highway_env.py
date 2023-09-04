@@ -21,8 +21,10 @@ from roadway_b import Roadway
 from vehicle import Vehicle
 from hp_prng import HpPrng
 from lane_change import LaneChange
+# Need to import every derived class that a user might choose to use, so that the config will be recognized:
 from bot_type1_model import BotType1Model
-from bot_type1_ctrl import BotType1Ctrl
+from bot_type1a_ctrl import BotType1aCtrl
+from bot_type1b_ctrl import BotType1bCtrl
 
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
@@ -122,11 +124,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         super().__init__()
         try:
-            print("///// Ready to call _init")
             self._init(config, seed, render_mode)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.__init__: ", e)
-            sys.exit(1)
+            raise e
 
 
     def _init(self,
@@ -151,12 +152,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Create the roadway geometry
         self.roadway = Roadway(self.debug)
-        print("///// Roadway loaded.")
 
         # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0
         #try:
         vc = self.vehicle_config
-        print("///// vc = ", vc)
         v_data = vc["vehicles"]
         self.num_vehicles = len(v_data)
         #except Exception as e:
@@ -168,15 +167,23 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         for i in range(self.num_vehicles):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
             spec = v_data[i]
-            print("///// init: spec for ", i, " = ", spec)
-            model = getattr(sys.modules[__name__], spec["model"])(
-                                  max_jerk      = spec["max_jerk"],
-                                  max_accel     = spec["max_accel"],
-                                  length        = spec["length"],
-                                  lc_duration   = spec["lc_duration"],
-                                  time_step     = self.time_step_size)
-            controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway)
-            v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
+            try:
+                model = getattr(sys.modules[__name__], spec["model"])(
+                                    max_jerk      = spec["max_jerk"],
+                                    max_accel     = spec["max_accel"],
+                                    length        = spec["length"],
+                                    lc_duration   = spec["lc_duration"],
+                                    time_step     = self.time_step_size)
+                controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway)
+                v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
+            except AttributeError as e:
+                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or controller: ", e)
+                raise e
+            except Exception as e:
+                print("///// HighwayEnv.__init__: problem creating vehicle model, controller, or the vehicle itself: ", e)
+                print("Exception type is ", type(e))
+                raise e
+
             self.vehicles.append(v)
             controller.set_vehicle(v) #let the new controller know about the vehicle it is driving
         if self.debug > 1:
@@ -320,7 +327,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             return self._reset(seed = seed, options = options)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.reset: ", e)
-            sys.exit(1)
+            raise e
 
 
     def _reset(self, *,
@@ -415,6 +422,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             return self._step(cmd)
         except Exception as e:
             print("\n///// Exception trapped in HighwayEnv.step: ", e)
+            raise e
 
 
     def _step(self,
@@ -591,7 +599,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 config:     EnvContext
                                ):
         """Sets the initial conditions of the ego vehicle in member variables."""
-        print("///// Entering _set_initial_conditions")
 
         self.burn_in_iters = 0  #TODO: still needed?
         try:
@@ -644,11 +651,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         vcf = None
         try:
             vcf = config["vehicle_file"]
-            print("///// vcf = ", vcf)
             with open(vcf, 'r') as stream:
-                print("///// stream open.")
                 d = yaml.load(stream, Loader = Loader) #TODO: replace with call to safe_load() to plug security risk (https://pyyaml.org/wiki/PyYAMLDocumentation)
-                print("///// d = ", d)
                 self.vehicle_config = d
         except Exception as e:
             print("///// Exception in loading YAML file {}: {}".format(vcf, e))
@@ -1004,7 +1008,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Penalty for deviating from roadway speed limit
             speed_mult = 0.03
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
-            norm_speed = self.all_obs[ObsVec.EGO_SPEED] / speed_limit #1.0 = speed limit
+            norm_speed = self.all_obs[0, ObsVec.EGO_SPEED] / speed_limit #1.0 = speed limit
             diff = abs(norm_speed - 1.0)
             penalty = 0.0
             if diff > 0.02:
@@ -1013,7 +1017,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             reward -= penalty
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
-            if self.lane_change_count == 1:
+            if self.vehicles[0].lane_change_count == 1:
                 penalty = 0.005 + 0.0005*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
@@ -1041,7 +1045,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             for v in range(self.num_vehicles):
                 for i in range(ObsVec.OBS_SIZE):
                     assert lo[i] <= self.all_obs[v, i] <= hi[i], "\n///// obs[{}, {}] value ({}) is outside bounds {} and {}" \
-                                                            .format(v, i, self.all_obs[i], lo[i], hi[i])
+                                                            .format(v, i, self.all_obs[v. i], lo[i], hi[i])
 
         except AssertionError as e:
             print(e)
@@ -1049,4 +1053,4 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             for v in range(self.num_vehicles):
                 print("----- Vehicle {}:".format(v))
                 for j in range(ObsVec.OBS_SIZE):
-                    print("      {:2d}: {}".format(j, self.all_obs[j]))
+                    print("      {:2d}: {}".format(j, self.all_obs[v, j]))

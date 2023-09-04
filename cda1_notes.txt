@@ -40,17 +40,26 @@ for anyone not intently helping out.
 	* Got it running in the tuner.  Now to put in some real logic to get the NN to start learning.
 
 9/2/23
-15:44-
 
 * Updated inference prgm to work with the new vehicle structure and with or without a checkpoint (moving
   neighbor vehicles only).
 
+9/3/23
+19:47-20:55 project
+21:01-21:17 fighting ray
+21:17-21:30 project
+
+* Fixed problems contributing to graphical display of vehicle locations.
+* Ran inference on scenarios 90-95 with Bot1a controller to confirm geometry & speed limits all work.
+* Developed & tested Bot1b controller to give offset to speed limit. 
+* Ran a sample training job - everything looks nominal.  Ready to build the real learning controller.
+
 
 TODO:
-- fix inference graphics - vehicle 1 is in the wrong location
 - start training!
 
 - Try running inference with real checkpoint.
+- Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Review all TODOs
 - add bot1 lane change capability when on a ramp.
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run

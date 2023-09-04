@@ -47,10 +47,11 @@ def main(argv):
     #print("///// Environment configured. Params are:")
     #print(pretty_print(cfg.to_dict()))
     env.reset()
-    print("///// inference: env reset complete.")
 
     # Set up a local copy of all vehicles that have been configured
     vehicles = env.get_vehicle_data()
+    print("///// inference: vehicle[1] = ")
+    vehicles[1].print()
 
     # If we are using a checkpointed NN for the ego vehicle, then start up rllib to run it
     if checkpoint is not None:
@@ -93,6 +94,10 @@ def main(argv):
     raw_obs, _ = env.unscaled_reset()
     if checkpoint is None:
         vehicles[0].active = False
+
+    print("///// inference: ready to update graphics before loop:")
+    vehicles[1].print("1")
+
     graphics.update(action_list, raw_obs, vehicles)
     obs = env.scale_obs(raw_obs)
     step = 0
@@ -134,7 +139,15 @@ def main(argv):
 
         print("///// step {:3d}: scaled action = [{:5.2f} {:5.2f}], lane = {}, speed = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
                 .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].cur_speed, vehicles[0].p, reward, info["reward_detail"]))
+        print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
+        # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
+        # based on when that vehicle exits its assigned lane.
+        if scenario >= 90:
+            if not vehicles[1].active: #gets triggered in env.step()
+                done = True
+
+        # Summarize the episode
         if done:
             print("///// Episode complete: {}. Total reward = {:.2f}".format(info["reason"], episode_reward))
             input("///// Press Enter to close...")
