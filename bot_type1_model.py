@@ -62,13 +62,13 @@ class BotType1Model(VehicleModel):
 
         # Build the obs vector
         speed_limit = me.roadway.get_speed_limit(me.lane_id, me.p) #TODO do we need this for future?
-        obs[ObsVec.EGO_DES_SPEED_PREV] = obs[ObsVec.EGO_DES_SPEED]
-        obs[ObsVec.EGO_DES_SPEED] = actions[0]
+        obs[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD]
+        obs[ObsVec.SPEED_CMD] = actions[0]
         obs[ObsVec.LC_CMD_PREV] = obs[ObsVec.LC_CMD_PREV]
         obs[ObsVec.LC_CMD] = actions[1]
         obs[ObsVec.STEPS_SINCE_LN_CHG] = me.lane_change_count
-        obs[ObsVec.EGO_SPEED_PREV] = obs[ObsVec.EGO_SPEED]
-        obs[ObsVec.EGO_SPEED] = me.cur_speed
+        obs[ObsVec.SPEED_PREV] = obs[ObsVec.SPEED_CUR]
+        obs[ObsVec.SPEED_CUR] = me.cur_speed
         obs[ObsVec.FWD_DIST] = closest_dist
         obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED
         if closest_id is not None:

@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+from roadway_b import Roadway, PavementType
+
 class VehicleModel(ABC):
     """Abstract base class defining the interface for models that describe specific vehicle type capabilities, including
         physical performance limits and the gathering of observations.
     """
 
     def __init__(self,
+                 roadway    : Roadway,      #roadway geometry model
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
                  max_accel  : float = 2.0,  #forward & backward, m/s^2
                  length     : float = 5.0,  #length of the vehicle, m
@@ -14,6 +17,7 @@ class VehicleModel(ABC):
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
+        self.roadway = roadway
         self.max_jerk = max_jerk
         self.max_accel = max_accel
         self.veh_length = length

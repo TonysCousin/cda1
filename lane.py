@@ -13,11 +13,12 @@ class Lane:
                     start_x     : float,                #X coordinate of the start of the lane, m
                     length      : float,                #total length of this lane, m (includes any downtrack buffer)
                     segments    : list,                 #list of straight segments that make up this lane; each item is
-                                                        # a tuple containing: (x0, y0, x1, y1, length, speed limit), where
+                                                        # a tuple containing: (x0, y0, x1, y1, length, speed limit, pavement type), where
                                                         # x0, y0 are map coordinates of the starting point, in m
                                                         # x1, y1 are map coordinates of the ending point, in m
                                                         # length is the length of the segment, in m
                                                         # speed limit is the regulatory limit in m/s
+                                                        # pavement type is an enumeration using PavementType
                                                         #Each lane must have at least one segment, and segment lengths
                                                         # need to add up to total lane length
                     left_id     : int       = -1,       #ID of an adjoining lane to its left, or -1 for none

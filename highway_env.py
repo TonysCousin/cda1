@@ -149,6 +149,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self._set_initial_conditions(config)
         if self.debug > 0:
             print("\n///// HighwayEnv init: config = ", config)
+            print("/////                  OBS_SIZE = ", ObsVec.OBS_SIZE)
 
         # Create the roadway geometry
         self.roadway = Roadway(self.debug)
@@ -194,68 +195,41 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #for i in range(self.num_vehicles):
         #    self.vehicles[i].controller.set_vehicle_list(self.vehicles)
 
-
-
-
-
-
         #
-        #..........Define the observation space TODO - rewrite this whole section
+        #..........Define the observation space
         #
-        # A key portion of the obs space is a representation of spatial zones around the ego vehicle. These zones
-        # move with the vehicle, and are a schematic representation of the nearby roadway situation. That is, they
-        # don't include any lane shape geometry, representing every lane as straight, and physically adjacent to its
-        # next lane. This is possible because we ASSUME that the vehicles are operating well inside their performance
-        # limits, so that road geometry won't affect their ability to change lanes, accelerate or decelerate at any
-        # desired rate. The zones are arranged as in the following diagram. Given this assumption, the observation
-        # space can be defined in the parametric coordinate frame.
-        #
-        #              +----------+----------+----------+
-        #              |  zone 7  |  zone 4  |  zone 1  |
-        #   +----------+----------+----------+----------+
-        #   |  zone 8  |  ego veh |  zone 5  |  zone 2  | >>>>> direction of travel
-        #   +----------+----------+----------+----------+
-        #              |  zone 9  |  zone 6  |  zone 3  |
-        #              +----------+----------+----------+
-        #
-        # All zones are the same size, with their width equal to the lane width. Zone length is nominally 2 sec of
-        # travel distance (at the posted speed limit). The ego vehicle is always centered in its zone, longitudinally.
-        # If a neighbor vehicle is in the process of changing lanes, it will be observed to be in both adjacent zones through
-        # the full lane change process. However, since the grid is centered on the ego vehicle, that vehicle will be
-        # handled specially when it comes to lane change maneuvers, looking into either zone 7 or zone 9 concerning a
-        # possible crash.
-        #
-        # Each zone will provide the following set of information:
-        #   Is it drivable? E.g. is there a lane in that relative position
-        #   Is the zone reachable from ego lane? I.e. lateral motion is possible and legal along the full length of the zone.
-        #   Is there a neighbor vehicle in the zone? No more than one vehicle will be allowed in any given zone.
-        #   Occupant's P location within the zone, if occupant exists ((P - Prear) / zone length), in [0, 1]
-        #   Occupant's speed relative to ego vehicle, if occupant exists (delta-S / speed limit), in approx [-1.2, 1.2]
+
+        # See the ObsVec class for detailed explanation of the observation space and how it is indexed.
 
         # Gymnasium requires a member variable named observation_space. Since we are dealing with world scale values here, we
         # will need a wrapper to scale the observations for NN input. That wrapper will also need to use self.observation_space.
         # So here we must anticipate that scaling and leave the limits open enough to accommodate it.
-        lower_obs = np.zeros(ObsVec.OBS_SIZE) #most values are 0, so only the others are explicitly set below
-        lower_obs[ObsVec.LC_CMD]              = LaneChange.CHANGE_LEFT
-        lower_obs[ObsVec.LC_CMD_PREV]         = LaneChange.CHANGE_LEFT
+        lower_obs = np.full((ObsVec.OBS_SIZE), -1.0) #most values are -1, so only the others are explicitly set below
+        lower_obs[ObsVec.SPEED_CMD]             = 0.0
+        lower_obs[ObsVec.SPEED_CMD_PREV]        = 0.0
+        lower_obs[ObsVec.STEPS_SINCE_LN_CHG]    = 0.0
+        lower_obs[ObsVec.SPEED_CUR]             = 0.0
+        lower_obs[ObsVec.SPEED_PREV]            = 0.0
+        lower_obs[ObsVec.FWD_DIST]              = 0.0
+        lower_obs[ObsVec.FWD_SPEED]             = 0.0
 
-        upper_obs = np.ones(ObsVec.OBS_SIZE) #most values are 1
-        upper_obs[ObsVec.EGO_DES_SPEED]       = Constants.MAX_SPEED
-        upper_obs[ObsVec.EGO_DES_SPEED_PREV]  = Constants.MAX_SPEED
-        upper_obs[ObsVec.LC_CMD]              = LaneChange.CHANGE_RIGHT
-        upper_obs[ObsVec.LC_CMD_PREV]         = LaneChange.CHANGE_RIGHT
-        upper_obs[ObsVec.STEPS_SINCE_LN_CHG]  = Constants.MAX_STEPS_SINCE_LC
-        upper_obs[ObsVec.EGO_SPEED]           = Constants.MAX_SPEED
-        upper_obs[ObsVec.EGO_SPEED_PREV]      = Constants.MAX_SPEED
-        upper_obs[ObsVec.FWD_DIST]            = Constants.REFERENCE_DIST
-        upper_obs[ObsVec.FWD_SPEED]           = Constants.MAX_SPEED
+        upper_obs = np.ones(ObsVec.OBS_SIZE) #most values are 1 (all values in sensor zones are limited to 1)
+        upper_obs[ObsVec.SPEED_CMD]             = Constants.MAX_SPEED
+        upper_obs[ObsVec.SPEED_CMD_PREV]        = Constants.MAX_SPEED
+        upper_obs[ObsVec.LC_CMD]                = LaneChange.CHANGE_RIGHT
+        upper_obs[ObsVec.LC_CMD_PREV]           = LaneChange.CHANGE_RIGHT
+        upper_obs[ObsVec.STEPS_SINCE_LN_CHG]    = Constants.MAX_STEPS_SINCE_LC
+        upper_obs[ObsVec.SPEED_CUR]             = Constants.MAX_SPEED
+        upper_obs[ObsVec.SPEED_PREV]            = Constants.MAX_SPEED
+        upper_obs[ObsVec.FWD_DIST]              = Constants.REFERENCE_DIST
+        upper_obs[ObsVec.FWD_SPEED]             = Constants.MAX_SPEED
 
         self.observation_space = Box(low = lower_obs, high = upper_obs, dtype = float)
         if self.debug > 1:
             print("///// observation_space = ", self.observation_space)
 
         self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
-        #self._verify_obs_limits("init after space defined") #TODO: move this to ???
+        self._verify_obs_limits("init after space defined")
 
         #
         #..........Define the action space
@@ -364,7 +338,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Clear any lingering observations from the previous episode
         self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE))
 
-        # Solo bot vehicle that runs each lane in sequence at its speed limit (useful for inference only)
+        # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
         if self.scenario >= 90:
             if self.scenario - 90 >= self.roadway.NUM_LANES:
                 raise ValueError("///// Attempting to reset to unknown scenario {}".format(self.scenario))
@@ -514,6 +488,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the observations from each vehicle
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i])
+        self._verify_obs_limits("step before collision check")
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
@@ -528,8 +503,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #print("/////+ step: {} step {}, returning reward of {}, {}".format(self.rollout_id, self.total_steps, reward, expl))
 
         if self.debug > 0:
-            print("///// step complete. Returning obs (only first row for ego vehicle) = ")
-            print(self.all_obs)
+            print("///// step complete. Returning obs (only first row for ego vehicle).")
             print("      reward = ", reward, ", done = ", done)
             print("      final vehicles array =")
             for i, v in enumerate(self.vehicles):
@@ -664,172 +638,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.scenario = int(s)
         except KeyError as e:
             pass
-
-
-    #TODO: move this to a model
-    def _update_obs_zones(self):
-        """Updates the observation vector data for each of the roadway zones, based on ego state and current neighbor vehicle states.
-
-            CAUTION: requires that each zone is represented the same in the obs vector and all zones are contiguous there.
-        """
-
-        # Determine offsets in the obs vector for zone columns and rows
-        base = self.Z1_DRIVEABLE
-        num_zone_fields = self.Z2_DRIVEABLE - base
-
-        # Clear all zone info from previous time step
-        for z in range(9):
-            self.obs[base + num_zone_fields*z + 0] = 0.0 #drivable
-            self.obs[base + num_zone_fields*z + 1] = 0.0 #reachable
-            self.obs[base + num_zone_fields*z + 2] = 0.0 #occupied
-            self.obs[base + num_zone_fields*z + 3] = 0.0 #p
-            self.obs[base + num_zone_fields*z + 4] = 0.0 #speed
-        self.obs[self.NEIGHBOR_IN_EGO_ZONE] = 0.0
-
-       # Get the current roadway geometry
-        ego_lane_id = self.vehicles[0].lane_id
-        ego_p = self.vehicles[0].p
-        if self.debug > 1:
-            print("///// Entering update_obs_zones: ego_lane_id = {}, ego_p = {:.1f}, base = {}"
-                  .format(ego_lane_id, ego_p, base))
-
-        # Determine pavement existence and reachability in each zone
-        # CAUTION: this block is dependent on the specific roadway geometry for this experiment, and is not generalized
-        for row in range(1, 4):
-            zone_front = ((3 - row) + 0.5)*Constants.OBS_ZONE_LENGTH #distance downtrack from ego vehicle, m
-            zone_rear = zone_front - Constants.OBS_ZONE_LENGTH
-            zone_mid_p = ego_p + 0.5*(zone_front + zone_rear) #absolute coordinate in p-frame
-            # Get updated roadway geometry; NB all distances returned are relative to current ego location
-            ego_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(ego_lane_id, ego_p)
-            if self.debug > 1:
-                print("///// _update_obs_zones: row = {}, ego_p = {:.1f}, zone_front = {:.1f}, zone_rear = {:.1f}, zone_mid = {:.1f}, la = {:.1f}, lb = {:.1f}"
-                        .format(row, ego_p, zone_front, zone_rear, zone_mid_p, la, lb))
-
-            # Determine if there is pavement in the left-hand zone and it's reachable
-            if lid >= 0: #the lane exists somewhere along the route
-
-                # Determine if the left lane exists next to the middle of this zone
-                start_p = self.roadway.get_lane_start_p(lid)
-                if start_p <= zone_mid_p <= start_p + self.roadway.get_total_lane_length(lid):
-                    l_zone = 3*(row - 1) + 1
-                    l_offset = base + (l_zone - 1)*num_zone_fields
-                    self.obs[l_offset + 0] = 1.0 #drivable
-                    if la <= zone_front  and  lb >= zone_rear:
-                        self.obs[l_offset + 1] = 1.0 #reachable
-
-            # Determine if there is pavement in the right-hand zone and it's reachable
-            if rid >= 0: #there's a lane to the right somewhere along this route
-
-                # Determine if the right lane exists next to the middle of this zone
-                start_p = self.roadway.get_lane_start_p(rid)
-                if start_p <= zone_mid_p <= start_p + self.roadway.get_total_lane_length(rid):
-                    r_zone = 3*(row - 1) + 3
-                    r_offset = base + (r_zone - 1)*num_zone_fields
-                    self.obs[r_offset + 0] = 1.0 #drivable
-                    if ra <= zone_front  and  rb >= zone_rear:
-                        self.obs[r_offset + 1] = 1.0 #reachable
-
-        # We know there's a lane in the center, but not how far it extends in either direction so look at each zone in this column.
-        # Note that the "reachable" determination here is different from those above. Since the above represent adjacent lanes, they
-        # can afford to be more liberal in that they say reachable = True if any part of the adjacent pavement borders any part of the
-        # zone in question (i.e. the entire zone edge does not need to touch adjacent pavement). Whereas, for the ego's own lane, it
-        # is more important to know as soon as the pavement disappears in _any_ part of its forward zone, so it can prepare to change
-        # lanes.
-        for row in range(1, 5):
-            zone = 3*(row - 1) + 2
-            if row == 3: #ego zone
-                continue
-            elif row == 4:
-                zone = 8
-            offset = base + (zone - 1)*num_zone_fields
-            zone_front = ((3 - row) + 0.5)*Constants.OBS_ZONE_LENGTH #distance downtrack from ego vehicle, m
-            zone_rear = zone_front - Constants.OBS_ZONE_LENGTH
-            if ego_rem >= zone_front: #don't worry about lane existence behind ego vehicle; assume it's there
-                self.obs[offset + 0] = 1.0 #drivable
-                self.obs[offset + 1] = 1.0 #reachable is guaranteed if it is driveable, since it's the same lane
-
-        # Loop through the neighbor vehicles
-        for neighbor_idx in range(1, self.num_vehicles):
-            nv = self.vehicles[neighbor_idx]
-
-            # Find which zone column it is in (relative lane), if any (could be 2 lanes away) (ego is in column 1, lanes are 0-indexed, left-to-right)
-            column = nv.lane_id - ego_lane_id + 1
-            if self.debug > 1:
-                print("///// update_obs_zones: considering neighbor {} in column {}".format(neighbor_idx, column))
-
-            # Find which zone row it is in, if any (could be too far away)
-            row = 0
-            dist_ahead_of_ego = nv.p - ego_p
-            if dist_ahead_of_ego > 2.5 * Constants.OBS_ZONE_LENGTH: #way out front somewhere
-                row = 0
-            elif dist_ahead_of_ego > 1.5 * Constants.OBS_ZONE_LENGTH:
-                row = 1
-            elif dist_ahead_of_ego > 0.5 * Constants.OBS_ZONE_LENGTH:
-                row = 2
-            elif dist_ahead_of_ego > -0.5 * Constants.OBS_ZONE_LENGTH:
-                row = 3
-            elif dist_ahead_of_ego > -1.5 * Constants.OBS_ZONE_LENGTH:
-                row = 4
-            # Else too far behind to consider, so allow row value of 0 for this case also
-
-            # If the neighbor is too far away, no further consideration needed
-            if column < 0  or  column > 2  or  row == 0:
-                if self.debug > 1:
-                    print("///// update_obs_zones: found neighbor {} too far away, with column {}, row {}, p = {:.1f}, dist_ahead_of_ego = {:.1f}"
-                          .format(neighbor_idx, column, row, nv.p, dist_ahead_of_ego))
-                continue
-
-            # Neighbor is within our obs zone grid.
-            # If it is also within the ego zone then
-            if column == 1  and  row == 3:
-
-                # Set the flag - nothing else needed
-                self.obs[self.NEIGHBOR_IN_EGO_ZONE] = 1.0
-                if dist_ahead_of_ego < 0.0:
-                    self.obs[self.NEIGHBOR_IN_EGO_ZONE] = -1.0
-
-                if self.debug > 1:
-                    print("///// update_obs_zones: neighbor {} is in ego zone!".format(neighbor_idx))
-
-            # Else get its offset into the obs vector
-            else:
-                zone = 0
-                if row < 4:
-                    zone = 3*(row - 1) + column + 1
-                else:
-                    if column == 1:
-                        zone = 8
-                    else:
-                        if self.debug > 1:
-                            print("///// update_obs_zones: found a neighbor beside zone 8: column = {}, dist_ahead_of_ego = {:.1f}"
-                                  .format(column, dist_ahead_of_ego))
-                        continue
-
-                offset = base + (zone - 1)*num_zone_fields
-                if self.debug > 1:
-                    print("///// update_obs_zones: neighbor offset = {} for zone {}".format(offset, zone))
-
-                # Since we've identified a neighbor vehicle in this zone, flag it as occupied
-                self.obs[offset + 2] = 1.0
-
-                # Set the neighbor's relative location within the zone
-                zone_rear_p = ego_p + ((2.0 - row) + 0.5)*Constants.OBS_ZONE_LENGTH
-                rel_p = (nv.p - zone_rear_p) / Constants.OBS_ZONE_LENGTH
-                self.obs[offset + 3] = rel_p
-
-                # Set the neighbor's relative speed
-                self.obs[offset + 4] = (nv.cur_speed - self.vehicles[0].cur_speed) / Constants.ROAD_SPEED_LIMIT
-
-                if self.debug > 1:
-                    print("///// update_obs_zones: neighbor {} has column = {}, row = {}, zone = {}, zone_rear = {:.1f}, rel_p = {:.2f}, ego speed = {:.1f}"
-                          .format(neighbor_idx, column, row, zone, zone_rear_p, rel_p, self.vehicles[0].cur_speed))
-
-        if self.debug > 1:
-            print("///// update_obs_zones complete.")
-            for zone in range(1, 10):
-                offset = base + (zone - 1)*num_zone_fields
-                print("      Zone {}: drivable = {:.1f}, reachable = {:.1f}, occupied = {:.1f}, rel p = {:.2f}, rel speed = {:.2f}"
-                      .format(zone, self.obs[offset+0], self.obs[offset+1], self.obs[offset+2], self.obs[offset+3], self.obs[offset+4]))
 
 
     def _verify_safe_location(self,
@@ -999,7 +807,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
 
             # Small penalty for widely varying speed commands
-            cmd_diff = abs(self.all_obs[0, ObsVec.EGO_DES_SPEED] - self.all_obs[0, ObsVec.EGO_DES_SPEED_PREV]) / Constants.MAX_SPEED
+            cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
             penalty = 0.04 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
@@ -1008,7 +816,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Penalty for deviating from roadway speed limit
             speed_mult = 0.03
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
-            norm_speed = self.all_obs[0, ObsVec.EGO_SPEED] / speed_limit #1.0 = speed limit
+            norm_speed = self.all_obs[0, ObsVec.SPEED_CUR] / speed_limit #1.0 = speed limit
             diff = abs(norm_speed - 1.0)
             penalty = 0.0
             if diff > 0.02:
@@ -1029,7 +837,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return reward, explanation
 
 
-    #TODO: move this somewhere
     def _verify_obs_limits(self,
                            tag      : str = ""  #optional explanation of where in the code this was called
                           ):
@@ -1052,5 +859,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("///// Full obs vector content at: {}:".format(tag))
             for v in range(self.num_vehicles):
                 print("----- Vehicle {}:".format(v))
-                for j in range(ObsVec.OBS_SIZE):
-                    print("      {:2d}: {}".format(j, self.all_obs[v, j]))
+                for j in range(100):
+                    j1 = j + 100
+                    j2 = j + 200
+                    j3 = j + 300
+                    j4 = j + 400
+                    j5 = j + 500
+                    if j5 < ObsVec.OBS_SIZE:
+                        print("      {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}"
+                              .format(j, self.all_obs[v, j], j1, self.all_obs[v, j1], j2, self.all_obs[v, j2],
+                                      j3, self.all_obs[v, j3], j4, self.all_obs[v, j4], j5, self.all_obs[v, j5]))
+                    else:
+                        print("      {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}  {:3d}:{:5.2f}"
+                              .format(j, self.all_obs[v, j], j1, self.all_obs[v, j1], j2, self.all_obs[v, j2],
+                                      j3, self.all_obs[v, j3], j4, self.all_obs[v, j4]))

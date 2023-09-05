@@ -45,14 +45,15 @@ for anyone not intently helping out.
   neighbor vehicles only).
 
 9/3/23
-19:47-20:55 project
-21:01-21:17 fighting ray
-21:17-21:30 project
 
 * Fixed problems contributing to graphical display of vehicle locations.
 * Ran inference on scenarios 90-95 with Bot1a controller to confirm geometry & speed limits all work.
 * Developed & tested Bot1b controller to give offset to speed limit. 
 * Ran a sample training job - everything looks nominal.  Ready to build the real learning controller.
+
+9/4/23
+
+* Wrote the Bridgit vehicle model with its huge observation vector encoding. Still need to test it.
 
 
 TODO:

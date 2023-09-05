@@ -4,6 +4,14 @@ from constants import Constants
 from lane import Lane
 from target_destination import TargetDestiination
 
+
+class PavementType:
+    """Enumeration to represent types of pavement."""
+    GRASS       = 0 #anything not driveable
+    ASPHALT     = 1 #everyday drivability
+    EXIT_RAMP   = 2 #only useful for vehicles aiming for a target on this ramp
+
+
 class Roadway:
     """Defines the geometry of the roadway lanes and their drivable connections.  All dimensions are
         physical quantities, measured in meters from an arbitrary map origin and are in the map
@@ -86,49 +94,49 @@ class Roadway:
 
         # Lane 0 - entrance ramp, short merge segment, then exit ramp
         L0_Y = 3*Roadway.WIDTH #the merge segment
-        segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP_SL),
-                (2000.0,    L0_Y,           2400.0,     L0_Y,           400.0,  NORMAL_SL),
-                (2400.0,    L0_Y,           2486.6,     L0_Y+0.5*100.0, 100.0,  RAMP_SL)]
+        segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
+                (2000.0,    L0_Y,           2400.0,     L0_Y,           400.0,  NORMAL_SL,  PavementType.ASPHALT),
+                (2400.0,    L0_Y,           2486.6,     L0_Y+0.5*100.0, 100.0,  RAMP_SL,    PavementType.EXIT_RAMP)]
         lane = Lane(0, 1653.6, 900.0, segs, right_id = 1, right_join = 2000.0, right_sep = 2400.0)
         self.lanes.append(lane)
 
         # Lane 1 - short full-speed ramp, then straight to the end, with high speed final segment
         L1_Y = L0_Y - Roadway.WIDTH
-        segs = [(626.8,     L1_Y+0.5*200.0, 800.0,      L1_Y,           200.0,  NORMAL_SL),
-                (800.0,     L1_Y,           2400.0,     L1_Y,           1600.0, NORMAL_SL),
-                (2400.0,    L1_Y,           3000.0,     L1_Y,           600.0,  HIGH_SL)]
+        segs = [(626.8,     L1_Y+0.5*200.0, 800.0,      L1_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
+                (800.0,     L1_Y,           2400.0,     L1_Y,           1600.0, NORMAL_SL,  PavementType.ASPHALT),
+                (2400.0,    L1_Y,           3000.0,     L1_Y,           600.0,  HIGH_SL),   PavementType.ASPHALT]
         lane = Lane(1, 626.8, 2400.0, segs, left_id = 0, left_join = 2000.0, left_sep = 2400.0,
                     right_id = 2, right_join = 800.0, right_sep = 3000.0)
         self.lanes.append(lane)
 
         # Lane 2 - spawned from lane 3, then straight to the end
         L2_Y = L1_Y - Roadway.WIDTH
-        segs = [(500.0,     L2_Y,           3000.0,     L2_Y,           2500.0, NORMAL_SL)]
+        segs = [(500.0,     L2_Y,           3000.0,     L2_Y,           2500.0, NORMAL_SL,  PavementType.ASPHALT)]
         lane = Lane(2, 500.0, 2500.0, segs, left_id = 1, left_join = 800.0, left_sep = 3000.0,
                     right_id = 3, right_join = 500.0, right_sep = 2200.0)
         self.lanes.append(lane)
 
         # Lane 3 - high-speed single-lane road, then runs parallel to lane 2 for a while
         L3_Y = 0.0
-        segs = [(0.0,       L3_Y,           500.0,      L3_Y,           500.0,  HIGH_SL),
-                (500.0,     L3_Y,           2200.0,     L3_Y,           1700.0, NORMAL_SL)]
+        segs = [(0.0,       L3_Y,           500.0,      L3_Y,           500.0,  HIGH_SL,    PavementType.ASPHALT),
+                (500.0,     L3_Y,           2200.0,     L3_Y,           1700.0, NORMAL_SL,  PavementType.ASPHALT)]
         lane = Lane(3, 0.0, 2200.0, segs, left_id = 2, left_join = 500.0, left_sep = 2200.0,
                     right_id = 4, right_join = 1300.0, right_sep = 1500.0)
         self.lanes.append(lane)
 
         # Lane 4 - entrance ramp with short merge area then exit ramp
         L4_Y = L3_Y - Roadway.WIDTH #the merge segment
-        segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP_SL),
-                (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL),
-                (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL)]
+        segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
+                (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
+                (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL,    PavementType.EXIT_RAMP)]
         lane = Lane(4, 953.6, 700.0, segs, left_id = 3, left_join = 1300.0, left_sep = 1500.0,
                     right_id = 5, right_join = 953.6, right_sep = 1350.0)                       #CAUTION: right_join is in parametric frame!
         self.lanes.append(lane)
 
         # Lane 5 - secondary entrance ramp
         L5_Y = L4_Y - Roadway.WIDTH #the stubby merge segment
-        segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP_SL),
-                (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL)]
+        segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
+                (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL,    PavementType.ASPHALT)]
         lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = 953.6, left_sep = 1350.0)
         self.lanes.append(lane)
 
@@ -341,3 +349,18 @@ class Roadway:
                 return s[5]
 
         raise ValueError("///// Roadway.get_speed_limit requested for illegal p = {} on lane {}".format(p, lane))
+
+
+    def get_pavement_type(self,
+                          lane    : int,    #ID of the lane in question
+                          p       : float,  #P coordinate in question
+                        ) -> PavementType:  #returns the type of pavement at the given location
+
+        """Returns the pavement type at the indicated lane & P coordinate."""
+
+        x = self.param_to_map_frame(p, lane)
+        for s in self.lanes[lane].segments:
+            if s[0] <= x <= s[2]:
+                return s[6]
+
+        raise ValueError("///// Roadway.get_speed_pavement_type requested for illegal p = {} on lane {}".format(p, lane))
