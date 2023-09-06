@@ -167,9 +167,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.vehicles = []
         for i in range(self.num_vehicles):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
+            v = None
             spec = v_data[i]
             try:
-                model = getattr(sys.modules[__name__], spec["model"])(
+                model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
                                     max_accel     = spec["max_accel"],
                                     length        = spec["length"],
@@ -488,7 +489,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the observations from each vehicle
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i])
-        self._verify_obs_limits("step before collision check")
+        self._verify_obs_limits("step() before collision check")
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()

@@ -2,6 +2,7 @@ import numpy as np
 
 from constants import Constants
 from obs_vec import ObsVec
+from roadway_b import Roadway
 from vehicle_model import VehicleModel
 
 class BotType1Model(VehicleModel):
@@ -9,6 +10,7 @@ class BotType1Model(VehicleModel):
     """Realizes a concrete model for the Type 1 bot vehicle."""
 
     def __init__(self,
+                 roadway    : Roadway,      #roadway geometry model
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
                  max_accel  : float = 2.0,  #forward & backward, m/s^2
                  length     : float = 5.0,  #length of the vehicle, m
@@ -16,7 +18,7 @@ class BotType1Model(VehicleModel):
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
-        super().__init__(max_jerk, max_accel, length, lc_duration, time_step)
+        super().__init__(roadway, max_jerk, max_accel, length, lc_duration, time_step)
 
 
     def get_obs_vector(self,
@@ -61,7 +63,6 @@ class BotType1Model(VehicleModel):
         #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
 
         # Build the obs vector
-        speed_limit = me.roadway.get_speed_limit(me.lane_id, me.p) #TODO do we need this for future?
         obs[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD]
         obs[ObsVec.SPEED_CMD] = actions[0]
         obs[ObsVec.LC_CMD_PREV] = obs[ObsVec.LC_CMD_PREV]

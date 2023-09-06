@@ -55,11 +55,16 @@ for anyone not intently helping out.
 
 * Wrote the Bridgit vehicle model with its huge observation vector encoding. Still need to test it.
 
+9/5/23
+
+* Wrote testing program for BrigitModel and ran them test suite. Found & fixed several defects.
+
 
 TODO:
+- Improve reset() to place neighbors close to the ego vehicle
 - start training!
-
-- Try running inference with real checkpoint.
+- Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
+- Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Review all TODOs
 - add bot1 lane change capability when on a ramp.
@@ -72,4 +77,4 @@ TODO:
 	- value lane_exercise -> cycles reset() through 6 episodes, and each episode places a single vehicle at the
 	  beginning of each lane, in sequence, and lets it run the entire lane. Use this to verify the basic functions
 	  of the env, roadway, and graphics all work correctly.
-- Check all uses of Constants.SCENARIO_LENGTH
+- Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds

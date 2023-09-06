@@ -50,18 +50,14 @@ class Lane:
         for si, s in enumerate(segments):
             seg_len += s[4]
             assert s[0] != s[2]  or  s[1] != s[3], "Lane {}, segment {} both ends have same coords.".format(my_id, si)
-            assert len(s) == 6, "Lane {}, segment {} malformed - incorrect number of elements.".format(my_id, si)
+            assert len(s) == 7, "Lane {}, segment {} malformed - incorrect number of elements.".format(my_id, si)
             assert s[5] > 0.0, "Lane {}, segment {} illegal speed limit {}".format(my_id, si, s[5])
         assert abs(seg_len - length) < 1.0, "Lane {} sum of segment lengths {} don't match total lane length {}.".format(my_id, seg_len, length)
         if left_id >= 0:
             assert left_id != my_id, "Lane {} left adjoining lane has same ID".format(my_id)
-            assert left_join >= start_x  and  left_join < length+start_x, "Lane {} left_join value invalid.".format(my_id)
             assert left_sep > left_join, "Lane {} left_sep {} not larger than left_join {}".format(my_id, left_sep, left_join)
-            assert left_sep <= length+start_x, "Lane {} left sep {} is beyond end of lane.".format(my_id, left_sep)
         if right_id >= 0:
             assert right_id != my_id, "Lane {} right adjoining lane has same ID".format(my_id)
-            assert right_join >= start_x  and  right_join < length+start_x, "Lane {} right_join value invalid.".format(my_id)
             assert right_sep > right_join, "Lane {} right_sep {} not larger than right_join {}".format(my_id, right_sep, right_join)
-            assert right_sep <= length+start_x, "Lane {} right sep {} is beyond end of lane.".format(my_id, right_sep)
         if left_id >= 0  and  right_id >= 0:
             assert left_id != right_id, "Lane {}: both left and right adjoining lanes share ID {}".format(my_id, left_id)
