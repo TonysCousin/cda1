@@ -2,7 +2,7 @@ import math
 from typing import Tuple, Dict, List
 from constants import Constants
 from lane import Lane
-from target_destination import TargetDestiination
+from target_destination import TargetDestination
 
 
 class PavementType:
@@ -143,8 +143,8 @@ class Roadway:
 
         # Define the target destinations for the ego vehicle
         self.targets = []
-        self.targets.append(TargetDestiination(1, 2900.0))
-        self.targets.append(TargetDestiination(2, 2900.0))
+        self.targets.append(TargetDestination(1, 2900.0))
+        self.targets.append(TargetDestination(2, 2900.0))
 
 
     def map_to_param_frame(self,

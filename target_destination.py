@@ -1,4 +1,4 @@
-class TargetDestiination:
+class TargetDestination:
 
     """Stores the location of a target destination within the roadway network.
         Vehicles may compare their location to this for evaluating their success.

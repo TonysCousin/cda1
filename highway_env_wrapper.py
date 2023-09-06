@@ -87,15 +87,15 @@ class HighwayEnvWrapper(HighwayEnv):
 
         scaled = [0.0]*ObsVec.OBS_SIZE
 
-        scaled[ObsVec.SPEED_CMD]      = obs[ObsVec.SPEED_CMD]       / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD_PREV]  / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.LC_CMD]             = obs[ObsVec.LC_CMD]
-        scaled[ObsVec.LC_CMD_PREV]        = obs[ObsVec.LC_CMD_PREV]
-        scaled[ObsVec.SPEED_CUR]          = obs[ObsVec.SPEED_CUR]           / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.SPEED_PREV]     = obs[ObsVec.SPEED_PREV]      / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.STEPS_SINCE_LN_CHG] = obs[ObsVec.STEPS_SINCE_LN_CHG]  / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
-        scaled[ObsVec.FWD_DIST]           = min(obs[ObsVec.FWD_DIST]        / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
-        scaled[ObsVec.FWD_SPEED]          = obs[ObsVec.FWD_SPEED]           / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.SPEED_CMD]            = obs[ObsVec.SPEED_CMD]             / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.SPEED_CMD_PREV]       = obs[ObsVec.SPEED_CMD_PREV]        / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.LC_CMD]               = obs[ObsVec.LC_CMD]
+        scaled[ObsVec.LC_CMD_PREV]          = obs[ObsVec.LC_CMD_PREV]
+        scaled[ObsVec.SPEED_CUR]            = obs[ObsVec.SPEED_CUR]             / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.SPEED_PREV]           = obs[ObsVec.SPEED_PREV]            / Constants.MAX_SPEED           #range [0, 1]
+        scaled[ObsVec.STEPS_SINCE_LN_CHG]   = obs[ObsVec.STEPS_SINCE_LN_CHG]    / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
+        scaled[ObsVec.FWD_DIST]             = min(obs[ObsVec.FWD_DIST]          / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
+        scaled[ObsVec.FWD_SPEED]            = obs[ObsVec.FWD_SPEED]             / Constants.MAX_SPEED           #range [0, 1]
 
         # Return the obs as an ndarray
         vec = np.array(scaled, dtype = np.float32)

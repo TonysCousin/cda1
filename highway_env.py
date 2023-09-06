@@ -25,6 +25,8 @@ from lane_change import LaneChange
 from bot_type1_model import BotType1Model
 from bot_type1a_ctrl import BotType1aCtrl
 from bot_type1b_ctrl import BotType1bCtrl
+from bridgit_model import BridgitModel
+from bridgit_ctrl import BridgitCtrl
 
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
@@ -352,16 +354,33 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # No starting configuration specified - randomize everything
         else:
-            for i in range(self.num_vehicles):
+
+            # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable
+            lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+            lane_begin = self.roadway.get_lane_start_p(lane_id)
+            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0) + lane_begin
+            speed = self.prng.random() * Constants.MAX_SPEED
+            self.vehicles[0].reset(init_lane_id = lane_id, init_p = ego_p, init_speed = speed)
+
+            min_p = ego_p - Constants.N_DISTRO_DIST_REAR
+            max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
+
+            # Randomize all other vehicles within a box around the ego vehicle to maximize exercising its sensors
+            for i in range(1, self.num_vehicles):
                 space_found = False
+                p = None
                 while not space_found:
                     lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
-                    ddt = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0)
-                    loc = ddt + lane_begin
-                    space_found = self._verify_safe_location(i, lane_id, loc)   #TODO: verify that this method works
+                    lane_end = lane_begin + self.roadway.get_total_lane_length(lane_id)
+                    p_lower = max(min_p, lane_begin)
+                    p_upper = min(max_p, lane_end - 50.0)
+                    if p_upper <= p_lower:
+                        continue
+                    p = self.prng.random()*(p_upper - p_lower) + p_lower
+                    space_found = self._verify_safe_location(i, lane_id, p)
                 speed = self.prng.random() * Constants.MAX_SPEED
-                self.vehicles[i].reset(init_lane_id = lane_id, init_ddt = ddt, init_speed = speed)
+                self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 1:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -612,6 +631,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             tr = config["training"]
             if tr == "True":
                 self.training = True
+        except KeyError as e:
+            pass
+
+        self.ignore_neighbor_crashes = False #should the collision detector ignore crashes between two non-ego vehicles?
+        try:
+            inc = config["ignore_neighbor_crashes"]
+            if inc == "True":
+                self.ignore_neighbor_crashes = True
         except KeyError as e:
             pass
 

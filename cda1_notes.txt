@@ -58,10 +58,10 @@ for anyone not intently helping out.
 9/5/23
 
 * Wrote testing program for BrigitModel and ran them test suite. Found & fixed several defects.
+* Tried running a training session, but got exception - too tired to investigate.
 
 
 TODO:
-- Improve reset() to place neighbors close to the ego vehicle
 - start training!
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?

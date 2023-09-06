@@ -38,7 +38,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 12000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 1
+    num_trials          = 2
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -87,7 +87,7 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
     # This config will run 5 parallel trials on the Tensorbook.
-    """
+
     cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
                     num_cpus_per_worker         = 2, #also applies to the local worker and evaluation workers
@@ -109,7 +109,6 @@ def main(argv):
     cfg.debugging(  log_level                   = "WARN",
                     seed                        = 17, #tune.choice([2, 17, 666, 4334, 10003, 29771, 38710, 50848, 81199])
     )
-    """
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]

@@ -49,7 +49,7 @@ class Vehicle:
 
     def reset(self,
               init_lane_id      : int   = -1,   #initial lane assignment; if -1 then will be randomized
-              init_ddt          : float = None, #initial dist downtrack from chosen lane start, m; if None then will be randomized
+              init_p            : float = None, #initial P coordinate, m; if None then will be randomized
               init_speed        : float = 0.0,  #initial speed of the vehicle, m/s
              ):
 
@@ -63,10 +63,10 @@ class Vehicle:
             self.lane_id = int(self.prng.random()*self.roadway.NUM_LANES)
 
         lane_len = self.roadway.get_total_lane_length(self.lane_id)
-        ddt = init_ddt
-        if init_ddt is None:
-            ddt = self.prng.random()*(lane_len - 50.0)
-        self.p = self.roadway.get_lane_start_p(self.lane_id) + ddt
+        p = init_p
+        if init_p is None:
+            p = self.prng.random()*(lane_len - 50.0) + self.roadway.get_lane_start_p(self.lane_id)
+        self.p = p
         #print("///// Vehicle.reset: lane = {}, ddt = {:.3f}, p = {:.3f}".format(init_lane_id, ddt, self.p))
 
         self.cur_speed = init_speed
