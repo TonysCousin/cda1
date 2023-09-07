@@ -88,7 +88,7 @@ def main(argv):
     #       number of possible simultaneous trials (as well as gpu memory).
     # This config will run 5 parallel trials on the Tensorbook.
 
-    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
+    cfg.resources(  num_gpus                    = 0.0, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
                     num_cpus_per_worker         = 2, #also applies to the local worker and evaluation workers
                     num_gpus_per_worker         = 0  #this has to allow gpu left over for local worker & evaluation workers also

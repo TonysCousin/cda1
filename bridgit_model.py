@@ -46,6 +46,9 @@ class BridgitModel(VehicleModel):
         if not me.active:
             return obs
 
+        if me.cur_speed > Constants.MAX_SPEED: #TODO debug
+            print("***** Bridgit.get_obs_vector entered with vehicle {} speed = {:.2f}".format(my_id, me.cur_speed))
+
         # Build the common parts of the obs vector
         obs[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD]
         obs[ObsVec.SPEED_CMD] = actions[0]
@@ -61,6 +64,9 @@ class BridgitModel(VehicleModel):
         # NOTE: allow the case where the host is not on any pavement - it could be sitting in the grass with sensors on watching the world go by
         host_lane_id = me.lane_id
         host_p = me.p
+
+        if obs[0] > Constants.MAX_SPEED: #TODO debug
+            print("***** get_obs_vector <after host_p assign>: overwritten by {:.2f}".format(obs[0]))
 
         #
         #..........Determine pavement observations in each zone
@@ -168,6 +174,9 @@ class BridgitModel(VehicleModel):
             if ra_p < zone_ctr_p < rb_p:
                 obs[z_idx + 5] = 1.0
 
+        if obs[0] > Constants.MAX_SPEED: #TODO debug
+            print("***** get_obs_vector <after pavement section>: overwritten by {:.2f}".format(obs[0]))
+
         #
         #..........Map vehicles to zones for those that are within the grid
         #
@@ -202,11 +211,19 @@ class BridgitModel(VehicleModel):
 
             # Try the center column - get the zone numbers for both ends of the vehicle, limited to the valid range of zones
             if nv.lane_id == host_lane_id:
-                if n_front < 0.0: #vehicle is behind host
+                my_half_length = 0.5 * me.model.veh_length
+                if n_front >= -my_half_length  and  n_rear <= my_half_length: #neighbor is on top of host (crash will soon be flagged)
+                    z_num_front = ObsVec.ZONES_BEHIND
+                    z_num_rear = ObsVec.ZONES_BEHIND
+                    base_idx = ObsVec.BASE_CTR_REAR
+                    elements_per_zone = ObsVec.NORM_ELEMENTS
+
+                elif n_front < 0.0: #vehicle is behind host
                     z_num_rear = max(ObsVec.ZONES_BEHIND + math.floor((n_rear + half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
                     z_num_front = min(ObsVec.ZONES_BEHIND + math.floor((n_front + half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), ObsVec.ZONES_BEHIND - 1)
                     base_idx = ObsVec.BASE_CTR_REAR
                     elements_per_zone = ObsVec.NORM_ELEMENTS #no lane boundary info behind the host
+
                 else: #vehicle is in front of host
                     z_num_rear = max(math.floor((n_rear - half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
                     z_num_front = min(math.floor((n_front - half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), ObsVec.ZONES_FORWARD - 1)
@@ -234,9 +251,11 @@ class BridgitModel(VehicleModel):
                 # Get the zone numbers for both ends of the vehicle, limited to the valid range of zones in a column
                 z_num_rear = max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
                 z_num_front = min(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), (ObsVec.ZONES_BEHIND + ObsVec.ZONES_FORWARD + 1))
+
             assert z_num_rear <= z_num_front, \
-                    "///// BridgitModel.get_obs_vector: vehicle {} in lane {} has has z_num_rear = {}, z_num_front = {}. n_rear = {:.2f}, n_front = {:.2f}" \
-                    .format(v_idx, nv.lane_id, z_num_rear, z_num_front, n_rear, n_front)
+                    "///// BridgitModel.get_obs_vector: host lane = {}, host_p = {:.2f}; vehicle {} in lane {}, p = {:.2f} has has z_num_rear = {}, " \
+                    .format(host_lane_id, host_p, v_idx, nv.lane_id, nv.p, z_num_rear) + \
+                    "z_num_front = {}. n_rear = {:.2f}, n_front = {:.2f}".format(z_num_front, n_rear, n_front)
 
 
             # Find the relative speed, normalized to [-1, 1]
@@ -249,5 +268,8 @@ class BridgitModel(VehicleModel):
                 z_idx = base_idx + z*elements_per_zone
                 obs[z_idx + 2] = 1.0 #occupied
                 obs[z_idx + 3] = rel_speed
+
+        if obs[0] > Constants.MAX_SPEED: #TODO debug
+            print("***** get_obs_vector <after vehicle section>: overwritten by {:.2f}".format(obs[0]))
 
         return obs

@@ -134,6 +134,9 @@ class Vehicle:
         new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -self.model.max_accel), self.model.max_accel)
         new_speed = min(max(self.cur_speed + self.time_step_size*new_accel, 0.0), Constants.MAX_SPEED) #vehicle won't start moving backwards
         new_p = max(self.p + self.time_step_size*(new_speed + 0.5*self.time_step_size*new_accel), 0.0)
+        if new_speed > Constants.MAX_SPEED: #TODO debug
+            print("***** Vehicle.advance_vehicle_accel: new_speed = {:.2f}, cur_speed = {:.2f}, accel_cmd = {:.2f}, new_accel = {:.2f}, new_jerk = {:.2f}"
+                  .format(new_speed, self.cur_speed, new_accel_cmd, new_accel, new_jerk))
 
         # Update the state variables for longitudinal motion
         self.p = new_p

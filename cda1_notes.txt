@@ -60,8 +60,15 @@ for anyone not intently helping out.
 * Wrote testing program for BrigitModel and ran them test suite. Found & fixed several defects.
 * Tried running a training session, but got exception - too tired to investigate.
 
+9/6/23
+18:32-20:07
+
+* Debugged problems with training. Found defect where Bridgit is not handling neighbor right on top of host.
+
 
 TODO:
+- Run training now that above fix is in
+
 - start training!
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?

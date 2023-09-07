@@ -145,6 +145,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #TODO: try calling self.seed() without storing it as an instance attribute
         if seed is None:
             seed = datetime.now().microsecond
+            print("///// init seed = {}".format(seed))
         self.prng = HpPrng(seed = seed)
         self.render_mode = render_mode
 
@@ -364,6 +365,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             min_p = ego_p - Constants.N_DISTRO_DIST_REAR
             max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
+            print("    * reset: ego speed = {:4.1f}".format(speed))
 
             # Randomize all other vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
@@ -380,6 +382,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
                     space_found = self._verify_safe_location(i, lane_id, p)
                 speed = self.prng.random() * Constants.MAX_SPEED
+                print("///// reset: vehicle {} initial speed = {:4.1f}".format(i, speed))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 1:
@@ -474,8 +477,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Store the actions for future reference
             vehicle_actions[i] = action
 
+            #TODO debug - this whole section
+            if i > 0  and  self.vehicles[i].lane_id == self.vehicles[0].lane_id:
+                ddt = self.vehicles[i].p - self.vehicles[0].p
+                if abs(ddt) < 20.0:
+                    print("***** step: found vehicle {} in lane {} at p = {:.2f}, speed = {:.2f}, close to ego at p = {:.2f}, speed = {:.2f}"
+                          .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[0].p, self.vehicles[0].cur_speed))
+
             # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
             new_speed, new_p, new_lane, reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
+            if new_speed > Constants.MAX_SPEED: #TODO debug
+                print("***** vehicle {} is assigned illegal speed of {:5.2f}".format(i, new_speed))
             if self.debug > 1:
                 print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}, new_lane = {}"
                         .format(i, action[0], new_speed, new_p, new_lane))
@@ -498,6 +510,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     done = True
                     return_info["reason"] = reason
 
+            if self.vehicles[i].cur_speed > Constants.MAX_SPEED: #TODO debug
+                print("***** HighwayEnv.step: in vehicle update loop for #{}, cur_speed = {:.2f}".format(i, self.vehicles[i].cur_speed))
+
         if self.debug > 1:
             print("      all vehicle dynamics updated.")
 
@@ -508,7 +523,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the observations from each vehicle
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i])
-        self._verify_obs_limits("step() before collision check")
+        self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
@@ -880,7 +895,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             for v in range(self.num_vehicles):
                 for i in range(ObsVec.OBS_SIZE):
                     assert lo[i] <= self.all_obs[v, i] <= hi[i], "\n///// obs[{}, {}] value ({}) is outside bounds {} and {}" \
-                                                            .format(v, i, self.all_obs[v. i], lo[i], hi[i])
+                                                            .format(v, i, self.all_obs[v, i], lo[i], hi[i])
 
         except AssertionError as e:
             print(e)
