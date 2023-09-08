@@ -365,7 +365,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             min_p = ego_p - Constants.N_DISTRO_DIST_REAR
             max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
-            print("    * reset: ego speed = {:4.1f}".format(speed))
+            print("    * reset: ego speed = {:4.1f}".format(speed)) #TODO debug
 
             # Randomize all other vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
@@ -382,7 +382,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
                     space_found = self._verify_safe_location(i, lane_id, p)
                 speed = self.prng.random() * Constants.MAX_SPEED
-                print("///// reset: vehicle {} initial speed = {:4.1f}".format(i, speed))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 1:
@@ -478,11 +477,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             vehicle_actions[i] = action
 
             #TODO debug - this whole section
-            if i > 0  and  self.vehicles[i].lane_id == self.vehicles[0].lane_id:
-                ddt = self.vehicles[i].p - self.vehicles[0].p
-                if abs(ddt) < 20.0:
-                    print("***** step: found vehicle {} in lane {} at p = {:.2f}, speed = {:.2f}, close to ego at p = {:.2f}, speed = {:.2f}"
-                          .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[0].p, self.vehicles[0].cur_speed))
+            #if i > 0  and  self.vehicles[i].lane_id == self.vehicles[0].lane_id:
+            #    ddt = self.vehicles[i].p - self.vehicles[0].p
+            #    if abs(ddt) < 20.0:
+            #        print("***** step: found vehicle {} in lane {} at p = {:.2f}, speed = {:.2f}, close to ego at p = {:.2f}, speed = {:.2f}"
+            #              .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[0].p, self.vehicles[0].cur_speed))
 
             # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
             new_speed, new_p, new_lane, reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?

@@ -34,10 +34,10 @@ class BotType1bCtrl(VehicleController):
 
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)
-        tgt = speed_limit + self.speed_offset
+        tgt = min(speed_limit + self.speed_offset, Constants.MAX_SPEED)
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
-        #TODO: stub logic needs to be replaced
+        #TODO: add logic for lane change when needed
         action = [None]*2
         action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
         action[1] = LaneChange.STAY_IN_LANE

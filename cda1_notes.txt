@@ -61,14 +61,18 @@ for anyone not intently helping out.
 * Tried running a training session, but got exception - too tired to investigate.
 
 9/6/23
-18:32-20:07
 
-* Debugged problems with training. Found defect where Bridgit is not handling neighbor right on top of host.
+* Debugged problems with training. Found & fixed 2 defects.
+
+9/7/23
+
+* Started a training run to verify training will work.
+	* Training hangs after 0-2 iterations. Log advances every 5 sec with no changes to the
+	  info shown, and no print stmts from any of my code (ran with debug = 1). No data is
+	  going to the tensorboard.
 
 
 TODO:
-- Run training now that above fix is in
-
 - start training!
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?

@@ -38,7 +38,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 12000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 2
+    num_trials          = 1
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -54,7 +54,7 @@ def main(argv):
     env_config = {}
     env_config["time_step_size"]                = 0.2
     env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
-    env_config["debug"]                         = 0
+    env_config["debug"]                         = 1
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
@@ -88,7 +88,7 @@ def main(argv):
     #       number of possible simultaneous trials (as well as gpu memory).
     # This config will run 5 parallel trials on the Tensorbook.
 
-    cfg.resources(  num_gpus                    = 0.0, #for the local worker, which does the learning & evaluation runs
+    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
                     num_cpus_per_worker         = 2, #also applies to the local worker and evaluation workers
                     num_gpus_per_worker         = 0  #this has to allow gpu left over for local worker & evaluation workers also

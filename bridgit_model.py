@@ -46,9 +46,6 @@ class BridgitModel(VehicleModel):
         if not me.active:
             return obs
 
-        if me.cur_speed > Constants.MAX_SPEED: #TODO debug
-            print("***** Bridgit.get_obs_vector entered with vehicle {} speed = {:.2f}".format(my_id, me.cur_speed))
-
         # Build the common parts of the obs vector
         obs[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD]
         obs[ObsVec.SPEED_CMD] = actions[0]
@@ -64,9 +61,6 @@ class BridgitModel(VehicleModel):
         # NOTE: allow the case where the host is not on any pavement - it could be sitting in the grass with sensors on watching the world go by
         host_lane_id = me.lane_id
         host_p = me.p
-
-        if obs[0] > Constants.MAX_SPEED: #TODO debug
-            print("***** get_obs_vector <after host_p assign>: overwritten by {:.2f}".format(obs[0]))
 
         #
         #..........Determine pavement observations in each zone
@@ -174,9 +168,6 @@ class BridgitModel(VehicleModel):
             if ra_p < zone_ctr_p < rb_p:
                 obs[z_idx + 5] = 1.0
 
-        if obs[0] > Constants.MAX_SPEED: #TODO debug
-            print("***** get_obs_vector <after pavement section>: overwritten by {:.2f}".format(obs[0]))
-
         #
         #..........Map vehicles to zones for those that are within the grid
         #
@@ -268,8 +259,5 @@ class BridgitModel(VehicleModel):
                 z_idx = base_idx + z*elements_per_zone
                 obs[z_idx + 2] = 1.0 #occupied
                 obs[z_idx + 3] = rel_speed
-
-        if obs[0] > Constants.MAX_SPEED: #TODO debug
-            print("***** get_obs_vector <after vehicle section>: overwritten by {:.2f}".format(obs[0]))
 
         return obs
