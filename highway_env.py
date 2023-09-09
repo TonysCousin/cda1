@@ -342,6 +342,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Clear any lingering observations from the previous episode
         self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE))
 
+        # Clear the locations of all vehicles to get them out of the way for the random placement below
+        for i in range(self.num_vehicles):
+            self.vehicles[i].reset()
+
         # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
         if self.scenario >= 90:
             if self.scenario - 90 >= self.roadway.NUM_LANES:
@@ -362,16 +366,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0) + lane_begin
             speed = self.prng.random() * Constants.MAX_SPEED
             self.vehicles[0].reset(init_lane_id = lane_id, init_p = ego_p, init_speed = speed)
-
-            min_p = ego_p - Constants.N_DISTRO_DIST_REAR
-            max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
-            print("    * reset: ego speed = {:4.1f}".format(speed)) #TODO debug
+            if self.debug > 0:
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(lane_id, ego_p, speed)) #TODO debug
 
             # Randomize all other vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
                 space_found = False
+                attempt = 0
                 p = None
-                while not space_found:
+                min_p = ego_p - Constants.N_DISTRO_DIST_REAR
+                max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
+                while not space_found  and  attempt < 20:
                     lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
                     lane_end = lane_begin + self.roadway.get_total_lane_length(lane_id)
@@ -381,10 +386,27 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         continue
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
                     space_found = self._verify_safe_location(i, lane_id, p)
+                    #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found)) #TODO debug
+                    attempt += 1
+
+                    # Too many vehicles packed in there, so relax the boundaries on P to allow more freedom
+                    if attempt == 7:
+                        min_p -= 80.0
+                        max_p += 80.0
+                    elif attempt == 13:
+                        min_p -= 150.0
+                        max_p += 150.0
+                    elif attempt == 17:
+                        min_p -= 300.0
+                        max_p += 300.0
+
+                if not space_found:
+                    raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
+
                 speed = self.prng.random() * Constants.MAX_SPEED
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-        if self.debug > 1:
+        if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
 
         #
@@ -512,7 +534,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if self.vehicles[i].cur_speed > Constants.MAX_SPEED: #TODO debug
                 print("***** HighwayEnv.step: in vehicle update loop for #{}, cur_speed = {:.2f}".format(i, self.vehicles[i].cur_speed))
 
-        if self.debug > 1:
+        if self.debug > 0:
             print("      all vehicle dynamics updated.")
 
         #
@@ -537,7 +559,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #print("/////+ step: {} step {}, returning reward of {}, {}".format(self.rollout_id, self.total_steps, reward, expl))
 
         if self.debug > 0:
-            print("///// step complete. Returning obs (only first row for ego vehicle).")
+            print("///// step {} complete. Returning obs (only first row for ego vehicle).".format(self.steps_since_reset))
             print("      reward = ", reward, ", done = ", done)
             print("      final vehicles array =")
             for i, v in enumerate(self.vehicles):

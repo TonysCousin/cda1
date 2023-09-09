@@ -251,7 +251,7 @@ class Roadway:
         assert self.param_to_map_frame(p_loc, lane_id) >= self.lanes[lane_id].start_x, \
                 "///// Roadway.get_current_lane_geom: p_loc of {} is prior to beginning of lane {}".format(p_loc, lane_id)
 
-        if self.debug > 1:
+        if self.debug > 0:
             print("///// Entering Roadway.get_current_lane_geom for lane_id = ", lane_id, ", p_loc = ", p_loc)
         rem_this_lane = self.lanes[lane_id].length - (p_loc - self.map_to_param_frame(self.lanes[lane_id].start_x, lane_id))
 

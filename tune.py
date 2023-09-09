@@ -38,7 +38,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 12000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 1
+    num_trials          = 2
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -54,11 +54,11 @@ def main(argv):
     env_config = {}
     env_config["time_step_size"]                = 0.2
     env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
-    env_config["debug"]                         = 1
+    env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = True
     env_config["training"]                      = True
-    env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode #TODO: needed?
+    env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
     env_config["scenario"]                      = 0
     cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
     #cfg.environment(env = DummyEnv, env_config = env_config)

@@ -210,14 +210,15 @@ class BridgitModel(VehicleModel):
                     elements_per_zone = ObsVec.NORM_ELEMENTS
 
                 elif n_front < 0.0: #vehicle is behind host
-                    z_num_rear = max(ObsVec.ZONES_BEHIND + math.floor((n_rear + half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
-                    z_num_front = min(ObsVec.ZONES_BEHIND + math.floor((n_front + half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), ObsVec.ZONES_BEHIND - 1)
+                    z_num_rear = min(max(ObsVec.ZONES_BEHIND + math.floor((n_rear + half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), ObsVec.ZONES_BEHIND - 1)
+                    z_num_front = min(max(ObsVec.ZONES_BEHIND + math.floor((n_front + half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), \
+                                      ObsVec.ZONES_BEHIND - 1)
                     base_idx = ObsVec.BASE_CTR_REAR
                     elements_per_zone = ObsVec.NORM_ELEMENTS #no lane boundary info behind the host
 
                 else: #vehicle is in front of host
-                    z_num_rear = max(math.floor((n_rear - half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
-                    z_num_front = min(math.floor((n_front - half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), ObsVec.ZONES_FORWARD - 1)
+                    z_num_rear = min(max(math.floor((n_rear - half_zone + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), ObsVec.ZONES_FORWARD - 1)
+                    z_num_front = min(max(math.floor((n_front - half_zone - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), ObsVec.ZONES_FORWARD - 1)
                     base_idx = ObsVec.BASE_CTR_FRONT
                     elements_per_zone = ObsVec.CTR_ELEMENTS
 
@@ -240,8 +241,9 @@ class BridgitModel(VehicleModel):
                 elements_per_zone = ObsVec.NORM_ELEMENTS
 
                 # Get the zone numbers for both ends of the vehicle, limited to the valid range of zones in a column
-                z_num_rear = max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0)
-                z_num_front = min(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), (ObsVec.ZONES_BEHIND + ObsVec.ZONES_FORWARD + 1))
+                total_zones = ObsVec.ZONES_BEHIND + ObsVec.ZONES_FORWARD + 1
+                z_num_rear = min(max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), total_zones)
+                z_num_front = min(max(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), total_zones)
 
             assert z_num_rear <= z_num_front, \
                     "///// BridgitModel.get_obs_vector: host lane = {}, host_p = {:.2f}; vehicle {} in lane {}, p = {:.2f} has has z_num_rear = {}, " \

@@ -70,6 +70,18 @@ for anyone not intently helping out.
 	* Training hangs after 0-2 iterations. Log advances every 5 sec with no changes to the
 	  info shown, and no print stmts from any of my code (ran with debug = 1). No data is
 	  going to the tensorboard.
+	* Started a thread on Ray Discuss at https://discuss.ray.io/t/tune-hangs-soon-after-starting/12081
+	  to get help.
+
+9/8/23
+21:41-
+
+* Found defect in environment reset() method that induced an infinite loop occasionally, when trying to 
+  place all of the neighbor vehicles within a close space. Fix allows training to move forward.
+* Fixed defect in obs collection when neighbor was barely inside the front edge of the grid.
+
+* Training run d226a using SAC on 2 trials. Reward function is scaled by 0.1 from what was used in
+  cda0, so the reward range is now -1.5 for a crash, but otherwise within [-1, 1].
 
 
 TODO:

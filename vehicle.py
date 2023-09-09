@@ -207,6 +207,10 @@ class Vehicle:
                     if self.debug > 1:
                         print("      DONE!  original lane ended before lane change completed.")
 
+            if self.debug > 0:
+                print("      Vehicle.advance_vehicle_accel: bottom of lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}"
+                        .format(self.lane_change_status, new_lane, tgt_lane, self.lane_change_count))
+
         # If current lane change is complete, then reset its state and counter
         if self.lane_change_count >= self.model.lc_compl_steps:
             self.lane_change_status = "none"
@@ -242,10 +246,6 @@ class Vehicle:
             elif self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS:
                 print("   ** LC now: ego_p = {:.1f}, ego_rem = {:.1f}, rid = {}, ra = {:.1f}, rb = {:.1f}, r_rem = {:.1f}".format(new_ego_p, new_rem, rid, ra, rb, r_rem))
         """
-
-        if self.debug > 0:
-            print("      step: done lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}"
-                    .format(self.lane_change_status, new_lane, tgt_lane, self.lane_change_count))
 
         return new_speed, new_p, new_lane, reason
 
