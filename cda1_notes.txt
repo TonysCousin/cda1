@@ -74,7 +74,6 @@ for anyone not intently helping out.
 	  to get help.
 
 9/8/23
-21:41-
 
 * Found defect in environment reset() method that induced an infinite loop occasionally, when trying to 
   place all of the neighbor vehicles within a close space. Fix allows training to move forward.
@@ -82,14 +81,19 @@ for anyone not intently helping out.
 
 * Training run d226a using SAC on 2 trials. Reward function is scaled by 0.1 from what was used in
   cda0, so the reward range is now -1.5 for a crash, but otherwise within [-1, 1].
+	* No good. rmax stayed < -1 for 3.5M steps (12k iterations).
 
 
 TODO:
+- merge into develop
+
+
 - start training!
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Review all TODOs
+- Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
 - add bot1 lane change capability when on a ramp.
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
