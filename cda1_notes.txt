@@ -115,9 +115,27 @@ for anyone not intently helping out.
 	* Increased safe separation for initial vehicle placement from 4 to 5 car lengths.
 	* Increased initial speed assignments from [0, MAX_SPEED] to [5, MAX_SPEED].
 	* Added _decide_num_vehicles() to allow fewer vehicles to be present, especially during early episodes.
+	* Inference on trial 0 near its peak (rmax ~-0.05): never changes lanes, LC cmds stay very close to 0; it
+	  settles into speeds ~23.6 m/s in open field; it is common to see same-lane crashes between ego and a bot
+	  either before or after it, due to close spacing and widely differing initial speeds.
+	* Mean episode lenghts max out ~70 (target is 80).
+	* It seems that training for only a fragment of the route gives no motivation for a lane change, esp when the
+	  agent gets punished for doing so. Found that episode is not getting a reward for completing the allotted
+	  steps, because it is not considered "done".
+
+9/17/23
+
+* Run 9010f training with SAC
+	* Changed step() to set both the done and truncated flags when it hits the max allowed steps. This will allow
+	  the completion reward to be counted for completing an episode, even if it doesn't hit the target.
+	* Limited the speed of a neighbor vehicle placed close behind the ego vehicle so that it won't immediately
+	  rear-end ego.
+	* Expanded safe distance from 5 to 6 car lengths for placing vehicles in same lane near other vehicles.
+	* Adjusted noise tuning params.
 
 
 TODO:
+- Consider limiting reward penalty for going slow behind a slow forward vehicle.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)

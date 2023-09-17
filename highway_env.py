@@ -418,8 +418,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if not space_found:
                     raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
 
-                # Pick a speed, then initialize this vehicle
+                # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
+                # to avoid an immediate rear-ending.
                 speed = self.prng.random() * (Constants.MAX_SPEED - 5.0) + 5.0
+                vlen = self.vehicles[i].model.veh_length
+                if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
+                    speed = min(speed, 1.1*self.vehicles[0].cur_speed)
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 0:
@@ -487,6 +491,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.total_steps += 1
         self.steps_since_reset += 1
         done = False
+        truncated = False
         return_info = {"reason": "Unknown"}
 
         #
@@ -545,6 +550,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     done = True
                     return_info["reason"] = reason
 
+                # Else if we have completed an episode (route fragment) consider it successfully done, but also truncated (hit step limit)
+                elif self.steps_since_reset >= self.episode_length:
+                    done = True
+                    return_info["reason"] = "Reached max steps allowed."
+                    truncated = True
+
             # Individual vehicle models must update the common observation elements as well as those specific to their vehicle type.
             # This may feel redundant, but it allows the top level env class to stay out of the observation business altogether.
             """ TODO: remove this if things are working okay
@@ -593,13 +604,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 v.print(i)
             print("      reason = {}".format(return_info["reason"]))
             print("      reward_detail = {}\n".format(return_info["reward_detail"]))
-
-        # Determine if we have hit the steps limit for an episode. To end an episode we need either truncated or done
-        # to be set, but not both, as they have mutually exclusive meanings. truncated is for step limit, done is for
-        # performance failure or success.
-        truncated = False
-        if self.steps_since_reset >= self.episode_length:
-            truncated = True
 
         return self.all_obs[0, :], reward, done, truncated, return_info
 
@@ -786,7 +790,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # If the other vehicle is in candiate's lane then check if it is too close longitudinally. Note that if a neighbor has
             # not yet been placed, its lane ID is -1
             if other.lane_id == lane_id:
-                if 0.0 <= abs(other.p - p) < 5.0*other.model.veh_length:
+                if 0.0 <= abs(other.p - p) < 6.0*other.model.veh_length:
                     safe = False
 
         return safe
