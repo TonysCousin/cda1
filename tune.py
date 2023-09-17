@@ -36,9 +36,9 @@ def main(argv):
     fail_threshold      = -1.2
     avg_over_latest     = 100   #num most recent iters that are averaged to meet stopping criteria
     chkpt_int           = 10    #num iters between storing new checkpoints
-    max_iterations      = 12000
+    max_iterations      = 18000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 2
+    num_trials          = 8
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -56,7 +56,7 @@ def main(argv):
     env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
-    env_config["verify_obs"]                    = True
+    env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
     env_config["scenario"]                      = 0
@@ -69,11 +69,11 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = tune.uniform(0.1, 0.3) #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = tune.uniform(0.1, 0.4) #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
-    explore_config["scale_timesteps"]           = 4000000 #tune.choice([3000000, 4000000])
+    explore_config["scale_timesteps"]           = tune.choice([2000000, 5000000, 8000000])
     exp_switch                                  = True #tune.choice([False, True, True])
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
@@ -127,7 +127,7 @@ def main(argv):
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
                     train_batch_size            = 1024, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
-                    initial_alpha               = 0.02, #tune.loguniform(0.002, 0.04),
+                    initial_alpha               = tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
                     grad_clip                   = 1.0, #tune.uniform(0.5, 1.0),

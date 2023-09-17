@@ -96,7 +96,7 @@ def main(argv):
         vehicles[0].active = False
 
     print("///// inference: ready to update graphics before loop:")
-    vehicles[1].print("1")
+    vehicles[0].print("Ego")
 
     graphics.update(action_list, raw_obs, vehicles)
     obs = env.scale_obs(raw_obs)
@@ -137,9 +137,10 @@ def main(argv):
         # Scale the observations to be ready for NN ingest next time step
         obs = env.scale_obs(raw_obs)
 
-        print("///// step {:3d}: scaled action = [{:5.2f} {:5.2f}], lane = {}, speed = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].cur_speed, vehicles[0].p, reward, info["reward_detail"]))
-        print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
+        print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, vehicles[0].cur_speed, \
+                        vehicles[0].p, reward, info["reward_detail"]))
+        #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
         # based on when that vehicle exits its assigned lane.

@@ -37,6 +37,7 @@ class VehicleModel(ABC):
                        my_id    : int,      #ID of this vehicle (its index into the vehicles list)
                        vehicles : list,     #list of all Vehicles in the scenario
                        actions  : list,     #list of action commands for this vehicle
+                       obs      : np.array, #array of observations from the previous time step
                       ) -> np.array:
 
         """Gathers all of the vehicle's observations and returns them as a numpy vector.

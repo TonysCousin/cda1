@@ -82,7 +82,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         the length of each lane segment, even though it "folds" the angled lanes back so that all lanes in the parametric
         frame are parallel to the P/X axis.
 
-        There is no communication among the vehicles, only (perfect) observations of their own onboard sensors.
+        There is no communication among the vehicles, only (perfect) observations from their own onboard sensors.
 
         OBSERVATION SPACE:  The learning agent's observations are limited to what it can gather from its "sensors" about
         the roadway and other vehicles in its vicinity, as well as some attributes about itself.  Its observation space
@@ -360,17 +360,29 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # No starting configuration specified - randomize everything
         else:
 
-            # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable
+            # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
+            # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
+            # ego targets are 100 m from the ends of their respective lanes).
             lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
             lane_begin = self.roadway.get_lane_start_p(lane_id)
-            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 50.0) + lane_begin
+            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 300.0) + lane_begin
             speed = self.prng.random() * Constants.MAX_SPEED
             self.vehicles[0].reset(init_lane_id = lane_id, init_p = ego_p, init_speed = speed)
             if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(lane_id, ego_p, speed)) #TODO debug
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(lane_id, ego_p, speed))
 
-            # Randomize all other vehicles within a box around the ego vehicle to maximize exercising its sensors
+            # Choose how many vehicles will participate
+            episode_vehicles = self._decide_num_vehicles()
+
+            # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
+
+                # Mark unused vehicles as inactive and skip over
+                if i >= episode_vehicles:
+                    self.vehicles[i].active = False
+                    continue
+
+                # Iterate until a suitable location is found for it
                 space_found = False
                 attempt = 0
                 p = None
@@ -393,17 +405,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     if attempt == 7:
                         min_p -= 80.0
                         max_p += 80.0
-                    elif attempt == 13:
+                    elif attempt == 11:
                         min_p -= 150.0
                         max_p += 150.0
-                    elif attempt == 17:
+                    elif attempt == 15:
                         min_p -= 300.0
                         max_p += 300.0
+                    elif attempt == 18:
+                        min_p -= 800.0
+                        max_p += 800.0
 
                 if not space_found:
                     raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
 
-                speed = self.prng.random() * Constants.MAX_SPEED
+                # Pick a speed, then initialize this vehicle
+                speed = self.prng.random() * (Constants.MAX_SPEED - 5.0) + 5.0
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 0:
@@ -419,7 +435,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the obs from each vehicle
         dummy_actions = [0.5*Constants.MAX_SPEED, LaneChange.STAY_IN_LANE]
         for i in range(self.num_vehicles):
-            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions)
+            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions, self.all_obs[i, :])
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -477,7 +493,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Update states of all vehicles
         #
 
-        # Unscale the ego action inputs (both actions are in [-1, 1])
+        # Unscale the ego action inputs (both cmd values are in [-1, 1])
         ego_action = [None]*2
         ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
         ego_action[1] = int(math.floor(cmd[1] + 0.5))
@@ -493,7 +509,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Exercise the control algo to generate the next action commands for vehicles that aren't in training.
             if i > 0:
-                action = self.vehicles[i].controller.step(self.all_obs[i, :])
+                action = self.vehicles[i].controller.step(self.all_obs[i, :]) #unscaled
 
             # Store the actions for future reference
             vehicle_actions[i] = action
@@ -507,8 +523,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
             new_speed, new_p, new_lane, reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
-            if new_speed > Constants.MAX_SPEED: #TODO debug
-                print("***** vehicle {} is assigned illegal speed of {:5.2f}".format(i, new_speed))
             if self.debug > 1:
                 print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}, new_lane = {}"
                         .format(i, action[0], new_speed, new_p, new_lane))
@@ -531,8 +545,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     done = True
                     return_info["reason"] = reason
 
-            if self.vehicles[i].cur_speed > Constants.MAX_SPEED: #TODO debug
-                print("***** HighwayEnv.step: in vehicle update loop for #{}, cur_speed = {:.2f}".format(i, self.vehicles[i].cur_speed))
+            # Individual vehicle models must update the common observation elements as well as those specific to their vehicle type.
+            # This may feel redundant, but it allows the top level env class to stay out of the observation business altogether.
+            """ TODO: remove this if things are working okay
+            # Update common observations
+            self.all_obs[i, ObsVec.SPEED_CMD_PREV] = self.all_obs[i, ObsVec.SPEED_CMD]
+            self.all_obs[i, ObsVec.SPEED_CMD] = action[0]
+            self.all_obs[i, ObsVec.LC_CMD_PREV] = self.all_obs[i, ObsVec.LC_CMD]
+            self.all_obs[i, ObsVec.LC_CMD] = action[1]
+            self.all_obs[i, ObsVec.SPEED_PREV] = self.all_obs[i, ObsVec.SPEED_CUR]
+            self.all_obs[i, ObsVec.SPEED_CUR] = new_speed
+            steps_since_lc = self.all_obs[i, ObsVec.STEPS_SINCE_LN_CHG] + 1
+            if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
+                steps_since_lc = Constants.MAX_STEPS_SINCE_LC
+            self.all_obs[i, ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
+            """
 
         if self.debug > 0:
             print("      all vehicle dynamics updated.")
@@ -541,9 +568,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Gather the results and observations and set the reward
         #
 
-        # Get the observations from each vehicle
+        # Get the sensor observations from each vehicle
         for i in range(self.num_vehicles):
-            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i])
+            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
@@ -665,7 +692,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.training = False #is the environment being used in a training job? (affects scaling of observations)
         try:
             tr = config["training"]
-            if tr == "True":
+            if tr:
                 self.training = True
         except KeyError as e:
             pass
@@ -673,7 +700,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.ignore_neighbor_crashes = False #should the collision detector ignore crashes between two non-ego vehicles?
         try:
             inc = config["ignore_neighbor_crashes"]
-            if inc == "True":
+            if inc:
                 self.ignore_neighbor_crashes = True
         except KeyError as e:
             pass
@@ -704,6 +731,36 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             pass
 
 
+    def _decide_num_vehicles(self) -> int:
+        """Uses a weighted random draw to decide how many vehicles to use in the episode, favoring a small number in early
+            training episodes, gradually favoring more as the number of epsisodes increases. For inference, we will push the
+            favored band to the highest level.
+        """
+
+        MANY_EPISODES = 5000
+        nv = self.num_vehicles
+        assert nv > 1, "///// NEED AT LEAST 2 VEHICLES DEFINED."
+        nv23 = max(2*nv//3, 1)
+        nv3 = max(nv//3, 1)
+        fav_low = float(nv23) #max out the range for inference runs
+        fav_high = float(nv)
+        if self.training:
+            fav_low = min(float(nv23 - 1.0)*self.episode_count/MANY_EPISODES + 1.0, float(nv23)) #lower bound for the favorite number range
+            fav_high = min(float(nv - nv3)*self.episode_count/MANY_EPISODES + nv3, float(nv)) #upper bound for the favorite number range
+        #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high)) #TODO debug
+        assert fav_high >= fav_low, "///// ERROR in reset(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
+        episode_vehicles = 1
+        draw1 = self.prng.random() #determines if we are in the favored band or not
+        draw2 = self.prng.random() #chooses the value from within the selected band
+        if draw1 > 0.2: #we are in the favored band
+            episode_vehicles = int(draw2*(fav_high - fav_low) + fav_low + 0.5)
+        else: #below the favored band
+            episode_vehicles = max(int(draw2*(fav_low - 1.0) + 1.0 + 0.5), 1)
+
+        #print("      draw1 = {:.2f}, dra2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles)) #TODO debug
+        return episode_vehicles
+
+
     def _verify_safe_location(self,
                               n         : int,  #neighbor ID
                               lane_id   : int,  #desired lane ID for the neighbor
@@ -729,7 +786,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # If the other vehicle is in candiate's lane then check if it is too close longitudinally. Note that if a neighbor has
             # not yet been placed, its lane ID is -1
             if other.lane_id == lane_id:
-                if 0.0 <= abs(other.p - p) < 4.0*other.model.veh_length:
+                if 0.0 <= abs(other.p - p) < 5.0*other.model.veh_length:
                     safe = False
 
         return safe
@@ -775,8 +832,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                         if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                             crash = True
-                            if self.debug > 1:
-                                print("      CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
+                            #if self.debug > 1:
+                            print("      CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
                                         .format(i, j, va.p, va.lane_id))
                             break
 
@@ -803,8 +860,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                                 if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                                     crash = True
-                                    if self.debug > 1:
-                                        print("      CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
+                                    #if self.debug > 1:
+                                    print("      CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
                                                 .format(i, j, vb.p, va.lane_id))
                                     break
 
@@ -863,7 +920,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Else, episode still underway
         else:
 
-            # Small penalty for widely varying lane commands
+            # Small penalty for widely varying lane commands (these obs are unscaled, so will be integers)
             cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
             penalty = 0.01 * cmd_diff * cmd_diff
             reward -= penalty
@@ -878,7 +935,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit
-            speed_mult = 0.03
+            speed_mult = 0.015
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             norm_speed = self.all_obs[0, ObsVec.SPEED_CUR] / speed_limit #1.0 = speed limit
             diff = abs(norm_speed - 1.0)

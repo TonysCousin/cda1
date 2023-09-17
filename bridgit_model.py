@@ -26,6 +26,7 @@ class BridgitModel(VehicleModel):
                        my_id    : int,      #ID of this vehicle (its index into the vehicles list)
                        vehicles : list,     #list of all Vehicles in the scenario
                        actions  : list,     #list of action commands for this vehicle
+                       obs      : np.array, #array of observations for this vehicle from the previous time step
                       ) -> np.array:
 
         """Produces the observation vector for this vehicle object if it is active. An inactive vehicle produces all 0s. See the ObsVec
@@ -39,6 +40,11 @@ class BridgitModel(VehicleModel):
             anyway.
         """
 
+        # Save values from previous time step, then clear the obs vector to prepare for new values
+        prev_speed = obs[ObsVec.SPEED_CUR]
+        prev_speed_cmd = obs[ObsVec.SPEED_CMD]
+        prev_lc_cmd = obs[ObsVec.LC_CMD]
+        steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
         # If this vehicle is inactive, then stop now
@@ -47,13 +53,16 @@ class BridgitModel(VehicleModel):
             return obs
 
         # Build the common parts of the obs vector
-        obs[ObsVec.SPEED_CMD_PREV] = obs[ObsVec.SPEED_CMD]
+        obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
         obs[ObsVec.SPEED_CMD] = actions[0]
-        obs[ObsVec.LC_CMD_PREV] = obs[ObsVec.LC_CMD_PREV]
+        obs[ObsVec.LC_CMD_PREV] = prev_lc_cmd
         obs[ObsVec.LC_CMD] = actions[1]
-        obs[ObsVec.STEPS_SINCE_LN_CHG] = me.lane_change_count
-        obs[ObsVec.SPEED_PREV] = obs[ObsVec.SPEED_CUR]
+        obs[ObsVec.SPEED_PREV] = prev_speed
         obs[ObsVec.SPEED_CUR] = me.cur_speed
+        steps_since_lc += 1
+        if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
+            steps_since_lc = Constants.MAX_STEPS_SINCE_LC
+        obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Skip a few here that are used for bots or reserved for future
 

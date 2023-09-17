@@ -97,6 +97,7 @@ class ObsVec:
     FUTURE2             = 11
     FUTURE3             = 12
 
+    # More elements specific to the Bridgit vehicle:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set or 3 or 5 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.

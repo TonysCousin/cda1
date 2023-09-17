@@ -83,12 +83,41 @@ for anyone not intently helping out.
   cda0, so the reward range is now -1.5 for a crash, but otherwise within [-1, 1].
 	* No good. rmax stayed < -1 for 3.5M steps (12k iterations).
 
+9/16/23
+
+* Run ? training with SAC
+	* To accommodate changed reward scale, I added initial_alpha as a tuning HP.
+	* Increased range of noise magnitude to [0.1, 0.4]
+	* Added noise scale timesteps as a tunable HP to stretch it out more.
+	* Extended trial duration from 12k iterations to 30k since it will probably take a lot longer for the agent
+	  to experience all this track has to offer.
+	* First 2 trials didn't do anything; rmax <= -1.
+		* I discovered a defect in reading configs, such that it was not ignoring neighbor crashes, thus 
+		  even if the agent was performing well, the episode may end with a poor reward.
+
+* Run 5e343 training with SAC
+	* Fixed config defects for setting boolean flags, correctly setting ignore_neighbor_crashes = True.
+	* Changed max_iters back to 18k, since 30k took > 8 hr for two trials.
+	* Adjusted reward penalty for speed deviation - multiplier from 0.03 to 0.015, since one inference example
+	  (of prev run) showed that agent successfully stayed behind a bot at 14 m/s and got severely punished for
+	  that, worse than if it had crashed.
+	* Added a staging area from which to execute the training sessions, and a train.sh script to set it up and
+	  initiate each run. This allows code editing & testing in the source area while running, without need to
+	  make a second copy of the repo.
+	* Inference on early trial (1) shows
+		* Lots of crashes right after starting - it seems vehicles are packed too tightly together given the
+		  wide range of start speeds.
+	* Found a defect in VehicleModel, where it needs to have previous time step's obs passed in so that historical
+	  reference info can be saved.
+
+* Run a2caf training with SAC
+	* Fixed defect that omitted proper updates of common obs vector elements.
+	* Increased safe separation for initial vehicle placement from 4 to 5 car lengths.
+	* Increased initial speed assignments from [0, MAX_SPEED] to [5, MAX_SPEED].
+	* Added _decide_num_vehicles() to allow fewer vehicles to be present, especially during early episodes.
+
 
 TODO:
-- merge into develop
-
-
-- start training!
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)

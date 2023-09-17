@@ -131,5 +131,6 @@ dmypy.json
 # vi swap file
 .*.swp
 
-# training checkpoint storage
+# training checkpoint storage & execution areas
 training/
+staging/

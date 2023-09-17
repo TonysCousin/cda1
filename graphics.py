@@ -29,6 +29,7 @@ class Graphics:
     WINDOW_SIZE_R = 1800        #window width, pixels
     WINDOW_SIZE_S = 800         #window height, pixels
     REAL_TIME_RATIO = 5.0       #Factor faster than real time
+    IMAGE_PATH = "docs/images"
 
     # Geometry of data plots
     PLOT_H          = 150       #height of each plot, pixels
@@ -58,8 +59,8 @@ class Graphics:
         pygame.display.set_caption('cda0')
 
         # set up fonts
-        self.basic_font = pygame.font.Font("images/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
-        self.large_font = pygame.font.Font("images/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
+        self.basic_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
+        self.large_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
 
         # draw the background onto the surface
         self.window_surface.fill(Graphics.BLACK)
@@ -111,7 +112,7 @@ class Graphics:
         #time.sleep(20) #debug only
 
         # Initialize the crash image in case it will be necessary
-        self.crash_image = pygame.image.load("images/crash16.bmp").convert()
+        self.crash_image = pygame.image.load(Graphics.IMAGE_PATH + "/crash16.bmp").convert()
 
         # Set up lists of previous screen coords and display colors for each vehicle
         vehicles = env.get_vehicle_data()
@@ -158,10 +159,8 @@ class Graphics:
                 continue
 
             # Get the vehicle's new location on the surface
-            print("///// Graphics.update: v_idx = {}".format(v_idx))
             new_x, new_y = self._get_vehicle_coords(vehicles, v_idx)
             new_r, new_s = self._map2screen(new_x, new_y)
-            print("      new_x = {:.3f}, new_y = {:.3f}".format(new_x, new_y))
 
             # If the vehicle has crashed, then display the crash symbol at its location
             if vehicles[v_idx].crashed:
@@ -334,7 +333,7 @@ class Plot:
 
         # Draw the axes - for numbering, assume that the given min & max are "nice" numbers, so don't need to search
         # for nearest nice numbers.
-        self.basic_font = pygame.font.Font("images/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
+        self.basic_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
         pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r+width, corner_s+height))
         pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r, corner_s))
         self._make_y_label(min_y, corner_s + height)
