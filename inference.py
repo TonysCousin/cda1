@@ -50,8 +50,8 @@ def main(argv):
 
     # Set up a local copy of all vehicles that have been configured
     vehicles = env.get_vehicle_data()
-    print("///// inference: vehicle[1] = ")
-    vehicles[1].print()
+    #print("///// inference: vehicle[1] = ")
+    #vehicles[1].print()
 
     # If we are using a checkpointed NN for the ego vehicle, then start up rllib to run it
     if checkpoint is not None:

@@ -9,5 +9,5 @@ class TargetDestination:
                  p      : float,    #P coordinate of the target, m
                 ):
 
-        self.lane_id = -1
+        self.lane_id = lane
         self.p = p

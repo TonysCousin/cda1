@@ -155,7 +155,8 @@ class Graphics:
             # Grab the background under where we want the vehicle to appear & erase the old vehicle
             pygame.draw.circle(self.window_surface, Graphics.BLACK, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
 
-            if not vehicles[v_idx].active:
+            # Skip over vehicles that are inactive for reasons other than a crash
+            if not vehicles[v_idx].active  and  not vehicles[v_idx].crashed:
                 continue
 
             # Get the vehicle's new location on the surface
@@ -164,6 +165,7 @@ class Graphics:
 
             # If the vehicle has crashed, then display the crash symbol at its location
             if vehicles[v_idx].crashed:
+                print("***   Graphics.update: vehicle {} crashed.".format(v_idx)) #TODO debug
                 image_rect = list(self.crash_image.get_rect())
                 r_offset = (image_rect[2] - image_rect[0])//2
                 s_offset = (image_rect[3] - image_rect[1])//2

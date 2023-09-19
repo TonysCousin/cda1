@@ -132,9 +132,28 @@ for anyone not intently helping out.
 	  rear-end ego.
 	* Expanded safe distance from 5 to 6 car lengths for placing vehicles in same lane near other vehicles.
 	* Adjusted noise tuning params.
+	* After 4 trials completed, the run died of a segfault after ~10k iterations in trials 4 & 5.
+	* Before it died, trial 5 achieved rmax ~0.94 and rmean noisy in [0.4, 0.6] at 3M steps. Inference on it shows
+	  it likes a steady speed of 21.91 m/s. This is similar to several other trials, settling at a lower-than
+	  limit speed. I wonder if this is due to training in a crowd, where it learns that these are the safe speeds
+	  to avoid a crash.
+
+* Mods ready for next run:
+	* Fixed small defect in TargetDestination that was incorrectly initializing the lane ID, so targets weren't
+	  recognized. Also added indicator in reward function to give a bonus if target is reached.
+	* Adjusted ACC control in BotType1Ctrl to start activating farther away (from 8 to 12 car lenghts) in hopes
+	  of reducing its forward collisions.
+	* Made some small improvements to inference usability.
+
+9/18/23
+
+* Began designing the capability to do simple route planning for controllers.
 
 
 TODO:
+- Create a route planning capability for controllers.
+- Scan log for "num vehicles" to see how training patterns change
+- Create a scenario with only neighbors in same lane and one with vehicles only in adjacent lanes.
 - Consider limiting reward penalty for going slow behind a slow forward vehicle.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
