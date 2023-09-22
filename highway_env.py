@@ -1,4 +1,5 @@
 import sys
+import copy
 from statistics import mean
 from typing import Tuple, Dict, List
 import math
@@ -21,6 +22,7 @@ from roadway_b import Roadway
 from vehicle import Vehicle
 from hp_prng import HpPrng
 from lane_change import LaneChange
+from target_destination import TargetDestination
 # Need to import every derived class that a user might choose to use, so that the config will be recognized:
 from bot_type1_model import BotType1Model
 from bot_type1a_ctrl import BotType1aCtrl
@@ -154,8 +156,42 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("\n///// HighwayEnv init: config = ", config)
             print("/////                  OBS_SIZE = ", ObsVec.OBS_SIZE)
 
+        #
+        #..........Roadway
+        #
+
         # Create the roadway geometry
         self.roadway = Roadway(self.debug)
+
+        # Define the target destinations for the ego vehicle (T targets) and for the bot vehicles (B targets)
+        self.t_targets = []
+        self.t_targets.append(TargetDestination(self.roadway, 1, 2900.0))
+        self.t_targets.append(TargetDestination(self.roadway, 2, 2900.0))
+        self.b_targets = copy.deepcopy(self.t_targets) #bots can seek T targets also
+        self.b_targets.append(TargetDestination(self.roadway, 0, 2500.0))
+        self.b_targets.append(TargetDestination(self.roadway, 4, 1600.0))
+
+        # Build lists of starting locations to reach any given target. Each object is a list of lists. The outer list
+        # represents target, the inner list is of tuples of starting locations (lane ID, max P).
+        self.t_starts = []
+        for t in self.t_targets:
+            s = t.feeder_lane.get_starting_points()
+            self.t_starts.append(s)
+        self.b_starts = []
+        for b in self.b_targets:
+            s = b.feeder_lane.get_starting_points()
+            self.b_starts.append(s)
+
+        print("***** init: t_starts = ")
+        for t in self.t_starts:
+            print("      ", t)
+        print("*****       b_starts = ")
+        for b in self.b_starts:
+            print("      ", b)
+
+        #
+        #..........Vehicles
+        #
 
         # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0.
         # Normally, this would be wrapped in a try-except block, but Ray makes it very difficult to see the exception
@@ -530,7 +566,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
-                for t in self.roadway.targets:
+                for t in self.t_targets:
                     if self.vehicles[0].lane_id == t.lane_id  and  new_p >= t.p:
                         reached_tgt = True
                         break

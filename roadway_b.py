@@ -2,7 +2,6 @@ import math
 from typing import Tuple, Dict, List
 from constants import Constants
 from lane import Lane
-from target_destination import TargetDestination
 
 
 class PavementType:
@@ -63,7 +62,28 @@ class Roadway:
             Ego lane  ----[x]---------------------------------------------------------------------------->
             Adj lane  ----------------------------------------------/
 
-        Case 4, two parallel lanes indefinitely long:  no diagram needed, but A < 0 and B = inf, rem = inf.
+        ==============================================================================================================
+
+        Case 4, two parallel lanes indefinitely long:  no diagram needed, but A = 0, B = inf, rem = inf.
+
+        ==============================================================================================================
+
+        As a result of the definition constraints, we CANNOT represent the following:
+
+            * A lane that has more than one connecting lane (joining or separating) on the same side, such as
+
+                Lane 1  --------------------------------------------------------------------------------->
+                Lane 2  --------------/                   Lane 3 ----------------/
+
+            * A lane that joins, separates, then joins again, such as
+
+                Lane 1  --------------------------------------------------------------------------------->
+                Lane 2  ------------------\                         /------------------------------------>
+                                           \-----------------------/
+
+            * Two logical lanes connected end-to-end (e.g. to try getting around the previous constraints), such as
+
+                Lane 1  ---------------------------------->Lane 2---------------------------------------->
 
 
         CAUTION: This is not a general container.  This __init__ code defines the exact geometry of the highway.
@@ -140,11 +160,6 @@ class Roadway:
                 (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL,    PavementType.ASPHALT)]
         lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = origin_p, left_sep = 1350.0)
         self.lanes.append(lane)
-
-        # Define the target destinations for the ego vehicle
-        self.targets = []
-        self.targets.append(TargetDestination(1, 2900.0))
-        self.targets.append(TargetDestination(2, 2900.0))
 
 
     def map_to_param_frame(self,

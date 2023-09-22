@@ -149,9 +149,18 @@ for anyone not intently helping out.
 
 * Began designing the capability to do simple route planning for controllers.
 
+9/21/23
+
+* Implemented the tree coonstruction code for lane feeder connectivity.
+
 
 TODO:
 - Create a route planning capability for controllers.
+	- Debug 2 items shown in previous inference run:
+		- which lane can't be reached and why?
+		- need to append lists, not nest them. Should they be ordered?
+
+- Add targets for the bot vehicles as well.
 - Scan log for "num vehicles" to see how training patterns change
 - Create a scenario with only neighbors in same lane and one with vehicles only in adjacent lanes.
 - Consider limiting reward penalty for going slow behind a slow forward vehicle.

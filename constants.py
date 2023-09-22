@@ -2,7 +2,6 @@
 
 class Constants:
 
-    #TODO: remove accel & jerk limits if possible
     MAX_SPEED               = 36.0      #max achievable speed, m/s, as a global physical limit
     MAX_STEPS_SINCE_LC      = 60 #TODO bogus
     REFERENCE_DIST          = 500.0     #an arbitrary length representative of distances we worry about, m
