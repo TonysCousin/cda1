@@ -54,6 +54,30 @@ class FeederLane:
         return ret
 
 
+    def is_reachable_from(self,
+                          lane      : int,      #the starting lane in question
+                          p         : float     #the P location on the given lane, m
+                         ) -> bool:
+
+        """Returns True if the portion of of lane that this object represents (which can reach its owner) is reachable from
+            the specified lane & P location. This is a recursive method.
+        """
+
+        # If the request if for this lane then ensure the P location is far enough uptrack
+        if lane == self.lane_id:
+            if p <= self.max_p:
+                return True
+
+        # Else if there are children then inquire of them
+        elif len(self.feeders) > 0:
+            for f in self.feeders:
+                if f.is_reachable_from(lane, p):
+                    return True
+
+        # All tests fail, so there is no way to get here from there
+        return False
+
+
     def _is_feeder(self,
                    id           : int,
                   ) -> bool:
@@ -77,7 +101,7 @@ class FeederLane:
                     join_a      : float,    #distance downtrack of the reference point where this and the calling lane join (Roadway point 'A'), m
                     join_b      : float,    #distance downtrack of the reference point where this and the calling lane separate (Roadway point 'B'), m
                    ):
-        """Creates a FeederLane child and adds it to the list of children of this one."""
+        """Creates a FeederLane child and adds it to the list of children of this one, if the geometry allows it."""
 
         # Determine the speed limit in the both lanes where left joins the subject lane
         p_sl = min(ref_p, ref_p + join_b)
@@ -94,8 +118,8 @@ class FeederLane:
         # If the required begin distance is uptrack of where the two lanes first join, then we cannot have a feeding relationship (not enough space
         # to perform the lane change maneuver)
         if p_lc_begin < ref_p + join_a:
-            print("***** FeederLane._add_feeder: can't be reached. p_lc_begin = {:.1f}, ref_p = {:.1f}, join_a = {:.1f}, join_b = {:.1f}"
-                  .format(p_lc_begin, ref_p, join_a, join_b))
+            #print("***** FeederLane._add_feeder: can't be reached. id = {}, p_lc_begin = {:.1f}, ref_p = {:.1f}, join_a = {:.1f}, join_b = {:.1f}"
+            #      .format(id, p_lc_begin, ref_p, join_a, join_b))
             return
 
         # Create a child node in the tree using recursion

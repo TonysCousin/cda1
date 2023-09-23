@@ -151,14 +151,13 @@ for anyone not intently helping out.
 
 9/21/23
 
-* Implemented the tree coonstruction code for lane feeder connectivity.
+* Implemented the tree construction code for lane feeder connectivity.
+
+9/22/23
 
 
 TODO:
 - Create a route planning capability for controllers.
-	- Debug 2 items shown in previous inference run:
-		- which lane can't be reached and why?
-		- need to append lists, not nest them. Should they be ordered?
 
 - Add targets for the bot vehicles as well.
 - Scan log for "num vehicles" to see how training patterns change

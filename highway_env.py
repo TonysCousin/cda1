@@ -171,24 +171,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.b_targets.append(TargetDestination(self.roadway, 0, 2500.0))
         self.b_targets.append(TargetDestination(self.roadway, 4, 1600.0))
 
-        # Build lists of starting locations to reach any given target. Each object is a list of lists. The outer list
-        # represents target, the inner list is of tuples of starting locations (lane ID, max P).
-        self.t_starts = []
-        for t in self.t_targets:
-            s = t.feeder_lane.get_starting_points()
-            self.t_starts.append(s)
-        self.b_starts = []
-        for b in self.b_targets:
-            s = b.feeder_lane.get_starting_points()
-            self.b_starts.append(s)
-
-        print("***** init: t_starts = ")
-        for t in self.t_starts:
-            print("      ", t)
-        print("*****       b_starts = ")
-        for b in self.b_starts:
-            print("      ", b)
-
         #
         #..........Vehicles
         #

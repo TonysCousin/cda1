@@ -15,6 +15,17 @@ class TargetDestination:
 
         self.lane_id = lane
         self.p = p
+        #print("\n***** TargetDestination created in lane {} at p = {:.1f}".format(lane, p))
 
         # Define the tree of all lanes that feed into this target point
         self.feeder_lane = FeederLane(roadway, lane, p)
+
+
+    def is_reachable_from(self,
+                          lane  : int,      #lane ID in question
+                          p     : float     #P coordinate on the given lane, m
+                         ) -> bool:
+
+        """Returns True if this target is reachable from the specified lane ID and P location on that lane."""
+
+        return self.feeder_lane.is_reachable_from(lane, p)
