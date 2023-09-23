@@ -1,18 +1,22 @@
+from typing import List
 from abc import ABC, abstractmethod
 import numpy as np
 from hp_prng import HpPrng
 from roadway_b import Roadway
+from target_destination import TargetDestination
 
 class VehicleController(ABC):
     """Abstract base class for vehicle control algorithms that map observations to action commands for a vehicle."""
 
     def __init__(self,
-                 prng   : HpPrng,   #pseudo-random number generator
-                 roadway: Roadway,  #the roadway geometry
+                 prng       : HpPrng,   #pseudo-random number generator
+                 roadway    : Roadway,  #the roadway geometry
+                 targets    : List,     #a list of the possible targets that the host vehicle may choose as its destination
                 ):
 
         self.prng = prng
         self.roadway = roadway
+        self.targets = targets
         self.vehicles = None #TODO: remove this?
         self.my_vehicle = None
 
@@ -36,6 +40,8 @@ class VehicleController(ABC):
             anyway.
         """
 
+        print("***** DEPRECATED METHOD VehicleController.set_vehicle_list() invoked, recording my_vehicle as #0.") #TODO
+
         self.my_vehicle = self.vehicle[0] #TODO bogus
 
         self.vehicles = vehicles
@@ -43,12 +49,22 @@ class VehicleController(ABC):
         assert self._num_vehicles > 0, "///// VehicleController.set_vehicle_list: no vehicles defined!"
 
 
+    def reset(self,
+              init_lane     : int,      #the lane the vehicle is starting in
+              init_p        : float,    #vehicle's initial P coordinate, m
+             ):
+
+        """Makes vehicle's initial location info available in case the instantiated controller wants to use it."""
+
+        pass
+
+
     @abstractmethod
     def step(self,
              obs    : np.array, #vector of local observations available to the instantiating vehicle
-            ) -> list:          #returns a list of action commands, such that
+            ) -> List:          #returns a list of action commands, such that
                                 # item 0: desired speed, m/s
-                                # item 1: lane change command (-1 = change left, 0 = stay in lane, +1 = change right)
+                                # item 1: lane change command (corresponds to type LaneChange)
 
         """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
 

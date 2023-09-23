@@ -58,6 +58,7 @@ class Vehicle:
             This method does not return anything.
         """
 
+        # Determine initial lane and P location
         self.lane_id = init_lane_id
         if init_lane_id == -1:
             self.lane_id = int(self.prng.random()*self.roadway.NUM_LANES)
@@ -65,14 +66,16 @@ class Vehicle:
         lane_len = self.roadway.get_total_lane_length(self.lane_id)
         p = init_p
         if init_p is None:
-            p = self.prng.random()*(lane_len - 50.0) + self.roadway.get_lane_start_p(self.lane_id)
+            p = self.prng.random()*(lane_len - 110.0) + self.roadway.get_lane_start_p(self.lane_id)
         self.p = p
         #print("///// Vehicle.reset: lane = {}, ddt = {:.3f}, p = {:.3f}".format(init_lane_id, ddt, self.p))
 
-        self.cur_speed = init_speed
-        self.prev_speed = init_speed
+        # Inform the controller of the new location
+        self.controller.reset(self.lane_id, self.p)
 
         # Reset other stuff to start the episode with a clean slate
+        self.cur_speed = init_speed
+        self.prev_speed = init_speed
         self.prev_accel = 0.0
         self.lane_change_status = "none"
         self.lane_change_count = 0

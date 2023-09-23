@@ -188,6 +188,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
             v = None
             spec = v_data[i]
+            targets = self.t_targets if is_ego  else  self.b_targets #list of possible targets to navigate to
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
@@ -195,7 +196,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway)
+                controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway, targets)
                 v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             except AttributeError as e:
                 print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or controller: ", e)
@@ -413,7 +414,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
                     lane_end = lane_begin + self.roadway.get_total_lane_length(lane_id)
                     p_lower = max(min_p, lane_begin)
-                    p_upper = min(max_p, lane_end - 50.0)
+                    p_upper = min(max_p, lane_end - 110.0) #110 m should allow any lane change out of this lane if it is ending
                     if p_upper <= p_lower:
                         continue
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
@@ -444,6 +445,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 vlen = self.vehicles[i].model.veh_length
                 if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
+                print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p)) #TODO debug
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 0:

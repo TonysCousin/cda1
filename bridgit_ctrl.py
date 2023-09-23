@@ -1,4 +1,4 @@
-from vehicle_controller import VehicleController
+from typing import List
 import numpy as np
 
 from constants import Constants
@@ -6,6 +6,7 @@ from obs_vec import ObsVec
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
+from vehicle_controller import VehicleController
 
 
 class BridgitCtrl(VehicleController):
@@ -14,17 +15,19 @@ class BridgitCtrl(VehicleController):
     """
 
     def __init__(self,
-                 prng   : HpPrng,
-                 roadway: Roadway,
+                 prng       : HpPrng,
+                 roadway    : Roadway,
+                 targets    : List,
                 ):
-        super().__init__(prng, roadway)
+
+        super().__init__(prng, roadway, targets)
 
 
     def step(self,
              obs    : np.array, #vector of local observations available to the instantiating vehicle
-            ) -> list:          #returns a list of action commands, such that
+            ) -> List:          #returns a list of action commands, such that
                                 # item 0: desired speed, m/s
-                                # item 1: lane change command (-1 = change left, 0 = stay in lane, +1 = change right)
+                                # item 1: lane change command (corresponds to type LaneChange)
 
         """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
 

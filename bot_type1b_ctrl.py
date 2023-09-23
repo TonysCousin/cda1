@@ -1,4 +1,4 @@
-from vehicle_controller import VehicleController
+from typing import List
 import numpy as np
 
 from constants import Constants
@@ -6,6 +6,7 @@ from obs_vec import ObsVec
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
+from vehicle_controller import VehicleController
 
 
 class BotType1bCtrl(VehicleController):
@@ -15,20 +16,47 @@ class BotType1bCtrl(VehicleController):
     """
 
     def __init__(self,
-                 prng   : HpPrng,
-                 roadway: Roadway,
+                 prng       : HpPrng,
+                 roadway    : Roadway,
+                 targets    : List,
                 ):
-        super().__init__(prng, roadway)
 
-        # Pick an offset from whatever the posted speed limit
+        super().__init__(prng, roadway, targets)
+
+        # Pick an offset from the posted speed limit that will define the target speed
         self.speed_offset = (self.prng.random() - 0.5) * 0.2*Constants.MAX_SPEED #gives +/- 10%
+
+        # Define an empty variable to hold the ID of the target destination
+        self.target_id = None
+
+
+    def reset(self,
+              init_lane     : int,      #the lane the vehicle is starting in
+              init_p        : float,    #vehicle's initial P coordinate, m
+             ):
+
+        """Resets the target that the vehicle will navigate to, which dictates its lane change behavior."""
+
+        super().reset(init_lane, init_p)
+
+        # Choose one of the targets to drive to, but verify that it is reachable first
+        ctr = 0
+        while ctr < 10:
+            self.target_id = int(self.prng.random() * len(self.targets))
+            if self.targets[self.target_id].is_reachable_from(init_lane, init_p):
+                break
+            ctr += 1
+
+        if ctr >= 10:
+            raise ValueError("///// BotType1bCtrl.reset could not find a reachable target from lane {}, p = {:.1f}".format(init_lane, init_p))
+        print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id)) #TODO test
 
 
     def step(self,
              obs    : np.array, #vector of local observations available to the instantiating vehicle
-            ) -> list:          #returns a list of action commands, such that
+            ) -> List:          #returns a list of float action commands, such that
                                 # item 0: desired speed, m/s
-                                # item 1: lane change command (-1 = change left, 0 = stay in lane, +1 = change right)
+                                # item 1: lane change command (corresponds to type LaneChange)
 
         """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
 
@@ -37,50 +65,64 @@ class BotType1bCtrl(VehicleController):
         tgt = min(speed_limit + self.speed_offset, Constants.MAX_SPEED)
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
-        #TODO: add logic for lane change when needed
+        # Define the speed command action using ACC
         action = [None]*2
         action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
-        action[1] = LaneChange.STAY_IN_LANE
 
-        """From cda0:
         #
-        #..........Manage lane change for any neighbors in lane 2
+        #..........Determine lane change command
         #
 
-        # Loop through all active neighbors, looking for any that are in lane 2
-        for n in range(1, self._num_vehicles):
-            v = self.vehicles[n]
-            if not v.active:
-                continue
+        # If the target destination is in the current lane then no lane change
+        cur_lane = self.my_vehicle.lane_id
+        cur_p = self.my_vehicle.p
+        tgt_lane = self.targets[self.target_id].lane_id
+        cmd = LaneChange.STAY_IN_LANE #set this as the default action in case decision logic below breaks down
 
-            if v.lane_id == 2:
+        # If reaching the target requires a lane change
+        if cur_lane != tgt_lane:
 
-                # If it is in the merge zone, then
-                progress = v.p - self.roadway.get_lane_start_p(2)
-                l2_length = self.roadway.get_total_lane_length(2)
-                if progress > 0.7*l2_length:
+            # Get the roadway geometry at our current location
+            #TODO: ideally, this should only look at sensor data; change to use center lane border obs
+            _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(cur_lane, cur_p)
 
-                    # Randomly decide if it's time to do a lane change
-                    if self.prng.random() < 0.05  or  l2_length - progress < 150.0:
+            #TODO: consider slowing the vehicle to get behind neighbors if they continue to obstruct the LC maneuver (see cda0 logic)
 
-                        # Look for a vehicle beside it in lane 1
-                        safe = True
-                        for j in range(self._num_vehicles):
-                            if j == n:
-                                continue
-                            if self.vehicles[j].lane_id == 1  and  abs(self.vehicles[j].p - v.p) < 2.0*Constants.VEHICLE_LENGTH:
-                                safe = False
-                                break
+            # If the target is to our left (lower ID) then
+            if tgt_lane < cur_lane:
 
-                        # If it is safe to move, then just do an immediate lane reassignment (no multi-step process like ego does)
-                        if safe:
-                            v.lane_id = 1
+                # If we are within the legal zone to change lanes to the next one, then
+                if lid >= 0  and  la <= 0.0  and  lb >= 0.0:
 
-                        # Else it is being blocked, then slow down a bit
-                        else:
-                            v.cur_speed *= 0.8
+                    # If the sensors detect that the 5 zones immediately to the left are unoccupied then command the change
+                    occupied = False
+                    for z in range(2, 6): #4 is directly beside the host vehicle
+                        index = ObsVec.BASE_L + (z*ObsVec.NORM_ELEMENTS) + ObsVec.OFFSET_OCCUPIED
+                        if obs[index] > 0.0:
+                            occupied = True
+                            break
 
-        """
+                    if not occupied:
+                        cmd = LaneChange.CHANGE_LEFT
+
+            # Else (target must be to our right)
+            else:
+
+                # If we are within the legal zone to change lanes to the next one, then
+                if rid >= 0  and ra <= 0.0  and rb >= 0.0:
+
+                    # If the sensors detect that the 5 zones immediately to the left are unoccupied then command the change
+                    occupied = False
+                    for z in range(2, 6): #4 is directly beside the host vehicle
+                        index = ObsVec.BASE_R + (z*ObsVec.NORM_ELEMENTS) + ObsVec.OFFSET_OCCUPIED
+                        if obs[index] > 0.0:
+                            occupied = True
+                            break
+
+                    if not occupied:
+                        cmd = LaneChange.CHANGE_RIGHT
+
+        action[1] = cmd
 
         return action
 

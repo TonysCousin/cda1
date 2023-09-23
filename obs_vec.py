@@ -109,4 +109,12 @@ class ObsVec:
     BASE_CTR_FRONT      = BASE_CTR_REAR + NORM_ELEMENTS*ZONES_BEHIND
     FINAL_ELEMENT       = BASE_CTR_FRONT + CTR_ELEMENTS*ZONES_FORWARD - 1
 
+    # Offsets for the individual data elements in each zone
+    OFFSET_DRIVABLE     = 0
+    OFFSET_SPD_LMT      = 1
+    OFFSET_OCCUPIED     = 2
+    OFFSET_SPEED        = 3
+    OFFSET_LEFT_BDRY    = 4 #in forward center column only
+    OFFSET_RIGHT_BDRY   = 5 #in forward center column only
+
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector
