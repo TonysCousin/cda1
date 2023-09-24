@@ -165,7 +165,7 @@ class Graphics:
 
             # If the vehicle has crashed, then display the crash symbol at its location
             if vehicles[v_idx].crashed:
-                print("***   Graphics.update: vehicle {} crashed.".format(v_idx)) #TODO debug
+                #print("***   Graphics.update: vehicle {} crashed.".format(v_idx)) #TODO debug
                 image_rect = list(self.crash_image.get_rect())
                 r_offset = (image_rect[2] - image_rect[0])//2
                 s_offset = (image_rect[3] - image_rect[1])//2

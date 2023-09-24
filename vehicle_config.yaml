@@ -13,78 +13,78 @@ vehicles:
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           2 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           3 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           4 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           5 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           6 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           7 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           8 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           9 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec
 
   - id:           10 ##########################
     model:        BotType1Model
     controller:   BotType1bCtrl
     max_jerk:     4.0     #m/s^3
-    max_accel:    3.0     #m/s^2
+    max_accel:    4.0     #m/s^2
     length:       5.0     #m
-    lc_duration:  3.2     #sec
+    lc_duration:  2.4     #sec

@@ -81,16 +81,24 @@ class BotType1Model(VehicleModel):
                     closest_id = i
         #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
 
-        # Build the remainder of the obs vector
+        # Build the downtrack portions of the obs vector
         obs[ObsVec.FWD_DIST] = closest_dist
         obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED
         if closest_id is not None:
             obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed
 
+        # Check for neighboring vehicles in the 9 zones immediately to the left or right
+        obs[ObsVec.LEFT_OCCUPIED] = 0.0
+        obs[ObsVec.RIGHT_OCCUPIED] = 0.0
+        for i in range(len(vehicles)):
+            v = vehicles[i]
+            if v.lane_id == me.lane_id - 1: #it is to our left
+                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.LEFT_OCCUPIED] = 1.0
+
+            elif v.lane_id == me.lane_id + 1: #it is to our right
+                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.RIGHT_OCCUPIED] = 1.0
+
         #print("///// BotType1Model.get_obs_vector returning ", obs)
         return obs
-
-        """ For future consideration...
-        # Reinitialize the ego vehicle and the whole observation vector
-        ego_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(ego_lane_id, ego_p)
-        """

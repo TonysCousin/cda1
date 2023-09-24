@@ -91,11 +91,13 @@ class ObsVec:
     FWD_DIST            =  7 #distance to nearest downtrack vehicle in same lane, m
     FWD_SPEED           =  8 #speed of the nearest downtrack vehicle in same lane, m/s
     TGT_LANE_OFFSET     =  9 #target dest is this many lanes left (negative) or right (positive) from current lane
+    LEFT_OCCUPIED       = 10 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    RIGHT_OCCUPIED      = 11 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
     # Elements specific to the ego vehicle (Bridgit) is everything below here
-    FUTURE1             = 10 #reserved for future use
-    FUTURE2             = 11
-    FUTURE3             = 12
+    FUTURE1             = 12 #reserved for future use
+    #FUTURE2             = 13
+    #FUTURE3             = 14
 
     # More elements specific to the Bridgit vehicle:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set or 3 or 5 vector elements,

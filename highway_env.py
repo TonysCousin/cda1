@@ -381,11 +381,28 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
             # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
-            lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+            lane_id = self.roadway.NUM_LANES - 1
+            if self.roadway.NUM_LANES == 6: #give preference to lanes 1, 2 & 3 in RoadwayB
+                draw = self.prng.random()
+                if draw < 0.25:
+                    lane_id = 1
+                elif draw < 0.5:
+                    lane_id = 2
+                elif draw < 0.75:
+                    lane_id = 3
+                elif draw < 0.85:
+                    lane_id = 0
+                elif draw < 0.94:
+                    lane_id = 4
+            else:
+                lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+
             if 10 <= self.scenario < 10 + Roadway.NUM_LANES:
                 lane_id = self.scenario - 10
             lane_begin = self.roadway.get_lane_start_p(lane_id)
             ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 300.0) + lane_begin
+            if not self.training: #encourage it to start closer to beginning of the track for inference runs
+                ego_p = self.prng.random() * (0.5*self.roadway.get_total_lane_length(lane_id) - 150.0) + lane_begin
             speed = self.prng.random() * Constants.MAX_SPEED
             self.vehicles[0].reset(init_lane_id = lane_id, init_p = ego_p, init_speed = speed)
             if self.debug > 0:
@@ -414,7 +431,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
                     lane_end = lane_begin + self.roadway.get_total_lane_length(lane_id)
                     p_lower = max(min_p, lane_begin)
-                    p_upper = min(max_p, lane_end - 110.0) #110 m should allow any lane change out of this lane if it is ending
+                    p_upper = min(max_p, lane_end - Constants.CONSERVATIVE_LC_DIST)
                     if p_upper <= p_lower:
                         continue
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
@@ -441,7 +458,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                 # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
                 # to avoid an immediate rear-ending.
-                speed = self.prng.random() * (Constants.MAX_SPEED - 5.0) + 5.0
+                speed = self.prng.random() * (Constants.MAX_SPEED - 20.0) + 20.0
                 vlen = self.vehicles[i].model.veh_length
                 if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
@@ -537,6 +554,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Exercise the control algo to generate the next action commands for vehicles that aren't in training.
             if i > 0:
+                print("***   step: controlling vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
+                      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
                 action = self.vehicles[i].controller.step(self.all_obs[i, :]) #unscaled
 
             # Store the actions for future reference
@@ -834,13 +853,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         vb.active = False
                         va.crashed = True
                         vb.crashed = True
+                        print("      CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
+                                        .format(i, j, va.p, va.lane_id))
 
                         # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                         if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                             crash = True
-                            #if self.debug > 1:
-                            print("      CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
-                                        .format(i, j, va.p, va.lane_id))
                             break
 
                 # Else if they are in adjacent lanes, then
@@ -849,26 +867,23 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     # If either vehicle is changing lanes at the moment, then
                     if va.lane_change_status != "none"  or  vb.lane_change_status != "none":
 
-                        # If the lane changer's target lane is occupied by the other vehicle, then
-                        va_tgt = self.roadway.get_target_lane(va.lane_id, va.lane_change_status, va.p)
-                        vb_tgt = self.roadway.get_target_lane(vb.lane_id, vb.lane_change_status, vb.p)
-                        if va_tgt == vb.lane_id  or  vb_tgt == va.lane_id:
+                        # If the two are within a vehicle length of each other, then
+                        if abs(va.p - vb.p) <= 0.5*(va.model.veh_length + vb.model.veh_length):
 
-                            # If the two are within a vehicle length of each other, then it's a crash
-                            if abs(va.p - vb.p) <= 0.5*(va.model.veh_length + vb.model.veh_length):
+                            # Check if one or both of them is changing lanes into the other's space
+                            if self._conflicting_space(va, vb):
 
                                 # Mark the involved vehicles as out of service
                                 va.active = False
                                 vb.active = False
                                 va.crashed = True
                                 vb.crashed = True
+                                print("      CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
+                                                .format(i, j, vb.p, va.lane_id))
 
                                 # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                                 if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                                     crash = True
-                                    #if self.debug > 1:
-                                    print("      CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
-                                                .format(i, j, vb.p, va.lane_id))
                                     break
 
             if crash: #the previous break stmts only break out of the inner loop, so we need to break again
@@ -877,6 +892,52 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.debug > 0:
             print("///// _check_for_collisions complete. Returning ", crash)
         return crash
+
+
+    def _conflicting_space(self,
+                           va       : Vehicle,  #the first vehicle to investigate
+                           vb       : Vehicle   #the second vehicle to investigate
+                          ) -> bool:
+        """Returns true if the two vehicles are likely occupying the same space, false otherwise. It is looking at lateral spacing of two
+            side-by-side vehicles, either of which may be in the process of a lane change in either direction. When in a lane change maneuver,
+            we ASSUME that the full width of both the origination lane and the destination lane are fully occupied by the vehicle executing
+            this maneuver. Therefore, this will flag a crash if either (or both) of the adjacent vehicles is changing lanes where its
+            destination lane is the one occupied by the other vehicle, even if the other vehicle is in the process of vacating that lane for
+            the next one farther away.
+        """
+
+        # If vehicle A is changing lanes toward B then
+        if (va.lane_change_status == "right"  and  vb.lane_id - va.lane_id == 1)  or  (va.lane_change_status == "left"  and  va.lane_id - vb.lane_id == 1):
+
+            # Determine A's target lane (it could be B's lane or the lane it is currently in (i.e. its maneuver is almost complete))
+            va_tgt = va.lane_id #initial guess that it is already mostly in its target lane
+            if va.lane_change_count < va.model.lc_half_steps: #it is < 50% across the dividing line, so it is still registered in its originating lane
+                if va.lane_change_status == "right":
+                    va_tgt = va.lane_id + 1
+                else:
+                    va_tgt = va.lane_id - 1
+
+            # If its target is B's lane, then it's a conflict
+            if va_tgt == vb.lane_id:
+                return True
+
+        # If vehicle B is changing lanes toward A then
+        if (vb.lane_change_status == "right"  and  va.lane_id - vb.lane_id == 1)  or  (vb.lane_change_status == "left"  and  vb.lane_id - va.lane_id == 1):
+
+            # Determine B's target lane
+            vb_tgt = vb.lane_id #initial guess that it is already mostly in its target lane
+            if vb.lane_change_count < vb.model.lc_half_steps: #it is < 50% across the dividing line, so it is still registered in its originating lane
+                if vb.lane_change_status == "right":
+                    vb_tgt = vb.lane_id + 1
+                else:
+                    vb_tgt = vb.lane_id - 1
+
+            # If its target is A's lane, then it's a conflict
+            if vb_tgt == va.lane_id:
+                return True
+
+        # If we have gotten this far, then there is no conflict
+        return False
 
 
     def _get_reward(self,

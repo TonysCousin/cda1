@@ -24,7 +24,7 @@ class VehicleModel(ABC):
 
         # Ensure lane change attributes are reasonable
         rsteps = lc_duration/time_step
-        nsteps = int(rsteps)
+        nsteps = int(rsteps + 0.5)
         if abs(rsteps - nsteps) > 0.01  or  nsteps % 2 != 0:
             raise ValueError("///// VehicleModel constructed with illegal lc_duration = {}, time_step = {}, resulting in LC steps = {}"
                              .format(lc_duration, time_step, rsteps))

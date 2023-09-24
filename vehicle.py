@@ -66,7 +66,7 @@ class Vehicle:
         lane_len = self.roadway.get_total_lane_length(self.lane_id)
         p = init_p
         if init_p is None:
-            p = self.prng.random()*(lane_len - 110.0) + self.roadway.get_lane_start_p(self.lane_id)
+            p = self.prng.random()*(lane_len - Constants.CONSERVATIVE_LC_DIST) + self.roadway.get_lane_start_p(self.lane_id)
         self.p = p
         #print("///// Vehicle.reset: lane = {}, ddt = {:.3f}, p = {:.3f}".format(init_lane_id, ddt, self.p))
 

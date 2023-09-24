@@ -157,6 +157,18 @@ for anyone not intently helping out.
 
 * Designed & implemented lane change control logic for the BotType1bCtrl. Still has some problems.
 
+9/23/23
+
+* Tested Bottype1Ctrl algorithm. Made several changes to minimize crashes. A big factor is two bots that are in
+  adjacent lanes but far apart longitudinally, with greatly differing speeds, then the rear one changes lanes and
+  ACC cannot slow it down fast enough to avoid a rear-end. Another is two vehicles 2 lanes apart that both want to
+  move into the lane between, and sensors have no way of knowing this will happen because intentions aren't
+  broadcast.
+	* LC decision is based on a one-time snapshot that only looks at 9 sensor zones in the adjacent lane. Once
+	  the decision is made to start moving, a neighbor in that lane can quickly move into the zones, and the
+	  host vehicle can't react (by design, there is no emergency abort maneuver).
+	* I increased the maneuverability of these bots by making max accel = 4.0 m/s^2 and LC duration only 2.4 s.
+
 
 TODO:
 - Create a route planning capability for controllers.
