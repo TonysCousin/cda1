@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict
 from roadway_b import Roadway
 
 class FeederLane:
@@ -38,18 +38,19 @@ class FeederLane:
             self._add_feeder(rid, max_p, ra, rb)
 
 
-    def get_starting_points(self) -> List:
-        """Returns a list of all locations that can be used as starting points to reach this lane.
-            Each item in the list is a tuple of (lane ID, max P) defining a lane and the max P coordinate within that lane that
-            a vehicle can be located in order to be able to make it to this lane in time to reach the parent target destination.
+    def get_starting_points(self) -> Dict:
+
+        """Returns a dict of all locations that can be used as worst-case starting points to reach this lane. Dict entries are
+            {lane_id: max_p} defining a lane and the max P coordinate within that lane that a vehicle can have and still
+            be able to make it to this lane in time to reach the parent target destination.
         """
 
         # Start with my own info
-        ret = [(self.lane_id, self.max_p)]
+        ret = {self.lane_id: self.max_p}
 
         # Recursively add info from any children
         for f in self.feeders:
-            ret.append(f.get_starting_points())
+            ret.update(f.get_starting_points())
 
         return ret
 

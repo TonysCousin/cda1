@@ -1,3 +1,4 @@
+from typing import Dict
 from roadway_b import Roadway
 from feeder_lane import FeederLane
 
@@ -29,3 +30,13 @@ class TargetDestination:
         """Returns True if this target is reachable from the specified lane ID and P location on that lane."""
 
         return self.feeder_lane.is_reachable_from(lane, p)
+
+
+    def get_starting_points(self) -> Dict:
+
+        """Returns a dict of all locations that can be used as worst-case starting points to reach this lane. Dict entries are
+            {lane_id: max_p} defining a lane and the max P coordinate within that lane that a vehicle can have and still
+            be able to make it to this lane in time to reach the parent target destination.
+        """
+
+        return self.feeder_lane.get_starting_points()

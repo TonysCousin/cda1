@@ -45,6 +45,12 @@ class BridgitModel(VehicleModel):
         prev_speed_cmd = obs[ObsVec.SPEED_CMD]
         prev_lc_cmd = obs[ObsVec.LC_CMD]
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
+
+
+
+
+        save items for route plan
+
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
         # If this vehicle is inactive, then stop now

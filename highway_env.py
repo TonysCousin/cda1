@@ -603,6 +603,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the sensor observations from each vehicle
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
+
+        #TODO: replace this call with a NN in the controller class.
+        # For the ego vehicle, run its planning algo. This call doesn't fit well here, but is needed until the planner can be
+        # replaced with a NN. This will replace a few elements in the obs vector.
+        self.all_obs[0, :] = self.vehicles[i].controller.plan_route(self.all_obs[0, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.

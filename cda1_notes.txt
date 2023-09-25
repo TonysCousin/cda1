@@ -1,6 +1,13 @@
 This is John's personal developer notes for the CDA1 project.  Probably pretty boring reading
 for anyone not intently helping out.
 
+Big picture of this project's goals:
+	1.1 - train a single agent to drive the new track to suitable destinations with several bots attempting to do the same thing.
+	1.2 - expand the training to include several instances of the agent (replacing some bots) as pseudo-multi-agent training (iterative).
+	1.3 - true multi-agent training, with several untrained agents (same policy) learning simultaneously using Ray multi-agent facilities.
+	1.4 - multi-agent training for two policies in a single vehicle, one for planning and one for control.
+
+
 8/21/23
 
 * Project setup & Github repo creation.
@@ -168,12 +175,17 @@ for anyone not intently helping out.
 	  the decision is made to start moving, a neighbor in that lane can quickly move into the zones, and the
 	  host vehicle can't react (by design, there is no emergency abort maneuver).
 	* I increased the maneuverability of these bots by making max accel = 4.0 m/s^2 and LC duration only 2.4 s.
+	* Had to beef up the discrimination in the _check_for_collision() method to handle the possibility of two
+	  vehicles separated by 2 lanes simultaneously trying to move into the common lane between.
+
+9/24/23
+
+* Began implementing the route planning for the Bridgit controller.
 
 
 TODO:
 - Create a route planning capability for controllers.
 
-- Add targets for the bot vehicles as well.
 - Scan log for "num vehicles" to see how training patterns change
 - Create a scenario with only neighbors in same lane and one with vehicles only in adjacent lanes.
 - Consider limiting reward penalty for going slow behind a slow forward vehicle.
