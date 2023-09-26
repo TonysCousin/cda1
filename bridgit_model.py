@@ -49,7 +49,10 @@ class BridgitModel(VehicleModel):
 
 
 
-        save items for route plan
+        #TODO: save items for route plan
+
+
+
 
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 

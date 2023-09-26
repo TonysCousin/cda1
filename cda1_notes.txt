@@ -182,6 +182,10 @@ Big picture of this project's goals:
 
 * Began implementing the route planning for the Bridgit controller.
 
+9/25/23
+
+* Completed coding for the Bridgit controller. Dealing with test problems.
+
 
 TODO:
 - Create a route planning capability for controllers.
