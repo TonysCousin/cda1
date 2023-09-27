@@ -45,15 +45,7 @@ class BridgitModel(VehicleModel):
         prev_speed_cmd = obs[ObsVec.SPEED_CMD]
         prev_lc_cmd = obs[ObsVec.LC_CMD]
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
-
-
-
-
-        #TODO: save items for route plan
-
-
-
-
+        lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
         # If this vehicle is inactive, then stop now
@@ -72,6 +64,9 @@ class BridgitModel(VehicleModel):
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
+
+        # Put the lane change desired values back into place, since that planning doesn't happen every time step
+        obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT] = lane_change_des
 
         # Skip a few here that are used for bots or reserved for future
 
@@ -210,7 +205,7 @@ class BridgitModel(VehicleModel):
             if n_front < grid_rear_edge  or  n_rear > grid_front_edge:
                 continue
 
-            #TODO: represent nv changing lanes & covering two of them
+            #TODO: represent nv changing lanes & covering two of them (look at its lane change count)
 
             # At this point we have a vehicle that is somewhere on the grid. Now to figure out which zone(s) it occupies.
             z_num_rear = None #num zones in front of the base zone for rear of the neighbor

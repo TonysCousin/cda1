@@ -63,7 +63,7 @@ class BotType1bCtrl(VehicleController):
             if not found:
                 raise ValueError("///// WARNING: BotType1bCtrl.reset could not find a reachable target from lane {}, p = {:.1f}".format(init_lane, init_p))
 
-        #print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id)) #TODO test
+        #print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id))
 
 
     def step(self,
@@ -99,7 +99,7 @@ class BotType1bCtrl(VehicleController):
         if cur_lane != tgt_lane  and  self.prev_lc_cmd == LaneChange.STAY_IN_LANE:
 
             # Get the roadway geometry at our current location
-            #TODO: ideally, this should only look at sensor data; change to use center lane border obs
+            #TODO: ideally, this method should only look at sensor data; change to use center lane border obs
             _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(cur_lane, cur_p)
 
             #TODO: consider slowing the vehicle to get behind neighbors if they continue to obstruct the LC maneuver (see cda0 logic)

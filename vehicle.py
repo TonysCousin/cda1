@@ -68,7 +68,6 @@ class Vehicle:
         if init_p is None:
             p = self.prng.random()*(lane_len - Constants.CONSERVATIVE_LC_DIST) + self.roadway.get_lane_start_p(self.lane_id)
         self.p = p
-        #print("///// Vehicle.reset: lane = {}, speed = {:.1f}, p = {:.3f}".format(init_lane_id, init_speed, self.p)) #TODO debug
 
         # Inform the controller of the new location
         self.controller.reset(self.lane_id, self.p)

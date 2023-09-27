@@ -36,9 +36,9 @@ def main(argv):
     fail_threshold      = -1.2
     avg_over_latest     = 100   #num most recent iters that are averaged to meet stopping criteria
     chkpt_int           = 10    #num iters between storing new checkpoints
-    max_iterations      = 18000
+    max_iterations      = 40000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 8
+    num_trials          = 4
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -53,7 +53,7 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["time_step_size"]                = 0.2
-    env_config["episode_length"]                = 80 #80 gives roughly 470 m of travel @29 m/s
+    env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = False
@@ -73,7 +73,7 @@ def main(argv):
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
-    explore_config["scale_timesteps"]           = tune.choice([5000000, 8000000])
+    explore_config["scale_timesteps"]           = tune.choice([4000000, 8000000])
     exp_switch                                  = True #tune.choice([False, True, True])
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)

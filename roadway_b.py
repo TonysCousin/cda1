@@ -270,7 +270,7 @@ class Roadway:
             print("///// Entering Roadway.get_current_lane_geom for lane_id = ", lane_id, ", p_loc = ", p_loc)
         rem_this_lane = self.lanes[lane_id].length - (p_loc - self.map_to_param_frame(self.lanes[lane_id].start_x, lane_id))
 
-        #TODO: will we still need l_rem & r_rem if agent doesn't know how long the lane is (and it is non-episodic)?
+        #TODO: will we still need rem_this_lane, l_rem & r_rem if agent doesn't know how long the lane is (and it is non-episodic)?
 
         la = 0.0
         lb = math.inf

@@ -39,6 +39,9 @@ class Graphics:
     NOMINAL_SPEED   = 29.1      #m/s
     PLOT_STEPS      = 400       #max num time steps that can be plotted
 
+    # Visual controls
+    USE_VEHICLE_IMAGES  = True  #should bitmap images be used to represent vehicles? (if false, then circles)
+
     #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
     def __init__(self,
@@ -111,8 +114,10 @@ class Graphics:
         pygame.display.update()
         #time.sleep(20) #debug only
 
-        # Initialize the crash image in case it will be necessary
+        # Initialize images
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH + "/crash16.bmp").convert()
+        self.train_vehicle_image = pygame.image.load(Graphics.IMAGE_PATH + "/Yellow_car16.bmp").convert()
+        #TODO need a blue image for bots also
 
         # Set up lists of previous screen coords and display colors for each vehicle
         vehicles = env.get_vehicle_data()
@@ -140,6 +145,13 @@ class Graphics:
         self.plot = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
                                    Constants.MAX_SPEED, max_steps = Graphics.PLOT_STEPS, title = title)
         self.plot.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
+
+        #TODO: sample the vehicle images to see how they fit
+        image_rect = list(self.train_vehicle_image.get_rect())
+        veh_image_r_offset = (image_rect[2] - image_rect[0])//2
+        veh_image_s_offset = (image_rect[3] - image_rect[1])//2
+        pos = self.train_vehicle_image.get_rect().move(Graphics.PLOT1_R + Graphics.PLOT_W + 200, Graphics.PLOT1_S)
+        self.window_surface.blit(self.train_vehicle_image, pos)
 
 
     def update(self,

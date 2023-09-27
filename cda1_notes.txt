@@ -191,27 +191,41 @@ Big picture of this project's goals:
 * Completed testing of the Bridget controller route planning method. It now adds desired probabilities of lane
   change to left, center or right on each plan execution, and these are put into the obs vector so that the
   controller NN will see them.
+* Enhanced reset() provide scenarios 1 & 2 for all bots in ego's lane and for no bots starting in ego's lane,
+  respectively. Also, if scenario 0 is specified in a training run, then it will sometimes sets it to 1 or 2 instead.
 
-* Began trainning run 5d5d4 with SAC on this major new upgrade.
+* Began training run 5d5d4 with SAC on this major new upgrade. This uses code in Git training branch, commit 8b23668.
+	* All trials ended quickly with errors due to divide by zero in plan_route().
+
+* Run ce52f training with SAC
+	* Put in a quick band-aid and some diagnostics for the previous run's errors.
+	* 7 of 8 trials errored out quickly. They were all SIGSEGVs.
+	* Trial 1 seems to have run to completion, but only did ~1.3M steps (18k iterations).
+	* The whole thing ran for 6.7 hr.
+
+9/27/23
+16:43 - 17:53 training
+17:53 - 
+
+* Fixed defect where I had forgotten to retain the planning output values of lane change desirability in the obs
+  vector, in BridgitModel.
+* Cleaned up several minor TODOs.
 
 
 TODO:
-- Scan log for "num vehicles" to see how training patterns change
-- Create a scenario with only neighbors in same lane and one with vehicles only in adjacent lanes.
+- Scan log for "episode_vehicles" to see how training patterns change
+- Scan log for "scenario" to see how scenario 0 is distributed.
+
 - Consider limiting reward penalty for going slow behind a slow forward vehicle.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
-- Review all TODOs
 - Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
-- add bot1 lane change capability when on a ramp.
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
 
 - Add lane IDs to graphics
+- Add off-road icon
 - Add vehicle icons to graphics
-- Allow env ctor to be called with an initialization code. 
-	- value lane_exercise -> cycles reset() through 6 episodes, and each episode places a single vehicle at the
-	  beginning of each lane, in sequence, and lets it run the entire lane. Use this to verify the basic functions
-	  of the env, roadway, and graphics all work correctly.
+- Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds

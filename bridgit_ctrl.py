@@ -133,6 +133,12 @@ class BridgitCtrl(VehicleController):
             if pos.delta_p > max_delta_p:
                 max_delta_p = pos.delta_p
 
+        #TODO: debugging - all of this
+        if max_delta_p <= 0.0:
+            print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}"
+                  .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
+            max_delta_p = 3000.0
+
         # Loop through the relative positions again
         sum_prob = 0.0
         for i, pos in enumerate(self.positions):
@@ -164,6 +170,7 @@ class BridgitCtrl(VehicleController):
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
         obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
         obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob
+        #print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) #TODO debug
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0

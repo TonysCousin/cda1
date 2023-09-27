@@ -211,11 +211,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.debug > 1:
             print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
 
-        #TODO: do we need this?
-        # Propagate the full vehicle list
-        #for i in range(self.num_vehicles):
-        #    self.vehicles[i].controller.set_vehicle_list(self.vehicles)
-
         #
         #..........Define the observation space
         #
@@ -422,6 +417,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     self.scenario = 1 #all neighbors in ego's lane
                 elif draw < 0.4:
                     self.scenario = 2 #no neighbors in ego's lane
+                print("*     scenario 0 adjusted to {}".format(self.scenario)) #TODO debug
 
             # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
@@ -468,7 +464,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         continue
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
                     space_found = self._verify_safe_location(i, lane_id, p)
-                    #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found)) #TODO debug
+                    #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found))
 
                 if not space_found:
                     raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
@@ -479,7 +475,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 vlen = self.vehicles[i].model.veh_length
                 if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
-                #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p)) #TODO debug
+                #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 0:
@@ -666,25 +662,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return self.total_steps
 
 
-    # TODO removed this if not used.
-    def get_vehicle_dist_downtrack(self,
-                                   vehicle_id   : int   #index of the vehicle of interest
-                                  ) -> float:
-        """Returns the indicated vehicle's distance downtrack from its lane beginning, in m.
-            Used for inference, which needs real DDT, not X location.
-        """
-
-        raise NotImplementedError("///// HighwayEnv.get_vehicle_dist_downtrack() - neeeds to be in use.")
-        assert 0 <= vehicle_id < self.num_vehicles, \
-                "///// HighwayEnv.get_vehicle_dist_downtrack: illegal vehicle_id entered: {}".format(vehicle_id)
-
-        ddt = self.vehicles[vehicle_id].p
-        lane_id = self.vehicles[vehicle_id].lane_id
-        if lane_id == 2:
-            ddt -= self.roadway.get_lane_start_p(lane_id)
-        return ddt
-
-
     def get_vehicle_data(self) -> List:
         """Returns a list of all the vehicles in the scenario, with the ego vehicle as the first item."""
 
@@ -808,7 +785,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.scenario == 1:
             episode_vehicles = min(episode_vehicles, 6)
 
-        #print("      draw1 = {:.2f}, dra2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles)) #TODO debug
+        #print("      draw1 = {:.2f}, draw2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles)) #TODO debug
+        print("*     episode {}, episode_vehicles = {}".format(self.episode_count, episode_vehicles))
         return episode_vehicles
 
 

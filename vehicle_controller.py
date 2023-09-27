@@ -29,26 +29,6 @@ class VehicleController(ABC):
         self.my_vehicle = vehicle
 
 
-    #TODO: do we really need this for the controller?
-    def set_vehicle_list(self,
-                         vehicles   : list
-                        ):
-        """Stores the list of vehicles.  This MUST be called as soon as all vehicles are created (before the step() method is called).
-
-            NOTE: we use Vehicle objects here, but there is no import statment for that type in this class or in the base class, since it
-            creates a circular reference during construction. But Python seems to give us full knowledge of those objects' structures
-            anyway.
-        """
-
-        print("***** DEPRECATED METHOD VehicleController.set_vehicle_list() invoked, recording my_vehicle as #0.") #TODO
-
-        self.my_vehicle = self.vehicle[0] #TODO bogus
-
-        self.vehicles = vehicles
-        self._num_vehicles = len(vehicles)
-        assert self._num_vehicles > 0, "///// VehicleController.set_vehicle_list: no vehicles defined!"
-
-
     def reset(self,
               init_lane     : int,      #the lane the vehicle is starting in
               init_p        : float,    #vehicle's initial P coordinate, m
