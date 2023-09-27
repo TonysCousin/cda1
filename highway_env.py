@@ -374,43 +374,54 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lane_id = self.scenario - 90
             self.vehicles[1].reset(init_lane_id = lane_id, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[0][5])
 
-        # No starting configuration specified - randomize everything
+        # Trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
         else:
 
             # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
             # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
             # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
-            lane_id = self.roadway.NUM_LANES - 1
+            ego_lane_id = self.roadway.NUM_LANES - 1
             if self.roadway.NUM_LANES == 6: #give preference to lanes 1, 2 & 3 in RoadwayB
                 draw = self.prng.random()
                 if draw < 0.25:
-                    lane_id = 1
+                    ego_lane_id = 1
                 elif draw < 0.5:
-                    lane_id = 2
+                    ego_lane_id = 2
                 elif draw < 0.75:
-                    lane_id = 3
+                    ego_lane_id = 3
                 elif draw < 0.85:
-                    lane_id = 0
+                    ego_lane_id = 0
                 elif draw < 0.94:
-                    lane_id = 4
+                    ego_lane_id = 4
             else:
-                lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
 
+            # Scenarios 10-19:  specify ego vehicle starting lane
             if 10 <= self.scenario < 10 + Roadway.NUM_LANES:
-                lane_id = self.scenario - 10
-            lane_begin = self.roadway.get_lane_start_p(lane_id)
-            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(lane_id) - 300.0) + lane_begin
+                ego_lane_id = self.scenario - 10
+
+            # Randomly define the starting P coordinate and speed
+            lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
+            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(ego_lane_id) - 300.0) + lane_begin
             if not self.training: #encourage it to start closer to beginning of the track for inference runs
-                ego_p = self.prng.random() * (0.5*self.roadway.get_total_lane_length(lane_id) - 150.0) + lane_begin
+                ego_p = self.prng.random() * (0.5*self.roadway.get_total_lane_length(ego_lane_id) - 150.0) + lane_begin
             speed = self.prng.random() * Constants.MAX_SPEED
-            self.vehicles[0].reset(init_lane_id = lane_id, init_p = ego_p, init_speed = speed)
+            self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
             if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(lane_id, ego_p, speed))
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, speed))
 
             # Choose how many vehicles will participate
             episode_vehicles = self._decide_num_vehicles()
-            print("///// resetting for episode {}: num vehicles = {}".format(self.episode_count, episode_vehicles)) #TODO debug
+
+            # If scenario is specified as 0 and we are in training mode, then randomly change to scenarios 1 or 2 to
+            # properly train for various empty lane situations.
+            if self.scenario == 0  and  self.training:
+                draw = self.prng.random()
+                if draw < 0.2:
+                    self.scenario = 1 #all neighbors in ego's lane
+                elif draw < 0.4:
+                    self.scenario = 2 #no neighbors in ego's lane
 
             # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
@@ -427,31 +438,37 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 min_p = ego_p - Constants.N_DISTRO_DIST_REAR
                 max_p = ego_p + Constants.N_DISTRO_DIST_FRONT
                 while not space_found  and  attempt < 20:
-                    lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+                    attempt += 1
+                    # If too many vehicles packed in there, relax the boundaries on P to allow more freedom
+                    if attempt == 6:
+                        min_p -= 80.0
+                        max_p += 80.0
+                    elif attempt == 10:
+                        min_p -= 150.0
+                        max_p += 150.0
+                    elif attempt == 14:
+                        min_p -= 300.0
+                        max_p += 300.0
+                    elif attempt == 16:
+                        min_p -= 800.0
+                        max_p += 800.0
+                    elif attempt == 18:
+                        min_p -= 800.0
+                        max_p += 800.0
+
+                    lane_id = self._select_bot_lane(ego_lane_id)
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
                     lane_end = lane_begin + self.roadway.get_total_lane_length(lane_id)
                     p_lower = max(min_p, lane_begin)
                     p_upper = min(max_p, lane_end - Constants.CONSERVATIVE_LC_DIST)
                     if p_upper <= p_lower:
+                        #print("///// WARNING: HighwayEnv.reset: difficulty positioning vehicle {} on lane {}, attempt {}, min_p = {:.1f}, "
+                        #      .format(i, lane_id, attempt, min_p), \
+                        #      "max_p = {:.1f}, p_lower = {:.1f}, p_upper = {:.1f}".format(max_p, p_lower, p_upper))
                         continue
                     p = self.prng.random()*(p_upper - p_lower) + p_lower
                     space_found = self._verify_safe_location(i, lane_id, p)
                     #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found)) #TODO debug
-                    attempt += 1
-
-                    # Too many vehicles packed in there, so relax the boundaries on P to allow more freedom
-                    if attempt == 7:
-                        min_p -= 80.0
-                        max_p += 80.0
-                    elif attempt == 11:
-                        min_p -= 150.0
-                        max_p += 150.0
-                    elif attempt == 15:
-                        min_p -= 300.0
-                        max_p += 300.0
-                    elif attempt == 18:
-                        min_p -= 800.0
-                        max_p += 800.0
 
                 if not space_found:
                     raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
@@ -462,7 +479,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 vlen = self.vehicles[i].model.veh_length
                 if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
-                print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p)) #TODO debug
+                #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p)) #TODO debug
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         if self.debug > 0:
@@ -554,8 +571,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Exercise the control algo to generate the next action commands for vehicles that aren't in training.
             if i > 0:
-                print("***   step: controlling vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
-                      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
+                #print("***   step: controlling vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
+                #      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
                 action = self.vehicles[i].controller.step(self.all_obs[i, :]) #unscaled
 
             # Store the actions for future reference
@@ -787,8 +804,32 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         else: #below the favored band
             episode_vehicles = max(int(draw2*(fav_low - 1.0) + 1.0 + 0.5), 1)
 
+        # Limit the number if we are running scenario 1, which places all vehicles in the same lane
+        if self.scenario == 1:
+            episode_vehicles = min(episode_vehicles, 6)
+
         #print("      draw1 = {:.2f}, dra2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles)) #TODO debug
         return episode_vehicles
+
+
+    def _select_bot_lane(self,
+                         ego_lane   : int,      #lane ID where the ego vehicle was placed
+                        ) -> int:
+        """Chooses the initial lane for a bot vehicle based on the specified scenario (only for scenarios < 10)."""
+
+        # Case 1 - all bots in ego's lane
+        if self.scenario == 1:
+            return ego_lane
+
+        lane = int(self.prng.random() * self.roadway.NUM_LANES)
+
+        # Case 2 - no bots in ego's lane
+        if self.scenario == 2:
+            while lane == ego_lane:
+                lane = int(self.prng.random() * self.roadway.NUM_LANES)
+
+        # Case 0 - everything else
+        return lane
 
 
     def _verify_safe_location(self,

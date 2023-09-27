@@ -94,16 +94,23 @@ class ObsVec:
     LEFT_OCCUPIED       = 10 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
     RIGHT_OCCUPIED      = 11 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
-    # Elements specific to the ego vehicle (Bridgit) is everything below here
+    #
+    #..........Elements specific to the ego vehicle (Bridgit) is everything below here
+    #
     FUTURE1             = 12 #reserved for future use
-    #FUTURE2             = 13
-    #FUTURE3             = 14
+    FUTURE2             = 13
+    FUTURE3             = 14
+
+    # Bridgit controller lane change command outputs; relative desirability for each lane relative to the vehicle's current lane
+    DESIRABILITY_LEFT   = 15
+    DESIRABILITY_CTR    = 16
+    DESIRABILITY_RIGHT  = 17
 
     # More elements specific to the Bridgit vehicle:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set or 3 or 5 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.
-    BASE_LL             = 13 #first element in the far left column
+    BASE_LL             = 18 #first element in the far left column
     BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
     BASE_R              = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
     BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)

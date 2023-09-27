@@ -16,6 +16,23 @@ class BridgitCtrl(VehicleController):
 
     PLAN_EVERY_N_STEPS = 5 #num time steps between route plan updates
 
+    # List indices for positions relative to the host's lane
+    LEFT = 0
+    CENTER = 1
+    RIGHT = 2
+
+    class PosInfo:
+        """Container for info in each of the 3 relative lane positions."""
+
+        def __init__(self):
+            self.lane_id = -1   #the lane represented by this position
+            self.tgt_id = -1    #the index of the target in this lane, if one exists
+            self.delta_p = 0.0  #the remaining distance (m) from vehicle location to the max_p allowable in this lane to reach any target
+            self.prob = 0.0     #the desirability of being in this lane now
+
+        def pri(self):
+            return "lane = {:2d}, tgt = {:2d}, delta_p = {:.1f}, prob = {:.3f}.  ".format(self.lane_id, self.tgt_id, self.delta_p, self.prob)
+
 
     def __init__(self,
                  prng       : HpPrng,
@@ -26,6 +43,36 @@ class BridgitCtrl(VehicleController):
         super().__init__(prng, roadway, targets)
 
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
+
+        # Get all of the eligible targets and the starting points for each possible target destination and merge them, taking the
+        # set-wise union of points in each lane.
+        self.starting_points = {}
+        self.target_lane = {}
+        for idx, tgt in enumerate(self.targets):
+            self.target_lane[tgt.lane_id] = idx
+            starts = tgt.get_starting_points()
+            self.starting_points = self._union(self.starting_points, starts)
+
+
+    def reset(self,
+              init_lane     : int,      #the lane the vehicle is starting in
+              init_p        : float,    #vehicle's initial P coordinate, m
+             ):
+
+        """Makes vehicle's initial location info available in case the instantiated controller wants to use it.
+            Overrides the base class method because the logic here depends upon the base member variable my_vehicle, which is not
+            defined in the constructor, but the logic doesn't need to be run every time step.
+        """
+
+        super().reset(init_lane, init_p)
+
+        # Identify which of the relative positions reprsent which lanes in the roadway
+        self.positions = [self.PosInfo() for each in range(3)]
+        self.positions[self.CENTER].lane_id = self.my_vehicle.lane_id
+        self.positions[self.LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
+        self.positions[self.RIGHT].lane_id = self.my_vehicle.lane_id + 1
+        if self.positions[self.RIGHT].lane_id >= self.roadway.NUM_LANES:
+            self.positions[self.RIGHT].lane_id = -1
 
 
     def step(self,
@@ -60,76 +107,35 @@ class BridgitCtrl(VehicleController):
         """
 
         # If enough time steps have not passed, then return the input vector
-        print("***** Entering BridgitCtrl.plan_route: steps_since_plan = {}, my lane = {}, my p = {:.1f}"
-              .format(self.steps_since_plan, self.my_vehicle.lane_id, self.my_vehicle.p))
         self.steps_since_plan += 1
         if self.steps_since_plan < self.PLAN_EVERY_N_STEPS:
             return obs
 
-        # List indices for positions relative to the host's lane
-        LEFT = 0
-        CENTER = 1
-        RIGHT = 2
-
         SMALL_DISTANCE = 150.0 #distance below which an immediate lane change is necessary in order to get to the target, m
                                 # at a nominal highway speed and LC duration, the vehicle will cover 80-110 m.
 
-        # Container for info in each of the 3 positions indicated above
-        class PosInfo:
-
-            def __init__(self):
-                self.lane_id = -1   #the lane represented by this position
-                self.tgt_id = -1    #the index of the target in this lane, if one exists
-                self.max_p = 0.0    #the max_p allowable in this lane to reach any target
-                self.prob = 0.0     #the desirability of being in this lane now
-
-            def pri(self):
-                return "lane = {:2d}, tgt = {:2d}, max_p = {:.1f}, prob = {:.3f}.  ".format(self.lane_id, self.tgt_id, self.max_p, self.prob)
-
-        # Get all of the eligible targets and the starting points for each possible target destination and merge them, taking the
-        # set-wise union of points in each lane.
-        starting_points = {}
-        target_lane = {}
-        for idx, tgt in enumerate(self.targets):
-            target_lane[tgt.lane_id] = idx
-            starts = tgt.get_starting_points()
-            starting_points = self._union(starting_points, starts)
-            print("      target {} is in lane {}. starting_points = {}".format(idx, tgt.lane_id, starting_points)) #TODO test
-        print("      target_lane = ", target_lane)
-
-        # Identify which of the relative positions reprsent which lanes in the roadway
-        positions = [PosInfo()]*3
-        print("      Positions declared. positions = ") #TODO test
-        print([positions[k].pri() for k in range(3)])
-        positions[CENTER].lane_id = self.my_vehicle.lane_id
-        positions[LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
-        positions[RIGHT].lane_id = self.my_vehicle.lane_id + 1
-        if positions[RIGHT].lane_id >= self.roadway.NUM_LANES:
-            positions[RIGHT].lane_id = -1
-        print("      After positions defined. positions = ") #TODO test
-        print([positions[k].pri() for k in range(3)])
-
         # Loop through all 3 relative lane positions and identify which have targets in the same lane, and the max p over all of them
-        max_max_p = 0.0
-        for pos in positions:
+        max_delta_p = 0.0
+        for pos in self.positions:
+            if pos.lane_id < 0:
+                continue
+
             tgt_idx = -1
             try:
-                idx = target_lane[pos.lane_id]
+                idx = self.target_lane[pos.lane_id]
                 if idx >= 0:
                     tgt_idx = idx
             except KeyError:
                 pass
 
             pos.tgt_id = tgt_idx
-            pos.max_p = starting_points[pos.lane_id]
-            if pos.max_p > max_max_p:
-                max_max_p = pos.max_p
-        print("      After first pos loop: positions = ") #TODO test
-        print([positions[k].pri() for k in range(3)])
+            pos.delta_p = self.starting_points[pos.lane_id] - self.my_vehicle.p
+            if pos.delta_p > max_delta_p:
+                max_delta_p = pos.delta_p
 
         # Loop through the relative positions again
         sum_prob = 0.0
-        for pos in positions:
+        for i, pos in enumerate(self.positions):
 
             # If there is a target in the current lane, then assign it a value of 1
             if pos.tgt_id >= 0:
@@ -141,10 +147,10 @@ class BridgitCtrl(VehicleController):
 
             # Else assign it a prob < 1 based on its max P relative to the other two positions
             else:
-                pos.prob = pos.max_p / max_max_p
+                pos.prob = max(pos.delta_p / max_delta_p, 0.0)
 
-                # If host vehicle is only a small distance away from having to change lanes, set its prob to 0
-                if pos.max_p - self.my_vehicle.p < SMALL_DISTANCE:
+                # If host vehicle is only a small distance away from having to change out of the indicated lane, set its prob to 0
+                if pos.delta_p < SMALL_DISTANCE:
                     pos.prob = 0.0
 
             sum_prob += pos.prob
@@ -152,15 +158,12 @@ class BridgitCtrl(VehicleController):
         # Scale the probabilities and return the obs vector
         if sum_prob == 0.0:
             sum_prob = 1.0
-        for pos in positions:
+        for pos in self.positions:
             pos.prob /= sum_prob
 
-            # TODO: update obs vector!
-
-
-
-        print("      After final loop: positions = ") #TODO test
-        print([positions[k].pri() for k in range(3)])
+        obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
+        obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
+        obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0

@@ -56,8 +56,7 @@ class VehicleController(ABC):
 
         """Makes vehicle's initial location info available in case the instantiated controller wants to use it."""
 
-        print("***** VehicleController.reset: vehicle lane_id = {}, p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p)) #TODO debug
-        #pass
+        pass
 
 
     @abstractmethod

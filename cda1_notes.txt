@@ -186,10 +186,16 @@ Big picture of this project's goals:
 
 * Completed coding for the Bridgit controller. Dealing with test problems.
 
+9/26/23
+
+* Completed testing of the Bridget controller route planning method. It now adds desired probabilities of lane
+  change to left, center or right on each plan execution, and these are put into the obs vector so that the
+  controller NN will see them.
+
+* Began trainning run 5d5d4 with SAC on this major new upgrade.
+
 
 TODO:
-- Create a route planning capability for controllers.
-
 - Scan log for "num vehicles" to see how training patterns change
 - Create a scenario with only neighbors in same lane and one with vehicles only in adjacent lanes.
 - Consider limiting reward penalty for going slow behind a slow forward vehicle.

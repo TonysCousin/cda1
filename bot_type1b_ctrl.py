@@ -63,7 +63,7 @@ class BotType1bCtrl(VehicleController):
             if not found:
                 raise ValueError("///// WARNING: BotType1bCtrl.reset could not find a reachable target from lane {}, p = {:.1f}".format(init_lane, init_p))
 
-        print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id)) #TODO test
+        #print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id)) #TODO test
 
 
     def step(self,
@@ -106,7 +106,6 @@ class BotType1bCtrl(VehicleController):
 
             # If the target is to our left (lower ID) then
             if tgt_lane < cur_lane:
-                print("***   Ctrl.step left: obs left occupied = ", obs[ObsVec.LEFT_OCCUPIED])
 
                 # If we are within the legal zone to change lanes to the next one, then
                 if lid >= 0  and  la <= 0.0  and  lb >= 0.0:
@@ -119,7 +118,6 @@ class BotType1bCtrl(VehicleController):
 
             # Else (target must be to our right)
             else:
-                print("***   Ctrl.step right: obs right occupied = ", obs[ObsVec.RIGHT_OCCUPIED])
 
                 # If we are within the legal zone to change lanes to the next one, then
                 if rid >= 0  and ra <= 0.0  and rb >= 0.0:
