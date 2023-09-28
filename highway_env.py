@@ -335,6 +335,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
+        print("///// Entering reset.")
         if self.debug > 0:
             print("\n///// Entering reset")
 
@@ -467,7 +468,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found))
 
                 if not space_found:
-                    raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset.".format(i))
+                    raise ValueError("///// Could not find a safe place to re-initialize vehicle {} during reset with ego_lane {}, p = {:.1f}."
+                                     .format(i, ego_lane_id, ego_p))
 
                 # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
                 # to avoid an immediate rear-ending.
@@ -478,8 +480,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-        if self.debug > 0:
-            print("///// HighwayEnv.reset: all vehicle starting configs defined.")
+        #if self.debug > 0:
+        print("///// HighwayEnv.reset: all vehicle starting configs defined.")
 
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
@@ -499,6 +501,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         if self.debug > 0:
             print("///// End of reset(). Returning obs ", self.all_obs[0, :])
+        print("///// reset complete.")
         return self.all_obs[0, :], {} #only return the row for the ego vehicle
 
 
@@ -534,6 +537,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 - collect each entity's observations from that new state
         """
 
+        print("///// step entered: cmd = ", cmd)
         if self.debug > 0:
             print("\n///// Entering step(): ego cmd = ", cmd)
             print("      vehicles array contains:")
@@ -644,6 +648,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("      reason = {}".format(return_info["reason"]))
             print("      reward_detail = {}\n".format(return_info["reward_detail"]))
 
+        print("///// step exiting. reward = ", reward)
         return self.all_obs[0, :], reward, done, truncated, return_info
 
 
@@ -768,9 +773,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         nv3 = max(nv//3, 1)
         fav_low = float(nv23) #max out the range for inference runs
         fav_high = float(nv)
+        fraction = min(self.episode_count/MANY_EPISODES, 1.0)
         if self.training:
-            fav_low = min(float(nv23 - 1.0)*self.episode_count/MANY_EPISODES + 1.0, float(nv23)) #lower bound for the favorite number range
-            fav_high = min(float(nv - nv3)*self.episode_count/MANY_EPISODES + nv3, float(nv)) #upper bound for the favorite number range
+            fav_low = min(float(nv23 - 1.0)*fraction + 1.0, float(nv23)) #lower bound for the favorite number range
+            fav_high = min(float(nv - nv3)*fraction + nv3, float(nv)) #upper bound for the favorite number range
         #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high)) #TODO debug
         assert fav_high >= fav_low, "///// ERROR in reset(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
         episode_vehicles = 1
@@ -1007,7 +1013,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Else if a target point has been achieved - bonus points!
             elif tgt_reached:
-                reward = 1.2
+                reward = 0.0 #1.2 a positive value here trains it to be map-specific, which we do not want
                 explanation = "Success: target point reached!"
 
             # Else (episode ended successfully)
@@ -1042,6 +1048,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 penalty = speed_mult*(diff - 0.02)
                 explanation += "spd pen {:.4f}. ".format(penalty)
             reward -= penalty
+
+            # Reward for following the route planner's recommendations for lane change activity
+
+
+
+
+
+
+
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
