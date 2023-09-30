@@ -38,7 +38,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 40000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 4
+    num_trials          = 6
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
