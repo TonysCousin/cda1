@@ -239,6 +239,21 @@ Big picture of this project's goals:
 	* Modified reset() so that if it can't find a safe location for a neighbor vehicle, it deactivates it.
 	* Changed reward multiplier on LC behavior from 0.003 to 0.004.
 	* Fixed a defect with scenario resetting that forced all episodes to run scenario 2 after a short time.
+	* Killed after ~32k iterations on trials 0 & 1 due to travel needs.
+	* Inference on a recent checkpoint shows that the agent like to drive ~32 m/s without slowing to avoid a
+	  rear-end crash. It also did not demonstrate a lane change in a couple quick episodes where it should
+	  have. Hoping it just needs more experience.
+
+9/30/23
+17:10-17:51 train
+22:09-
+
+* Added capability for the tune program to restart an in-progress job from the checkpoint dir. It doesn't work,
+  with Ray throwing an assertion error. Stored the checkpoint in ray_results/cda1-no-restore for future
+  investigation.
+
+* Run a120d training with SAC for 40k iterations
+	* Tweaked distro of scenarios 0, 1 & 2.
 
 
 

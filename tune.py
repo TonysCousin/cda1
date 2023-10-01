@@ -163,9 +163,12 @@ def main(argv):
                 )
 
     # Execute the HP tuning job, beginning with a previous checkpoint, if one was specified in the CdaCallbacks.
-    tuner = Tuner(algo, param_space = cfg.to_dict(), tune_config = tune_config, run_config = run_config)
-    #tuner = Tuner.restore(path="/home/starkj/ray_results/cda0")
-    print("\n///// Tuner created.\n")
+    if len(argv) > 1:
+        tuner = Tuner.restore(path = argv[1], trainable = algo, resume_errored = True, param_space = cfg.to_dict())
+        print("\n///// Tuner created to continue checkpoint ", argv[1])
+    else:
+        tuner = Tuner(algo, param_space = cfg.to_dict(), tune_config = tune_config, run_config = run_config)
+        print("\n///// New tuner created.\n")
 
     result = tuner.fit()
     best_result = result.get_best_result(metric = "episode_reward_mean", mode = "max")

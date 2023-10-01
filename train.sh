@@ -5,4 +5,4 @@ cp *.py staging
 cp -r docs staging
 
 cd staging
-python -u tune.py > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2
+python -u tune.py $1 > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2

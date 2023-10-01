@@ -47,9 +47,9 @@ class BridgitCtrl(VehicleController):
         # Get all of the eligible targets and the starting points for each possible target destination and merge them, taking the
         # set-wise union of points in each lane.
         self.starting_points = {}
-        self.target_lane = {}
+        self.lane_to_target = {}
         for idx, tgt in enumerate(self.targets):
-            self.target_lane[tgt.lane_id] = idx
+            self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
             self.starting_points = self._union(self.starting_points, starts)
 
@@ -122,7 +122,7 @@ class BridgitCtrl(VehicleController):
 
             tgt_idx = -1
             try:
-                idx = self.target_lane[pos.lane_id]
+                idx = self.lane_to_target[pos.lane_id]
                 if idx >= 0:
                     tgt_idx = idx
             except KeyError:
@@ -133,7 +133,8 @@ class BridgitCtrl(VehicleController):
             if pos.delta_p > max_delta_p:
                 max_delta_p = pos.delta_p
 
-        #TODO: debugging - all of this
+        # Check that the max delta-P is > 0; a value of 0 can happen in the final time step going past the target, so resetting it
+        # is not a big deal, but needed dto avoid a divide by zero later.
         if max_delta_p <= 0.0:
             print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}"
                   .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
@@ -163,6 +164,7 @@ class BridgitCtrl(VehicleController):
 
         # Scale the probabilities and return the obs vector
         if sum_prob == 0.0:
+            print("///// WARNING BridgitCtrl.plan_route sum_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
             sum_prob = 1.0
         for pos in self.positions:
             pos.prob /= sum_prob
