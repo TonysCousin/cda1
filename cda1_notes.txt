@@ -246,7 +246,7 @@ Big picture of this project's goals:
 
 9/30/23
 17:10-17:51 train
-22:09-
+22:09-23:32 train
 
 * Added capability for the tune program to restart an in-progress job from the checkpoint dir. It doesn't work,
   with Ray throwing an assertion error. Stored the checkpoint in ray_results/cda1-no-restore for future
@@ -254,13 +254,31 @@ Big picture of this project's goals:
 
 * Run a120d training with SAC for 40k iterations
 	* Tweaked distro of scenarios 0, 1 & 2.
+	* System locked up after running for 9:28, the first two trials achieving ~26k iterations (~8M steps),
+	  providing productivity of 5500 iters/hr. This is with obs verification off.
+	* Trial 0's reward plot was somewhat jagged, but by 8M steps, rmax ~1.2 and rmean in [0.7, 0.8]. It
+	  had noise magnitude of 0.12 decaying over 8M steps. Trial 1's reward was much smoother but less
+	  effective. Its rmax climbed quickly to 1.2 by 3M steps, then stayed there, while rmean hit 0.6 then
+	  noisily drifted in [0.1, 0.7]. Both had rmin < -1.0 the entire time.
+	* Inference on trial 0 shows agent quickly moves to a speed of 17.6 m/s and does not change lanes.
+	* Inference on trial 1 shows agent quickly moves to 31.9 m/s and does not change lanes. Also, it
+	  rear-ended a slightly slower bot without attempting to slow.
+	* Found a defect in the reward bonus for LC planning.
 
+10/2/23
+17:55-
+
+* Run ? training with SAC for 40k iterations
+	* Changed noise scale_timesteps to choose either 8M or 12M steps (was 4M or 8M).
+	* Narrowed the tuning range of noise stddev to [0.1, 0.4].
+	* Fixed the LC plan following reward bonus.
+	* Increased the multiplier on the plan following reward bonus (to 0.006), since inference showed that
+	  it was overshadowed by the speed penalty.
+	* Improved reward code to not penalize for speed deviation if ego is going slower than speed limit because
+	  it is following a slow forward vehicle.
 
 
 TODO:
-- Scan log for "scenario" to see how scenario 0 is distributed.
-
-- Consider limiting reward penalty for going slow behind a slow forward vehicle.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 - Investigate speed overshoot when speed limit changes (with bot1a controller)

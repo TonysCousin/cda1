@@ -421,7 +421,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     self.effective_scenario = 1 #all neighbors in ego's lane
                 elif draw < 0.25:
                     self.effective_scenario = 2 #no neighbors in ego's lane
-                print("*     scenario 0 adjusted to {}".format(self.effective_scenario)) #TODO debug
 
             # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors
             for i in range(1, self.num_vehicles):
@@ -1047,12 +1046,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             des_max = max(lc_desired)
             if des_max < 0.001:
                 if self.steps_since_reset > 1:
-                    print("///// WARNING get_reward detected no desirable lane change! step ", self.steps_since_reset, ", lc_desired = ", lc_desired)
+                    print("///// WARNING get_reward detected no desirable lane! step ", self.steps_since_reset, ", lc_desired = ", lc_desired)
                 des_max = 1.0
-            lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD])
-            bonus = 0.004 * lc_desired[lc_cmd] / des_max
-            #print("///// get_reward: lc_cmd = {}, des_max = {:.4f}, bonus = {:.4f}, incoming reward = {:.4f}"
-            #      .format(lc_cmd, des_max, bonus, reward))  #TODO debug
+            lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
+            bonus = 0.006 * lc_desired[lc_cmd+1] / des_max
+            print("***** get_reward: lc_desired = ", lc_desired)
+            print("*     lc_cmd = {}, des_max = {:.4f}, bonus = {:.4f}, incoming reward = {:.4f}"
+                  .format(lc_cmd, des_max, bonus, reward))  #TODO debug
             reward += bonus
             explanation += "LC des bonus {:.4f}. ".format(bonus)
 
@@ -1077,22 +1077,45 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if penalty > 0.0001:
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
-            # Penalty for deviating from roadway speed limit
+            # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
             speed_mult = 0.015
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
-            norm_speed = self.all_obs[0, ObsVec.SPEED_CUR] / speed_limit #1.0 = speed limit
-            diff = abs(norm_speed - 1.0)
+            fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
+            cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
             penalty = 0.0
-            if diff > 0.02:
-                penalty = speed_mult*(diff - 0.02)
-                explanation += "spd pen {:.4f}. ".format(penalty)
+            if fwd_vehicle_speed >= speed_limit  or  cur_speed < 0.9*fwd_vehicle_speed:
+                norm_speed = cur_speed / speed_limit #1.0 = speed limit
+                diff = abs(norm_speed - 1.0)
+                if diff > 0.02:
+                    penalty = speed_mult*(diff - 0.02)
+                    explanation += "spd pen {:.4f}. ".format(penalty)
             reward -= penalty
+            print("*     get_reward: speed penalty = {:.4f}, fwd_vehicle_speed = {:.1f}, speed_limit = {:.1f}".format(penalty, fwd_vehicle_speed, speed_limit))
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"
                     .format(reward, crash, off_road, stopped, explanation))
 
         return reward, explanation
+
+
+    def _get_fwd_vehicle_speed(self) -> float:
+        """If there is a vehicle forward of the ego vehicle and in the same lane, within 6 sensor zones of ego,
+            then return the speed of that vehicle (the closest one in this range). If no vehicle is in these
+            zones, then return MAX_SPEED.
+        """
+
+        fwd_speed = Constants.MAX_SPEED
+
+        # Loop through obs zones forward of the ego vehicle to find the first one occupied and get its speed
+        for z in range(6):
+            z_idx = ObsVec.BASE_CTR_FRONT + z*ObsVec.CTR_ELEMENTS
+            occupied = self.all_obs[0, z + ObsVec.OFFSET_OCCUPIED]
+            if occupied > 0.5:
+                fwd_speed = self.all_obs[0, z + ObsVec.OFFSET_SPEED]*Constants.MAX_SPEED + self.all_obs[0, ObsVec.SPEED_CUR]
+                break
+
+        return fwd_speed
 
 
     def _verify_obs_limits(self,
