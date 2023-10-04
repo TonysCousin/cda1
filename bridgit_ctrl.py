@@ -52,7 +52,7 @@ class BridgitCtrl(VehicleController):
         for idx, tgt in enumerate(self.targets):
             self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
-            self.starting_points = self._union(self.starting_points, starts)
+            self.starting_points = self._dict_union(self.starting_points, starts)
 
 
     def reset(self,
@@ -196,10 +196,10 @@ class BridgitCtrl(VehicleController):
 
 
 
-    def _union(self,
-               a        : Dict, #first dict of starting points
-               b        : Dict  #second dict of starting points
-              ) -> Dict:
+    def _dict_union(self,
+                    a        : Dict, #first dict of starting points
+                    b        : Dict  #second dict of starting points
+                   ) -> Dict:
 
         """Merges the two given dicts by taking the set-wise union of the max P values for each indicated lane. Return is the union
             of the two input sets, meaning it contains the largest P value from either dict for a given lane ID. These dicts are assumed

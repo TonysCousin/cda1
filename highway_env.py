@@ -631,6 +631,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # replaced with a NN. This will replace a few elements in the obs vector.
         self.all_obs[0, :] = self.vehicles[0].controller.plan_route(self.all_obs[0, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
+        #TODO debug:
+        if max(self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) <= 0.0:
+            print("***** WARNING: step: all desirability values are zero at ego lane {}, p = {:.1f}!".format(self.vehicles[0].lane_id, self.vehicles[0].p))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
@@ -826,7 +829,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                               p         : float,#desired P coordinate for the neighbor (m in paremetric frame)
                              ) -> bool:         #returns true if the indicated location is safe
         """Determines if the candidate location (lane & P coordinate) is a safe place to put a vehicle at the beginning of a scenario.
-            It needs to be sufficiently far from any other neighbors whose starting locations have already been defined.
+            It needs to be sufficiently far from any other neighbors whose starting locations have already been defined so that there
+            won't be an immediate crash after the sim starts. When this is called we won't necessarily know the candidate's speed, so
+            need to consider that it could be way different from any of the other vehicles nearby.
         """
 
         assert 0 <= lane_id < self.roadway.NUM_LANES, "///// Attempting to place neighbor {} in invalid lane {}".format(n, lane_id)
@@ -834,6 +839,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         assert start <= p < start + self.roadway.get_total_lane_length(lane_id), \
                 "///// Attempting to place neighbor {} in lane {} at invalid p = {:.1f}".format(n, lane_id, p)
 
+        # This is the safe longitudinal distance between a slow vehicle in front, going 4 m/s, and a fast vehicle behind, going 30 m/s,
+        # with a -3 m/s^2 decel capability and assuming the front vehicle holds a steady speed. It will take this distance plus the
+        # distance covered by the front vehicle during that time for the rear vehicle to decelerate to 4 m/s. There could be worse
+        # conditions, but they should be quite rare.
+        SAFE_SEPARATION = 113.0
         safe = True
 
         # Loop through all active vehicles
@@ -845,7 +855,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # If the other vehicle is in candiate's lane then check if it is too close longitudinally. Note that if a neighbor has
             # not yet been placed, its lane ID is -1
             if other.lane_id == lane_id:
-                if 0.0 <= abs(other.p - p) < 6.0*other.model.veh_length:
+                if 0.0 <= abs(other.p - p) < SAFE_SEPARATION: #6.0*other.model.veh_length:
                     safe = False
 
         return safe
@@ -1050,7 +1060,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     print("///// WARNING get_reward detected no desirable lane! ego lane = ", self.vehicles[0].lane_id, ", p = ", self.vehicles[0].p, ", lc_desired = ", lc_desired)
                 des_max = 1.0
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
-            bonus = 0.006 * lc_desired[lc_cmd+1] / des_max
+            bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
             print("***** get_reward: ego lane = ", self.vehicles[0].lane_id, ", lc_desired = ", lc_desired)
             print("*     lc_cmd = {}, des_max = {:.4f}, bonus = {:.4f}, incoming reward = {:.4f}"
                   .format(lc_cmd, des_max, bonus, reward))  #TODO debug
@@ -1059,14 +1069,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.0005*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
+                penalty = 0.0001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
             # Small penalty for widely varying lane commands (these obs are unscaled, so will be integers)
             cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
             penalty = 0.01 * cmd_diff * cmd_diff
-            reward -= penalty
+            #TODO: uncomment: reward -= penalty
             if penalty > 0.0001:
                 #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
@@ -1079,7 +1089,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.015
+            speed_mult = 0.018
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

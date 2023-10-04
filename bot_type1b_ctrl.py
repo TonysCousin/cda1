@@ -138,7 +138,7 @@ class BotType1bCtrl(VehicleController):
                            fwd_speed    : float,    #speed of the vehicle in front of us, m/s
                           ) -> float:               #returns speed command, m/s
 
-        """Applies a crude adaptive cruise control logic so that our vehicle attempts to follow it's target speed
+        """Applies a crude adaptive cruise control logic so that our vehicle attempts to hit it's target speed
             whenever possible, but slows to match the speed of a slower vehicle close in front of it to avoid a crash.
         """
 
@@ -155,7 +155,7 @@ class BotType1bCtrl(VehicleController):
             if fwd_speed < self.my_vehicle.cur_speed:
                 f = (fwd_dist - CRITICAL_DISTANCE) / (DISTANCE_OF_CONCERN - CRITICAL_DISTANCE)
                 speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, fwd_speed), tgt_speed)
-            assert speed_cmd > 0.0, \
+            assert speed_cmd >= 0.0, \
                     "///// ERROR in BotType1bCtrl._acc_speed_ctrl: speed_cmd = {:.2f} is illegal. fwd_speed = {:.2f}, tgt_speed = {:.2f}, f = {:.2f}" \
                     .format(speed_cmd, fwd_speed, tgt_speed, f)
 
