@@ -14,7 +14,9 @@ class BridgitCtrl(VehicleController):
 
     """Defines the control algorithm for the Bridgit NN agent, which has learned some optimum driving in the given roadway."""
 
-    PLAN_EVERY_N_STEPS = 5 #num time steps between route plan updates
+    PLAN_EVERY_N_STEPS = 5  #num time steps between route plan updates; CAUTION: this needs to be < duration of a lane change
+    SMALL_DISTANCE = 150.0  #distance below which an immediate lane change is necessary in order to get to the target, m.
+                            # At a nominal highway speed and LC duration, the vehicle will cover 80-110 m during the maneuver.
 
     # List indices for positions relative to the host's lane
     LEFT = 0
@@ -70,6 +72,9 @@ class BridgitCtrl(VehicleController):
         # Initialize the relative position info
         self._set_relative_lane_pos()
 
+        # Ensure the planning method will get called on the first step of the episode
+        self.steps_since_plan = self.PLAN_EVERY_N_STEPS
+
 
     def step(self,
              obs    : np.array, #vector of local observations available to the instantiating vehicle
@@ -107,9 +112,6 @@ class BridgitCtrl(VehicleController):
         if self.steps_since_plan < self.PLAN_EVERY_N_STEPS:
             return obs
 
-        SMALL_DISTANCE = 150.0 #distance below which an immediate lane change is necessary in order to get to the target, m.
-                                # At a nominal highway speed and LC duration, the vehicle will cover 80-110 m.
-
         # Update the relative lane positions, since the vehicle may have changed lanes since the previous call
         self._set_relative_lane_pos()
 
@@ -135,8 +137,8 @@ class BridgitCtrl(VehicleController):
         # Check that the max delta-P is > 0; a value of 0 can happen in the final time step going past the target, so resetting it
         # is not a big deal, but needed dto avoid a divide by zero later.
         if max_delta_p <= 0.0:
-            print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}. Positions:"
-                  .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
+            #print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}. Positions:"
+            #      .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
             max_delta_p = 3000.0
 
         # Loop through the relative positions again
@@ -156,18 +158,15 @@ class BridgitCtrl(VehicleController):
                 pos.prob = max(pos.delta_p / max_delta_p, 0.0)
 
                 # If host vehicle is only a small distance away from having to change out of the indicated lane, set its prob to 0
-                if pos.delta_p < SMALL_DISTANCE:
+                if pos.delta_p < self.SMALL_DISTANCE:
                     pos.prob = 0.0
 
             sum_prob += pos.prob
 
         # Scale the probabilities and return the obs vector
         if sum_prob == 0.0:
-            print("///// WARNING BridgitCtrl.plan_route sum_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
+            #print("///// WARNING BridgitCtrl.plan_route sum_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
             sum_prob = 1.0
-            #TODO debug next 2 lines
-            for pos in self.positions:
-                print(pos.pri())
         for pos in self.positions:
             pos.prob /= sum_prob
 
@@ -178,7 +177,6 @@ class BridgitCtrl(VehicleController):
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0
-        print("***** BridgitCtrl.plan_route returning desirability for lane ", self.my_vehicle.lane_id, ": ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) #TODO debug
 
         return obs
 
@@ -188,12 +186,18 @@ class BridgitCtrl(VehicleController):
             list "positions", so there is no return.
         """
 
+        # Clear previously stored data
+        for p in self.positions:
+            p.delta_p = 0.0
+            p.prob = 0.0
+            p.tgt_id = -1
+
+        # Update the lane assignments for each
         self.positions[self.CENTER].lane_id = self.my_vehicle.lane_id
         self.positions[self.LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
         self.positions[self.RIGHT].lane_id = self.my_vehicle.lane_id + 1
         if self.positions[self.RIGHT].lane_id >= self.roadway.NUM_LANES:
             self.positions[self.RIGHT].lane_id = -1
-
 
 
     def _dict_union(self,

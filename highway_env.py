@@ -335,7 +335,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
-        print("///// Entering reset.")
         if self.debug > 0:
             print("\n///// Entering reset")
 
@@ -483,8 +482,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-        #if self.debug > 0:
-        print("///// HighwayEnv.reset: all vehicle starting configs defined.")
+        if self.debug > 0:
+            print("///// HighwayEnv.reset: all vehicle starting configs defined.")
 
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
@@ -504,7 +503,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         if self.debug > 0:
             print("///// End of reset(). Returning obs ", self.all_obs[0, :])
-        print("///// reset complete.")
         return self.all_obs[0, :], {} #only return the row for the ego vehicle
 
 
@@ -563,7 +561,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         ego_action[1] = int(math.floor(cmd[1] + 0.5))
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
-        print("***** Entering step: LC command = ", ego_action[1]) #TODO debug
+        #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
         vehicle_actions = [None]*self.num_vehicles
@@ -624,23 +622,19 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the sensor observations from each vehicle
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
-        #print("///// step: obs LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
 
-        #TODO: replace this call with a NN in the controller class.
         # For the ego vehicle, run its planning algo. This call doesn't fit well here, but is needed until the planner can be
         # replaced with a NN. This will replace a few elements in the obs vector.
-        self.all_obs[0, :] = self.vehicles[0].controller.plan_route(self.all_obs[0, :])
+        #TODO: eventually replace this call with a NN in the controller class.
+        if self.vehicles[0].active:
+            self.all_obs[0, :] = self.vehicles[0].controller.plan_route(self.all_obs[0, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
-        #TODO debug:
-        if max(self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) <= 0.0:
-            print("***** WARNING: step: all desirability values are zero at ego lane {}, p = {:.1f}!".format(self.vehicles[0].lane_id, self.vehicles[0].p))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.
         crash = self._check_for_collisions()
         if crash:
             done = True
             return_info["reason"] = "Two (or more) vehicles crashed."
-            #print("/////+ step: {} step {}, crash!".format(self.rollout_id, self.total_steps))
 
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped, reached_tgt)
@@ -1056,14 +1050,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
             des_max = max(lc_desired)
             if des_max < 0.001:
-                if self.steps_since_reset > 1:
-                    print("///// WARNING get_reward detected no desirable lane! ego lane = ", self.vehicles[0].lane_id, ", p = ", self.vehicles[0].p, ", lc_desired = ", lc_desired)
                 des_max = 1.0
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
             bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
-            print("***** get_reward: ego lane = ", self.vehicles[0].lane_id, ", lc_desired = ", lc_desired)
-            print("*     lc_cmd = {}, des_max = {:.4f}, bonus = {:.4f}, incoming reward = {:.4f}"
-                  .format(lc_cmd, des_max, bonus, reward))  #TODO debug
             reward += bonus
             explanation += "LC des bonus {:.4f}. ".format(bonus)
 
@@ -1101,8 +1090,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     penalty = speed_mult*(diff - 0.02)
                     explanation += "spd pen {:.4f}. ".format(penalty)
             reward -= penalty
-            print("*     get_reward: speed penalty = {:.4f}, ego speed = {:.1f}, fwd_vehicle_speed = {:.1f}, speed_limit = {:.1f}"
-                  .format(penalty, cur_speed, fwd_vehicle_speed, speed_limit)) #TODO debug
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"

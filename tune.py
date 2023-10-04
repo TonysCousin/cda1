@@ -22,6 +22,7 @@ _checkpoint_path = None
 def main(argv):
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
+    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
     ray.init() #storage = "~/ray_results/cda1")
 
     # Define which learning algorithm we will use and set up is default config params
@@ -56,7 +57,7 @@ def main(argv):
     env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
-    env_config["verify_obs"]                    = False
+    env_config["verify_obs"]                    = True
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
     env_config["scenario"]                      = 0
@@ -90,8 +91,8 @@ def main(argv):
 
     cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
-                    num_cpus_per_worker         = 2, #also applies to the local worker and evaluation workers
-                    num_gpus_per_worker         = 0  #this has to allow gpu left over for local worker & evaluation workers also
+                    num_cpus_per_worker         = 0, #2, #also applies to the local worker and evaluation workers
+                    num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
     cfg.rollouts(   #num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)

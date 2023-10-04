@@ -294,19 +294,29 @@ Big picture of this project's goals:
 	* All trials died before 600k steps, all with an unknown system error.
 	* Still seeing plenty of warnings about all desirability lanes with 0 probability.
 
-* Run caa62 training with SAC for 40k iterations
+* Ran a tune run with a single worker thread in order to debug the training situation with desirability lanes.
 	* Added debugging statements.
+	* Changed Ray resources to no GPU and only 1 cpu to help find problems.
+	* Found several cases where an illegal lane change zeros out the obs vector of ego, since the dynamics
+	  method marks it as inactive. Added a guard for this in step().
+	* It seems this fixes the problems. There are times when the desirability vector will be all zeros,
+	  which is right after a reset, or if the vehicle is on an exit ramp with no hope of reaching one of
+	  its targets. All other conditions now produce reasonable desirabilities.
+
+* Run b96d8 training with SAC for 40k iterations
+	* Includes a few fixes for handling of lane desirabilities.
 
 
 
 TODO:
+- Consider setting rollout_fragment_length = 80.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
-- Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
-- Investigate speed overshoot when speed limit changes (with bot1a controller)
-- Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
+- Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 
+- Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
+- Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
 - Add off-road icon
 - Add vehicle icons to graphics
