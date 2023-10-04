@@ -45,7 +45,7 @@ class BridgitModel(VehicleModel):
         prev_speed_cmd = obs[ObsVec.SPEED_CMD]
         prev_lc_cmd = obs[ObsVec.LC_CMD]
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
-        lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT]
+        lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
         # If this vehicle is inactive, then stop now
@@ -66,7 +66,7 @@ class BridgitModel(VehicleModel):
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Put the lane change desired values back into place, since that planning doesn't happen every time step
-        obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT] = lane_change_des
+        obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1] = lane_change_des
 
         # Skip a few here that are used for bots or reserved for future
 
@@ -113,10 +113,10 @@ class BridgitModel(VehicleModel):
 
                 # Indicate lane existence in this zone, and if it exists, its pavement type & speed limit
                 if lane_begin_p <= zone_ctr_p <= lane_end_p:
-                    obs[z_idx + 0] = 1.0
+                    obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 1.0
                     if self.roadway.get_pavement_type(col_lane, zone_ctr_p) == PavementType.EXIT_RAMP:
-                        obs[z_idx + 0] = 0.0
-                    obs[z_idx + 1] = self.roadway.get_speed_limit(col_lane, zone_ctr_p) / Constants.MAX_SPEED
+                        obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 0.0
+                    obs[z_idx + ObsVec.OFFSET_SPD_LMT] = self.roadway.get_speed_limit(col_lane, zone_ctr_p) / Constants.MAX_SPEED
 
         # Set up to handle zones in the center column - first behind the host
         col_base = ObsVec.BASE_CTR_REAR
@@ -164,22 +164,22 @@ class BridgitModel(VehicleModel):
             zone_ctr_p = zone_rear_p + half_zone
 
             # Indicate lane existence in this zone, and if it exists, its pavement type & speed limit
-            obs[z_idx + 0] = -1.0 #default to non-existent pavement
+            obs[z_idx + ObsVec.OFFSET_DRIVABLE] = -1.0 #default to non-existent pavement
             if lane_begin_p <= zone_ctr_p <= lane_end_p:
-                obs[z_idx + 0] = 1.0
+                obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 1.0
                 if self.roadway.get_pavement_type(host_lane_id, zone_ctr_p) == PavementType.EXIT_RAMP:
-                    obs[z_idx + 0] = 0.0
-                obs[z_idx + 1] = self.roadway.get_speed_limit(host_lane_id, zone_ctr_p) / Constants.MAX_SPEED
+                    obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 0.0
+                obs[z_idx + ObsVec.OFFSET_SPD_LMT] = self.roadway.get_speed_limit(host_lane_id, zone_ctr_p) / Constants.MAX_SPEED
 
             # In the forward center column we also need to indicate lane boundary type. If there is a reachable lane
             # to the side of interest, consider the boundary passable. We are only concerned with physical connectivity
             # here, not painted lines.
-            obs[z_idx + 4] = -1.0 #default to unpassable - left side
+            obs[z_idx + ObsVec.OFFSET_LEFT_BDRY] = -1.0 #default to unpassable - left side
             if la_p < zone_ctr_p < lb_p:
-                obs[z_idx + 4] = 1.0
-            obs[z_idx + 5] = -1.0 #default to unpassable - right side
+                obs[z_idx + ObsVec.OFFSET_LEFT_BDRY] = 1.0
+            obs[z_idx + ObsVec.OFFSET_RIGHT_BDRY] = -1.0 #default to unpassable - right side
             if ra_p < zone_ctr_p < rb_p:
-                obs[z_idx + 5] = 1.0
+                obs[z_idx + ObsVec.OFFSET_RIGHT_BDRY] = 1.0
 
         #
         #..........Map vehicles to zones for those that are within the grid
@@ -208,8 +208,8 @@ class BridgitModel(VehicleModel):
             #TODO: represent nv changing lanes & covering two of them (look at its lane change count)
 
             # At this point we have a vehicle that is somewhere on the grid. Now to figure out which zone(s) it occupies.
-            z_num_rear = None #num zones in front of the base zone for rear of the neighbor
-            z_num_front = None #num zones in front of the base zone for front of the neighbor
+            z_num_rear = None #num zones in front of the base zone where the rear of the neighbor exists
+            z_num_front = None #num zones in front of the base zone where the front of the neighbor exists
             base_idx = None #index of the first element of the first zone in the given column (center lane is broken into 2 pieces, effectively 2 columns)
             elements_per_zone = None
 
@@ -272,7 +272,7 @@ class BridgitModel(VehicleModel):
 
                 # Compute the zone index in the obs vector, and set the occupied flag and relative speed for that zone
                 z_idx = base_idx + z*elements_per_zone
-                obs[z_idx + 2] = 1.0 #occupied
-                obs[z_idx + 3] = rel_speed
+                obs[z_idx + ObsVec.OFFSET_OCCUPIED] = 1.0 #occupied
+                obs[z_idx + ObsVec.OFFSET_SPEED] = rel_speed
 
         return obs

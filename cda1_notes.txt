@@ -219,12 +219,7 @@ Big picture of this project's goals:
 	* Inference shows a fatal flaw: no lane changes. Even though it now has obs inputs to indicate the desired
 	  lane change activity, there is no reward signal telling it whether the choice was good!
 
-9/28/23
-10:46-11:20 traiing
-
 9/29/23
-09:24-09:56 training
-22:30-
 
 * Added reward bonus for following the planner's lane recommendation; removed the constant part of the penalty for
   lane changes (still gets hit for frequent maneuvers, but not just for doing the maneuver itself); reset the
@@ -245,8 +240,6 @@ Big picture of this project's goals:
 	  have. Hoping it just needs more experience.
 
 9/30/23
-17:10-17:51 train
-22:09-23:32 train
 
 * Added capability for the tune program to restart an in-progress job from the checkpoint dir. It doesn't work,
   with Ray throwing an assertion error. Stored the checkpoint in ray_results/cda1-no-restore for future
@@ -265,14 +258,18 @@ Big picture of this project's goals:
 	  rear-ended a slightly slower bot without attempting to slow.
 	* Found a defect in the reward bonus for LC planning.
 
-10/2/23
-17:55-
+10/3/23
+
+* Spent a good deal of time debugging WARNINGs received occasionally from get_reward(), where it detects no
+  desirable lanes specified by the Bridgit planner. I cannot determine what is causing this, as it only appears
+  during training, not in inference (so far), and training with parallel workers produces non-sequential log
+  content.
 
 * Run ? training with SAC for 40k iterations
 	* Changed noise scale_timesteps to choose either 8M or 12M steps (was 4M or 8M).
 	* Narrowed the tuning range of noise stddev to [0.1, 0.4].
-	* Fixed the LC plan following reward bonus.
-	* Increased the multiplier on the plan following reward bonus (to 0.006), since inference showed that
+	* Fixed the LC plan-following reward bonus.
+	* Increased the multiplier on the plan-following reward bonus (to 0.006), since inference showed that
 	  it was overshadowed by the speed penalty.
 	* Improved reward code to not penalize for speed deviation if ego is going slower than speed limit because
 	  it is following a slow forward vehicle.

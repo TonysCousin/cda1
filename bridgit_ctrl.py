@@ -43,6 +43,7 @@ class BridgitCtrl(VehicleController):
         super().__init__(prng, roadway, targets)
 
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
+        self.positions = [self.PosInfo() for each in range(3)]
 
         # Get all of the eligible targets and the starting points for each possible target destination and merge them, taking the
         # set-wise union of points in each lane.
@@ -66,13 +67,8 @@ class BridgitCtrl(VehicleController):
 
         super().reset(init_lane, init_p)
 
-        # Identify which of the relative positions reprsent which lanes in the roadway
-        self.positions = [self.PosInfo() for each in range(3)]
-        self.positions[self.CENTER].lane_id = self.my_vehicle.lane_id
-        self.positions[self.LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
-        self.positions[self.RIGHT].lane_id = self.my_vehicle.lane_id + 1
-        if self.positions[self.RIGHT].lane_id >= self.roadway.NUM_LANES:
-            self.positions[self.RIGHT].lane_id = -1
+        # Initialize the relative position info
+        self._set_relative_lane_pos()
 
 
     def step(self,
@@ -111,8 +107,11 @@ class BridgitCtrl(VehicleController):
         if self.steps_since_plan < self.PLAN_EVERY_N_STEPS:
             return obs
 
-        SMALL_DISTANCE = 150.0 #distance below which an immediate lane change is necessary in order to get to the target, m
-                                # at a nominal highway speed and LC duration, the vehicle will cover 80-110 m.
+        SMALL_DISTANCE = 150.0 #distance below which an immediate lane change is necessary in order to get to the target, m.
+                                # At a nominal highway speed and LC duration, the vehicle will cover 80-110 m.
+
+        # Update the relative lane positions, since the vehicle may have changed lanes since the previous call
+        self._set_relative_lane_pos()
 
         # Loop through all 3 relative lane positions and identify which have targets in the same lane, and the max p over all of them
         max_delta_p = 0.0
@@ -136,13 +135,13 @@ class BridgitCtrl(VehicleController):
         # Check that the max delta-P is > 0; a value of 0 can happen in the final time step going past the target, so resetting it
         # is not a big deal, but needed dto avoid a divide by zero later.
         if max_delta_p <= 0.0:
-            print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}"
+            print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}. Positions:"
                   .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
             max_delta_p = 3000.0
 
         # Loop through the relative positions again
         sum_prob = 0.0
-        for i, pos in enumerate(self.positions):
+        for pos in self.positions:
 
             # If there is a target in the current lane, then assign it a value of 1
             if pos.tgt_id >= 0:
@@ -166,6 +165,9 @@ class BridgitCtrl(VehicleController):
         if sum_prob == 0.0:
             print("///// WARNING BridgitCtrl.plan_route sum_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
             sum_prob = 1.0
+            #TODO debug next 2 lines
+            for pos in self.positions:
+                print(pos.pri())
         for pos in self.positions:
             pos.prob /= sum_prob
 
@@ -176,8 +178,22 @@ class BridgitCtrl(VehicleController):
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0
+        print("***** BridgitCtrl.plan_route returning desirability for lane ", self.my_vehicle.lane_id, ": ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) #TODO debug
 
         return obs
+
+
+    def _set_relative_lane_pos(self):
+        """Identifies which of the relative positions represent which lanes in the roadway. All info is stored in object member
+            list "positions", so there is no return.
+        """
+
+        self.positions[self.CENTER].lane_id = self.my_vehicle.lane_id
+        self.positions[self.LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
+        self.positions[self.RIGHT].lane_id = self.my_vehicle.lane_id + 1
+        if self.positions[self.RIGHT].lane_id >= self.roadway.NUM_LANES:
+            self.positions[self.RIGHT].lane_id = -1
+
 
 
     def _union(self,

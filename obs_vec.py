@@ -56,7 +56,7 @@ class ObsVec:
             * Speed limit:  regulatory limit of the lane at the front of the zone, if drivable, normalized by MAX_SPEED,
                                 else 0.0 if not driveable.
             * Occupied:     1.0 if any part of a vehicle is in this zone, 0 if empty
-            * Speed:        relative to host vehicle's speed, (veh_spd - host_spd), normalizedd by MAX_SPEED, if the
+            * Speed:        relative to host vehicle's speed, (veh_spd - host_spd), normalized by MAX_SPEED, if the
                                 zone is occupied, else 0.0.
 
         Each zone in the forward center column (representing the host's current lane) will have the above attributes, but
@@ -89,7 +89,7 @@ class ObsVec:
 
     # Elements specific to bots running ACC & changing lanes to reach a target destination
     FWD_DIST            =  7 #distance to nearest downtrack vehicle in same lane, m
-    FWD_SPEED           =  8 #speed of the nearest downtrack vehicle in same lane, m/s
+    FWD_SPEED           =  8 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
     TGT_LANE_OFFSET     =  9 #target dest is this many lanes left (negative) or right (positive) from current lane
     LEFT_OCCUPIED       = 10 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
     RIGHT_OCCUPIED      = 11 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)

@@ -83,9 +83,9 @@ class BotType1Model(VehicleModel):
 
         # Build the downtrack portions of the obs vector
         obs[ObsVec.FWD_DIST] = closest_dist
-        obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED
+        obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED - me.cur_speed
         if closest_id is not None:
-            obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed
+            obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed - me.cur_speed
 
         # Check for neighboring vehicles in the 9 zones immediately to the left or right
         obs[ObsVec.LEFT_OCCUPIED] = 0.0

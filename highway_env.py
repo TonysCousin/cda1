@@ -227,7 +227,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lower_obs[ObsVec.SPEED_CUR]             = 0.0
         lower_obs[ObsVec.SPEED_PREV]            = 0.0
         lower_obs[ObsVec.FWD_DIST]              = 0.0
-        lower_obs[ObsVec.FWD_SPEED]             = 0.0
+        lower_obs[ObsVec.FWD_SPEED]             = -Constants.MAX_SPEED
 
         upper_obs = np.ones(ObsVec.OBS_SIZE) #most values are 1 (all values in sensor zones are limited to 1)
         upper_obs[ObsVec.SPEED_CMD]             = Constants.MAX_SPEED
@@ -381,7 +381,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
             ego_lane_id = self.roadway.NUM_LANES - 1
-            if self.roadway.NUM_LANES == 6: #give preference to lanes 1, 2 & 3 in RoadwayB
+            if not self.training  and  self.roadway.NUM_LANES == 6: #give preference to lanes 1, 2 & 3 in RoadwayB
                 draw = self.prng.random()
                 if draw < 0.25:
                     ego_lane_id = 1
@@ -563,6 +563,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         ego_action[1] = int(math.floor(cmd[1] + 0.5))
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
+        print("***** Entering step: LC command = ", ego_action[1]) #TODO debug
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
         vehicle_actions = [None]*self.num_vehicles
@@ -1046,11 +1047,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             des_max = max(lc_desired)
             if des_max < 0.001:
                 if self.steps_since_reset > 1:
-                    print("///// WARNING get_reward detected no desirable lane! step ", self.steps_since_reset, ", lc_desired = ", lc_desired)
+                    print("///// WARNING get_reward detected no desirable lane! ego lane = ", self.vehicles[0].lane_id, ", p = ", self.vehicles[0].p, ", lc_desired = ", lc_desired)
                 des_max = 1.0
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
             bonus = 0.006 * lc_desired[lc_cmd+1] / des_max
-            print("***** get_reward: lc_desired = ", lc_desired)
+            print("***** get_reward: ego lane = ", self.vehicles[0].lane_id, ", lc_desired = ", lc_desired)
             print("*     lc_cmd = {}, des_max = {:.4f}, bonus = {:.4f}, incoming reward = {:.4f}"
                   .format(lc_cmd, des_max, bonus, reward))  #TODO debug
             reward += bonus
@@ -1090,7 +1091,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     penalty = speed_mult*(diff - 0.02)
                     explanation += "spd pen {:.4f}. ".format(penalty)
             reward -= penalty
-            print("*     get_reward: speed penalty = {:.4f}, fwd_vehicle_speed = {:.1f}, speed_limit = {:.1f}".format(penalty, fwd_vehicle_speed, speed_limit))
+            print("*     get_reward: speed penalty = {:.4f}, ego speed = {:.1f}, fwd_vehicle_speed = {:.1f}, speed_limit = {:.1f}"
+                  .format(penalty, cur_speed, fwd_vehicle_speed, speed_limit)) #TODO debug
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"
@@ -1110,9 +1112,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Loop through obs zones forward of the ego vehicle to find the first one occupied and get its speed
         for z in range(6):
             z_idx = ObsVec.BASE_CTR_FRONT + z*ObsVec.CTR_ELEMENTS
-            occupied = self.all_obs[0, z + ObsVec.OFFSET_OCCUPIED]
+            occupied = self.all_obs[0, z_idx + ObsVec.OFFSET_OCCUPIED]
             if occupied > 0.5:
-                fwd_speed = self.all_obs[0, z + ObsVec.OFFSET_SPEED]*Constants.MAX_SPEED + self.all_obs[0, ObsVec.SPEED_CUR]
+                fwd_speed = self.all_obs[0, z_idx + ObsVec.OFFSET_SPEED]*Constants.MAX_SPEED + self.all_obs[0, ObsVec.SPEED_CUR]
+                #print("*     get_fwd_vehicle_speed: z = {}, z_idx = {}, obs = {:.4f}, ego cur = {:.1f}, fwd_speed = {:.1f}"
+                #      .format(z, z_idx, self.all_obs[0, z_idx+ObsVec.OFFSET_SPEED], self.all_obs[0, ObsVec.SPEED_CUR], fwd_speed)) #TODO debug
                 break
 
         return fwd_speed
@@ -1137,8 +1141,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         except AssertionError as e:
             print(e)
-            print("///// Full obs vector content at: {}:".format(tag))
-            for v in range(self.num_vehicles):
+            print("///// Sample obs vector content at: {}:".format(tag))
+            for v in range(min(self.num_vehicles, 2)):
                 print("----- Vehicle {}:".format(v))
                 for j in range(100):
                     j1 = j + 100

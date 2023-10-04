@@ -79,9 +79,9 @@ class BotType1bCtrl(VehicleController):
         tgt = min(speed_limit + self.speed_offset, Constants.MAX_SPEED)
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
-        # Define the speed command action using ACC
+        # Define the speed command action using ACC; note that obs FWD_SPEED is relative to host speed
         action = [None]*2
-        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
+        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED] + obs[ObsVec.SPEED_CUR])
 
         #
         #..........Determine lane change command
@@ -155,5 +155,8 @@ class BotType1bCtrl(VehicleController):
             if fwd_speed < self.my_vehicle.cur_speed:
                 f = (fwd_dist - CRITICAL_DISTANCE) / (DISTANCE_OF_CONCERN - CRITICAL_DISTANCE)
                 speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, fwd_speed), tgt_speed)
+            assert speed_cmd > 0.0, \
+                    "///// ERROR in BotType1bCtrl._acc_speed_ctrl: speed_cmd = {:.2f} is illegal. fwd_speed = {:.2f}, tgt_speed = {:.2f}, f = {:.2f}" \
+                    .format(speed_cmd, fwd_speed, tgt_speed, f)
 
         return speed_cmd
