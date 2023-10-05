@@ -15,7 +15,8 @@ This project is built on the [Ray](https://www.ray.io) platform using the [PyTor
 A statement of the detailed software requirements [can be found here](docs/cda1_rqmts.txt).
 
 Training and testing is currently being performed with the _Roadway B_ test track, shown here. It is a 3 km long freeway segment with several merges and lane drops, to exercise lane change maneuvering and, eventually, cooperative behavior.
-[Roadway B](docs/images/RoadwayB_map.png)
+
+![Roadway B](docs/images/RoadwayB_map.png)
 
 ## Project Progress
 Latest code ready for public use is on the _master_ branch (not much there now).
@@ -39,7 +40,7 @@ The following roadmap outlines where this project is headed:
 
 ## Installation & Running
 To install this software, simply clone this repo, then run the following command with Python 3.10 or higher installed:
-```pip install -r requirements.txt```
+`pip install -r requirements.txt`
 
 ## License & Authorship
 This software is published under the [Apache 2.0 open source license](LICENSE), and can be used and distributed according to the terms of that license.
