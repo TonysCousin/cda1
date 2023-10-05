@@ -14,6 +14,9 @@ This project is built on the [Ray](https://www.ray.io) platform using the [PyTor
 ## Project Description
 A statement of the detailed software requirements [can be found here](docs/cda1_rqmts.txt).
 
+Training and testing is currently being performed with the _Roadway B_ test track, shown here. It is a 3 km long freeway segment with several merges and lane drops, to exercise lane change maneuvering and, eventually, cooperative behavior.
+[Roadway B](docs/images/RoadwayB_map.png)
+
 ## Project Progress
 Latest code ready for public use is on the _master_ branch (not much there now).
 
