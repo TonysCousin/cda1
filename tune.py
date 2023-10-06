@@ -57,7 +57,7 @@ def main(argv):
     env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
-    env_config["verify_obs"]                    = True
+    env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
     env_config["scenario"]                      = 0
@@ -87,18 +87,17 @@ def main(argv):
     # NOTE: local worker needs to do work for every trial, so needs to divide its time among simultaneous trials. Therefore,
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
-    # This config will run 5 parallel trials on the Tensorbook.
 
     cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 2,
-                    num_cpus_per_worker         = 0, #2, #also applies to the local worker and evaluation workers
+                    num_cpus_for_local_worker   = 4,
+                    num_cpus_per_worker         = 4,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
     cfg.rollouts(   #num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 1,
-                    rollout_fragment_length     = 256, #timesteps pulled from a sampler
+                    rollout_fragment_length     = 80, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
 
@@ -118,17 +117,17 @@ def main(argv):
     opt_config["entropy_learning_rate"]         = tune.loguniform(1e-6, 1e-4) #default 0.0003
 
     policy_config = cfg_dict["policy_model_config"]
-    policy_config["fcnet_hiddens"]              = [256, 256]
+    policy_config["fcnet_hiddens"]              = [600, 256, 128]
     policy_config["fcnet_activation"]           = "relu"
 
     q_config = cfg_dict["q_model_config"]
-    q_config["fcnet_hiddens"]                   = [256, 256]
+    q_config["fcnet_hiddens"]                   = [600, 256, 128]
     q_config["fcnet_activation"]                = "relu"
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1024, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
-                    initial_alpha               = tune.choice([0.002, 0.2]),
+                    train_batch_size            = 1040, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
                     grad_clip                   = 1.0, #tune.uniform(0.5, 1.0),

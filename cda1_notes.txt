@@ -303,8 +303,34 @@ Big picture of this project's goals:
 	  which is right after a reset, or if the vehicle is on an exit ramp with no hope of reaching one of
 	  its targets. All other conditions now produce reasonable desirabilities.
 
-* Run b96d8 training with SAC for 40k iterations
+* Run b96d8 training with SAC for 40k iterations. Corresponds to git commit 0bbd952 on the train branch.
 	* Includes a few fixes for handling of lane desirabilities.
+	* Program halted due to segfault when first two trials were ~32k iterations in (9M steps).
+	* Trial 1 reached rmax ~1.4 steadily since 5M steps, and rmean peaked at 0.4 briefly before the end.
+	  Inference on it shows that it loves a steady speed of 32.1 m/s, even though it resulted in rear-
+	  ending another vehicle. It never demonstrated a lane change.
+		* Its initial alpha = 0.2, noise stddev = 0.47 decaying over 12M steps.
+	* Trial 0 rmax reached 1.4 a couple times, earlier than trial 1, but was very jagged. Its rmean was
+	  equally chaotic, reaching 0.4 after 5.5M steps, but then fluctuating in [-1, 0.2] afterwards. I
+	  ran inference on a checkpoint from the peak rmean, which performed about like trial 1, but
+	  preferring a speed of 27.7 m/s. It ignored speed limits, and also refused to change lanes.
+		* Its initial alpha = 0.002, noise stddev = 0.34 decaying over 12M steps.
+	* I suspect that this consistent lack of ability to adapt to situations implies that the NN is too
+	  simple.
+	* I saved the checkpoints in the project's training dir for future reference, named 256-256.
+	* Training performance on this run was 3550 iters/hr, with verify_obs turned on and 0 cpus_per_worker.
+
+10/5/23
+
+* Run ? training with SAC for 40k iterations - with larger NN
+	* Increased NN structure to 3 layers, consisting of 600, 256, 128 neurons each (since there are
+	  559 inputs) for both the policy and Q networks.
+	* Removed tuning from the initial alpha, fixing it at 0.2.
+	* Changed num_cpus_per_worker from 0 to 4 (I had used 2 for a long time) and num_cpus_for_local_worker
+	  from 2 to 4.
+	* Turned off verify_obs.
+	* Set rollout_fragment_length = 80, since this is the episode length; set train_batch_size = 1040
+	  to be a multiple of this.
 
 
 
