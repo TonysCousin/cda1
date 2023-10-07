@@ -322,7 +322,8 @@ Big picture of this project's goals:
 
 10/5/23
 
-* Run ? training with SAC for 40k iterations - with larger NN
+* Run 33541 training with SAC for 40k iterations - with larger NN. Corresponds to git commit a0eb2cb on training
+  branch.
 	* Increased NN structure to 3 layers, consisting of 600, 256, 128 neurons each (since there are
 	  559 inputs) for both the policy and Q networks.
 	* Removed tuning from the initial alpha, fixing it at 0.2.
@@ -331,10 +332,24 @@ Big picture of this project's goals:
 	* Turned off verify_obs.
 	* Set rollout_fragment_length = 80, since this is the episode length; set train_batch_size = 1040
 	  to be a multiple of this.
+	* All 6 trials died very quickly due to system fault. I suspect it was an OOM failure.
+
+* Run a52ad training with SAC for 40k iterations, with larger NN. This is a re-do of previous run 33541, but...
+	* Reduced num_cpus_per_worker to 2 and num_cpus_for_local_worker to 2.
+	* All trials errored before 700k steps. All were unknown system faults (OOM?). I verified that the
+	  resource configs were the same as on 10/3, before I started playing with them.
+
+10/6/23
+
+* Performed system update, per system notes, due to inaccessible GPU.
+
+* Run ec5a7 training with SAC for 40k iterations, with larger NN...re-re-do.
+	* Set num_rollout_workers = 1 (was previously unspecified), to help limit memory usage.
 
 
 
 TODO:
+- Consider reducing LC desirability bonus and/or removing episode completion bonus.
 - Consider setting rollout_fragment_length = 80.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run

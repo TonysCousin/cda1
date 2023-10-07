@@ -89,12 +89,12 @@ def main(argv):
     #       number of possible simultaneous trials (as well as gpu memory).
 
     cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 4,
-                    num_cpus_per_worker         = 4,  #also applies to the evaluation workers
+                    num_cpus_for_local_worker   = 2,
+                    num_cpus_per_worker         = 2,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    cfg.rollouts(   #num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 1,
                     rollout_fragment_length     = 80, #timesteps pulled from a sampler
