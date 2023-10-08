@@ -19,21 +19,33 @@ def main(argv):
 
     # Handle any args
     num_args = len(argv)
-    if num_args == 1  or  num_args > 3:
-        print("Usage is: {} [ego checkpoint] [scenario #]".format(argv[0]))
-        print("Default scenario is 0 (everything randomized).")
+    if num_args == 1  or  num_args > 4:
+        print("Usage is: {} [ego checkpoint [scenario # [episode length]]]".format(argv[0]))
+        print("Default scenario is 0 (everything randomized), with unlimited episode (drives to end of track).")
+        print("If specifying episode length, use the format 'L<n>', where <n> is the number of steps.")
         sys.exit(1)
 
     checkpoint = None
     scenario = 0
+    episode_len = inf
+
     if num_args > 1:
         if argv[1] != "none":
             checkpoint = argv[1]
+
         if num_args > 2:
             s = int(argv[2])
             if 0 <= s < 90 + Roadway.NUM_LANES:
                 scenario = s
-    print("inputs: checkpoint = {}, scenario = {}".format(checkpoint, scenario))
+
+            if num_args > 3:
+                print("argv[3] = {}, with type {}".format(argv[3], type(argv[3])))
+                print("split result is: {}".format(argv[3].split('L')[1]))
+                larg = int(argv[3].split('L')[1])
+                if larg > 0:
+                    episode_len = larg
+
+    print("inputs: checkpoint = {}, scenario = {}, length = {}".format(checkpoint, scenario, episode_len))
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
@@ -63,10 +75,10 @@ def main(argv):
         cfg.framework("torch").exploration(explore = False)
         cfg_dict = cfg.to_dict()
         policy_config = cfg_dict["policy_model_config"]
-        policy_config["fcnet_hiddens"]              = [256, 256]
+        policy_config["fcnet_hiddens"]              = [600, 256, 128]
         policy_config["fcnet_activation"]           = "relu"
         q_config = cfg_dict["q_model_config"]
-        q_config["fcnet_hiddens"]                   = [256, 256]
+        q_config["fcnet_hiddens"]                   = [600, 256, 128]
         q_config["fcnet_activation"]                = "relu"
         cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
@@ -102,7 +114,7 @@ def main(argv):
     obs = env.scale_obs(raw_obs)
     step = 0
     time.sleep(8) #allow viewer to orient and time to turn on video capture
-    while not done:
+    while not done  and  step < episode_len:
         step += 1
 
         # Grab ego vehicle actions if it is participating, or use dummies if not
@@ -160,6 +172,12 @@ def main(argv):
                 if event.type == pygame.QUIT:
                     graphics.close()
                     sys.exit()
+
+    if step >= episode_len:
+        print("///// Terminated - reached desired episode length. Total reward = {:.2f}".format(episode_reward))
+        input("///// Press Enter to close...")
+        graphics.close()
+        sys.exit()
 
 
 ######################################################################################################

@@ -39,7 +39,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 40000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 6
+    num_trials          = 1
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -70,11 +70,11 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = 0.25 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
-    explore_config["scale_timesteps"]           = tune.choice([12000000, 8000000])
+    explore_config["scale_timesteps"]           = 12000000 #tune.choice([12000000, 8000000])
     exp_switch                                  = True #tune.choice([False, True, True]) #should the algo use exploration?
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
@@ -88,7 +88,7 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
+    cfg.resources(  num_gpus                    = 1, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 2,
                     num_cpus_per_worker         = 2,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also

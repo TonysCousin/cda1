@@ -115,8 +115,8 @@ class BridgitCtrl(VehicleController):
         # Update the relative lane positions, since the vehicle may have changed lanes since the previous call
         self._set_relative_lane_pos()
 
-        # Loop through all 3 relative lane positions and identify which have targets in the same lane, and the max p over all of them
-        max_delta_p = 0.0
+        # Loop through all 3 relative lane positions and identify which have targets in the same lane, and find the max distance allowed
+        # to travel in that lane before a lane change is necessary.
         for pos in self.positions:
             if pos.lane_id < 0:
                 continue
@@ -131,18 +131,9 @@ class BridgitCtrl(VehicleController):
 
             pos.tgt_id = tgt_idx
             pos.delta_p = self.starting_points[pos.lane_id] - self.my_vehicle.p
-            if pos.delta_p > max_delta_p:
-                max_delta_p = pos.delta_p
 
-        # Check that the max delta-P is > 0; a value of 0 can happen in the final time step going past the target, so resetting it
-        # is not a big deal, but needed dto avoid a divide by zero later.
-        if max_delta_p <= 0.0:
-            #print("///// WARNING - BridgitCtrl.plan_route: max_delta_p = {:.1f}, ego lane = {}, p = {:.1f}. Positions:"
-            #      .format(max_delta_p, self.my_vehicle.lane_id, self.my_vehicle.p))
-            max_delta_p = 3000.0
-
-        # Loop through the relative positions again
-        sum_prob = 0.0
+        # Loop through the relative positions again to assign desirable probabilities of being in that lane
+        max_prob = 0.0
         for pos in self.positions:
 
             # If there is a target in the current lane, then assign it a value of 1
@@ -153,27 +144,27 @@ class BridgitCtrl(VehicleController):
             elif pos.lane_id < 0:
                 pos.prob = 0.0
 
-            # Else assign it a prob < 1 based on its max P relative to the other two positions
+            # Else assign it a prob < 1 based on its delta P
             else:
-                pos.prob = max(pos.delta_p / max_delta_p, 0.0)
-
-                # If host vehicle is only a small distance away from having to change out of the indicated lane, set its prob to 0
-                if pos.delta_p < self.SMALL_DISTANCE:
+                if pos.delta_p <= self.SMALL_DISTANCE:
                     pos.prob = 0.0
+                else:
+                    pos.prob = 1.0 - self.SMALL_DISTANCE/pos.delta_p
 
-            sum_prob += pos.prob
+            if pos.prob > max_prob:
+                max_prob = pos.prob
 
         # Scale the probabilities and return the obs vector
-        if sum_prob == 0.0:
-            #print("///// WARNING BridgitCtrl.plan_route sum_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
-            sum_prob = 1.0
+        if max_prob == 0.0:
+            #print("///// WARNING BridgitCtrl.plan_route max_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
+            max_prob = 1.0
         for pos in self.positions:
-            pos.prob /= sum_prob
+            pos.prob /= max_prob
 
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
         obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
         obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob
-        #print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]) #TODO debug
+        #print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1])
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0

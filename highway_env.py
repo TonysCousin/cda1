@@ -379,19 +379,19 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
             # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
-            ego_lane_id = self.roadway.NUM_LANES - 1
-            if not self.training  and  self.roadway.NUM_LANES == 6: #give preference to lanes 1, 2 & 3 in RoadwayB
+            ego_lane_id = 1
+            if self.training  and  self.episode_count < 10000  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
                 draw = self.prng.random()
                 if draw < 0.25:
-                    ego_lane_id = 1
-                elif draw < 0.5:
-                    ego_lane_id = 2
-                elif draw < 0.75:
-                    ego_lane_id = 3
-                elif draw < 0.85:
                     ego_lane_id = 0
-                elif draw < 0.94:
+                elif draw < 0.5:
                     ego_lane_id = 4
+                elif draw < 0.75:
+                    ego_lane_id = 5
+                elif draw < 0.90:
+                    ego_lane_id = 3
+                elif draw < 0.95:
+                    ego_lane_id = 2
             else:
                 ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
 
@@ -399,11 +399,20 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if 10 <= self.effective_scenario < 10 + Roadway.NUM_LANES:
                 ego_lane_id = self.effective_scenario - 10
 
-            # Randomly define the starting P coordinate and speed
+            # Define the starting P coordinate - for early training episodes, give preference toward the end of the lane, so it experiences failures
             lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
-            ego_p = self.prng.random() * (self.roadway.get_total_lane_length(ego_lane_id) - 300.0) + lane_begin
+            lane_length = self.roadway.get_total_lane_length(ego_lane_id)
+            ego_p = lane_begin
+            if self.episode_count < 10000:
+                if self.prng.random() < 0.3:
+                    ego_p = self.prng.random() * max(lane_length - 150.0, 1.0) + lane_begin
+                else:
+                    ego_p = max(lane_begin + lane_length - self.prng.random()*500.0, lane_begin)
+
             if not self.training: #encourage it to start closer to beginning of the track for inference runs
-                ego_p = self.prng.random() * (0.5*self.roadway.get_total_lane_length(ego_lane_id) - 150.0) + lane_begin
+                ego_p = self.prng.random() * 0.5*max(lane_length - 150.0, 1.0) + lane_begin
+
+            # Randomly define the starting speed and initialize the vehicle data
             speed = self.prng.random() * Constants.MAX_SPEED
             self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
             if self.debug > 0:
@@ -1040,7 +1049,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Else (episode ended successfully)
             else:
-                reward = 1.0
+                reward = 0.0
                 explanation = "Successful episode!"
 
         # Else, episode still underway
