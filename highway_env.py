@@ -335,6 +335,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
+        EARLY_EPISODES = 100000 #num episodes to apply early curriculum to
+
         if self.debug > 0:
             print("\n///// Entering reset")
 
@@ -380,7 +382,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
             ego_lane_id = 1
-            if self.training  and  self.episode_count < 10000  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
+            if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
                 draw = self.prng.random()
                 if draw < 0.25:
                     ego_lane_id = 0
@@ -403,7 +405,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
             lane_length = self.roadway.get_total_lane_length(ego_lane_id)
             ego_p = lane_begin
-            if self.episode_count < 10000:
+            if self.episode_count < EARLY_EPISODES:
                 if self.prng.random() < 0.3:
                     ego_p = self.prng.random() * max(lane_length - 150.0, 1.0) + lane_begin
                 else:
@@ -1082,12 +1084,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
             penalty = 0.04 * cmd_diff * cmd_diff
-            reward -= penalty
+            #TODO: uncomment: reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.018
+            speed_mult = 0.03
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

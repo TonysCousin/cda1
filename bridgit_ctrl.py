@@ -134,7 +134,7 @@ class BridgitCtrl(VehicleController):
 
         # Loop through the relative positions again to assign desirable probabilities of being in that lane
         max_prob = 0.0
-        for pos in self.positions:
+        for i, pos in enumerate(self.positions):
 
             # If there is a target in the current lane, then assign it a value of 1
             if pos.tgt_id >= 0:
@@ -151,16 +151,34 @@ class BridgitCtrl(VehicleController):
                 else:
                     pos.prob = 1.0 - self.SMALL_DISTANCE/pos.delta_p
 
+            # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
+            # (vehicle will travers approx 6 sensor zones during that time).
+            if i == self.LEFT:
+                for i in range(6):
+                    bdry = obs[ObsVec.BASE_CTR_FRONT + i*ObsVec.CTR_ELEMENTS + ObsVec.OFFSET_LEFT_BDRY]
+                    if bdry < 0.0:
+                        pos.prob = 0.0
+                        break
+
+            # Same test for lane to the right
+            elif i == self.RIGHT:
+                for i in range(6):
+                    bdry = obs[ObsVec.BASE_CTR_FRONT + i*ObsVec.CTR_ELEMENTS + ObsVec.OFFSET_RIGHT_BDRY]
+                    if bdry < 0.0:
+                        pos.prob = 0.0
+                        break
+
             if pos.prob > max_prob:
                 max_prob = pos.prob
 
-        # Scale the probabilities and return the obs vector
+        # Scale the probabilities - if all are zero, ensure center lane is the preference
         if max_prob == 0.0:
-            #print("///// WARNING BridgitCtrl.plan_route max_prob = 0. ego_lane = {}, ego p = {:.1f}".format(self.my_vehicle.lane_id, self.my_vehicle.p))
             max_prob = 1.0
+            self.positions[self.CENTER].prob = 1.0
         for pos in self.positions:
             pos.prob /= max_prob
 
+        # Update the obs vector with the new desirability info
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
         obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
         obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob

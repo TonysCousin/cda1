@@ -366,17 +366,18 @@ Big picture of this project's goals:
 
 10/7/23
 
-* Run 17e90 training with SAC over 40k iterations
+* Run 17e90 training with SAC over 40k iterations on 1 trial
 	* Set episode completion reward to 0 (was 1) to force agent to pay more attention to the lane change
 	  opportunities and speed control opportunities.
 	* Fixed the noise magnitude at 0.25 over 12M steps (not tunable).
 	* Trial completed. rmax was very noisy, bouncing rapidly in [0.1, 1.2], while rmean slowly fluctuated
 	  in [-0.3, -0.1] after 4M steps, but mean episode duration was ~77 after 5M steps.
 		* Inference shows no consideration of lane change, and a desire for speed of 14.8 m/s.
+	* Half-way through the run, performance was showing 2400 iters/hr.
 
 10/8/23
 
-* Run a5c6d training with SAC over 40k iterations
+* Run a5c6d training with SAC over 40k iterations on 1 trial
 	* Changed reset() to spread out initial P location of ego vehicle closer to end of its lane (up to
 	  150 m from the end in all case. For early episodes (< 10k) it also skews the choice of location toward
 	  the lanes without targets, and to P coords near the end of whatever lane is chosen. Al this will help
@@ -385,12 +386,27 @@ Big picture of this project's goals:
 	  the difference between larger and smaller ones, because the largest value is always 1. Also changed
 	  its calculation of desirable probability to be dependent only on the remaining distance in the ending
 	  lane, not on its length relative to the target lane.
+	* Changed num_gpus from 0.5 to 1 to give more compute to the single trial worker.
+	* Training performance was 2710 iters/hr.
+	* Judging by shape of reward curves, the first 10k episodes, which dictate more difficult initial conditions,
+	  were completed after only ~300k steps (avg 30 steps/iter).
+	* Inference was no good. It sought a constant speed, well below nominal speed limit (values 17-19 m/s,
+	  depending on which checkpoint was used), and it never attempted to change lanes.
+
+10/9/23
+
+* Run 424f1 training with SAC on 40k iterations on 1 trial
+	* Changed the early episode threshold in reset() from 10k to 100k episodes, which should correspond to
+	  closer to 4M steps.
+	* Improved BridgitCtrl.plan_route() so that it won't recommend a lane change unless it is legal for all of
+	  the following planning cycle (approx; it looks ahead 6 sensor zones).
+	* Removed penalty for widely varying speed commands (just to keep it out of the way for now).
+	* Increased reward speed_mult from 0.018 to 0.030, since this penalty was getting washed out by LC bonus.
+	* Changed noise magnitude from 0.25 to 0.35.
 
 
 
 TODO:
-- Try training with num_gpus = 1.0 with a single trial.
-
 - Consider training full route episodes to ensure it understand mission completion.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
