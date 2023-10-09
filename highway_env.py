@@ -1057,15 +1057,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Else, episode still underway
         else:
 
-            # Reward for following the route planner's recommendations for lane change activity
+            # Reward for following the route planner's recommendations for lane change activity, only if there is a non-zero recommendation that
+            # is not "current lane". Staying in the current lane by default doesn't deserve a reward if it is the only possible choice.
             lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
             des_max = max(lc_desired)
             if des_max < 0.001:
                 des_max = 1.0
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
-            bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
+            bonus = 0.0
+            if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right is available
+                bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
+                explanation += "LC des bonus {:.4f}. ".format(bonus)
             reward += bonus
-            explanation += "LC des bonus {:.4f}. ".format(bonus)
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
@@ -1089,7 +1092,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.03
+            speed_mult = 0.05
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

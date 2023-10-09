@@ -54,7 +54,7 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["time_step_size"]                = 0.2
-    env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
+    env_config["episode_length"]                = 160 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = False
@@ -70,7 +70,7 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.35 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = 0.4 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
@@ -89,15 +89,15 @@ def main(argv):
     #       number of possible simultaneous trials (as well as gpu memory).
 
     cfg.resources(  num_gpus                    = 1, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 2,
-                    num_cpus_per_worker         = 2,  #also applies to the evaluation workers
+                    num_cpus_for_local_worker   = 4,
+                    num_cpus_per_worker         = 4,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
     cfg.rollouts(   num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 1,
-                    rollout_fragment_length     = 80, #timesteps pulled from a sampler
+                    rollout_fragment_length     = 160, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
 
