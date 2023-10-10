@@ -423,11 +423,35 @@ Big picture of this project's goals:
 	  and slightly more chance of including a target destination.
 	* Increased noise magnitude from 0.35 to 0.4.
 	* Changed num_cpus_per_worker and num_cpus_for_local_worker from 2 to 4 to improve performance.
+	* No good. After the first 2.2M steps (early episode treatment), rmax dropped to -1, then after 7M steps it
+	  slowly fluctuated in [-1.2, -0.2] for the remainder of the 14M steps. Trial was stopped early (at iter
+	  25863) due to poor performance. However, mean episode length did reach ~150 after 6M steps.
+	* Performance was 2600 iters/hr.
+	* Inference confirms the poor actions I've seen in previous runs.
+
+10/10/23
+
+* Several quick experiment runs with differing noise levels, looking at very early checkpoints. I added logging to show
+  the input commands to every step() call. They seem to be pretty well distributed in [-1, 1], although somewhat skewed
+  to negative values. It appears, however that the noise makes up virtually all of the magnitude of these commands.
+  When running an early checkpoint (from iters 10 to 200) in inference mode, the NN output from every step is within a
+  hair of 0, regardless of the situation. With almost no significant learning accomplished by this point, I would exped
+  the outputs to look a lot more random.
+
+* Run c4dd8 training with SAC over 40k iterasions - back to multiple trials
+	* Switched to 4 trials, since I can train 2 in the same time I can train 1 by allocating resources differently.
+	  Back to num_gpus = 0.5, num_cpus_per_worker = 2, num_cpus_for_local_worker = 2, and num_rollout_workers
+	  undefined.
+	* Increased episode length to 500 steps, which should allow most episodes to run the full track. Changed 
+	  rollout_fragement_length to 500 also, to align with a full episode in each fragment.
+	* Changed noise magnitude to 0.5, based on experiments earlier today, to help expose it to LC commands with
+	  magnitude > 0.5 (a lane change).
+	* No good. After the initial episode treatment (2M steps), rmax dropped to -1 and stayed close to that until
+	  5M steps, where I killed the job.
 
 
 
 TODO:
-- Kevin: is LC cmd & speed diff getting swamped by sensor inputs? Would longer training overcome this, or is it time to do CNN?
 - Consider training full route episodes to ensure it understand mission completion.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run

@@ -549,7 +549,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 - collect each entity's observations from that new state
         """
 
-        #print("\n///// step entered: cmd = ", cmd)
+        print("\n///// step entered: cmd = ", cmd)
         if self.debug > 0:
             print("\n///// Entering step(): ego cmd = ", cmd)
             print("      vehicles array contains:")
@@ -631,8 +631,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Get the sensor observations from each vehicle
-        for i in range(self.num_vehicles):
-            self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
+        try:
+            for i in range(self.num_vehicles):
+                self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
+        except AssertionError as e:
+            v = self.vehicles[i]
+            print("///// AssertionError trapped in _step while getting obs vector for vehicle {} with LC stat = {}, count = {}, cur_speed = {:.1f}, "
+                    .format(i, v.lane_change_status, v.lane_change_count, v.cur_speed), \
+                  "prev_speed = {:.1f}, active = {}, off_road = {}, stopped = {}, stopped_count = {}"
+                    .format(v.prev_speed, v.active, v.off_road, v.stopped, v.stopped_count))
 
         # For the ego vehicle, run its planning algo. This call doesn't fit well here, but is needed until the planner can be
         # replaced with a NN. This will replace a few elements in the obs vector.

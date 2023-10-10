@@ -142,7 +142,12 @@ class BridgitModel(VehicleModel):
                 obs[z_idx + 1] = self.roadway.get_speed_limit(host_lane_id, zone_ctr_p) / Constants.MAX_SPEED
 
         # Get lane connectivity details for the center lane (all distances are downtrack from the host location)
-        _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(host_lane_id, host_p)
+        try:
+            _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(host_lane_id, host_p)
+        except AssertionError as e:
+            print("///// Trapped AssertionError in BridgitModel.get_obs_vector: ", e)
+            raise e
+
         la_p = math.inf
         lb_p = -math.inf
         if lid >= 0:

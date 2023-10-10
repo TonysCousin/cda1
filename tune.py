@@ -39,7 +39,7 @@ def main(argv):
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 40000
     burn_in             = 500   #num iters before considering failure stopping
-    num_trials          = 1
+    num_trials          = 4
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
     # iterations, rather than just stopping on an outlier spike.
@@ -54,7 +54,7 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["time_step_size"]                = 0.2
-    env_config["episode_length"]                = 160 #80 steps gives roughly 470 m of travel @29 m/s
+    env_config["episode_length"]                = 500 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = False
@@ -70,12 +70,12 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.4 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = 0.5 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
     explore_config["scale_timesteps"]           = 12000000 #tune.choice([12000000, 8000000])
-    exp_switch                                  = True #tune.choice([False, True, True]) #should the algo use exploration?
+    exp_switch                                  = False #tune.choice([False, True, True]) #should the algo use exploration?
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
 
@@ -88,16 +88,16 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 1, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 4,
-                    num_cpus_per_worker         = 4,  #also applies to the evaluation workers
+    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
+                    num_cpus_for_local_worker   = 2,
+                    num_cpus_per_worker         = 2,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    cfg.rollouts(   num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   #num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 1,
-                    rollout_fragment_length     = 160, #timesteps pulled from a sampler
+                    rollout_fragment_length     = 500, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
 
@@ -126,7 +126,7 @@ def main(argv):
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1040, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    train_batch_size            = 1000, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
                     initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
