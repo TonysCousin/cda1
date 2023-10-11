@@ -70,12 +70,12 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.5 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = 0.25 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
     explore_config["scale_timesteps"]           = 12000000 #tune.choice([12000000, 8000000])
-    exp_switch                                  = False #tune.choice([False, True, True]) #should the algo use exploration?
+    exp_switch                                  = True #tune.choice([False, True, True]) #should the algo use exploration?
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
 
@@ -124,6 +124,11 @@ def main(argv):
     q_config["fcnet_hiddens"]                   = [600, 256, 128]
     q_config["fcnet_activation"]                = "relu"
 
+    replay_config = cfg_dict["replay_buffer_config"]
+    replay_config["type"]                       = "MultiAgentPrioritizedReplayBuffer"
+    replay_config["capacity"]                   = 1000000
+    replay_config["prioritized_replay"]         = True
+
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
                     train_batch_size            = 1000, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
@@ -134,12 +139,13 @@ def main(argv):
                     optimization_config         = opt_config,
                     policy_model_config         = policy_config,
                     q_model_config              = q_config,
+                    replay_buffer_config       = replay_config,
     )
 
     # ===== Final setup =========================================================================
 
     print("\n///// {} training params are:\n".format(algo))
-    #print(pretty_print(cfg.to_dict()))
+    print(pretty_print(cfg.to_dict()))
 
     tune_config = TuneConfig(
                     metric                      = "episode_reward_mean",

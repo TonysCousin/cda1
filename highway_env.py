@@ -433,6 +433,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     self.effective_scenario = 2 #no neighbors in ego's lane
 
             # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors
+            deactivated_count = 0
             for i in range(1, self.num_vehicles):
 
                 # Mark unused vehicles as inactive and skip over
@@ -481,6 +482,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                 if not space_found:
                     self.vehicles[i].active = False
+                    deactivated_count += 1
                     print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
                     continue
 
@@ -492,6 +494,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
+
+            print("***** reset: bots that don't fit = {}".format(deactivated_count)) #TODO debug
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -549,7 +553,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 - collect each entity's observations from that new state
         """
 
-        print("\n///// step entered: cmd = ", cmd)
+        print("\n***** step entered: cmd = ", cmd)
         if self.debug > 0:
             print("\n///// Entering step(): ego cmd = ", cmd)
             print("      vehicles array contains:")

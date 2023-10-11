@@ -449,16 +449,41 @@ Big picture of this project's goals:
 	* No good. After the initial episode treatment (2M steps), rmax dropped to -1 and stayed close to that until
 	  5M steps, where I killed the job.
 
+* Run e8679 training with SAC over 40k iterations on multiple trials.
+	* Turned off Gaussian noise, at Kevin's suggestion.
+	* Added exception handling to step() and to BridgitModel.get_obs_vector() to better understand a strange error
+	  tripped in the Roadway model.
+	* Trial 0 rmean gradually dropped to -11, recovered a bit, then dropped to -12.
+	* Trial 1 was stopped early because rmax fell dramatically after 4M steps.
+	* Training performance 3200 iters/hr.
+
+* Began studying RLlib code to figure out how to pre-populate a replay buffer (web site doesn't seem to have any info
+  on how to do it).
+
+10/11/23
+
+* Run a58db training with SAC over 40k iterations on multiple trials
+	* Turned on Gaussian noise at stddev = 0.25.
+	* Added explicit replay buffer config to the tuner program. Specified MultiAgentPrioritizedReplayBuffer (which
+	  seems to be the default, capacity of 1M (which was the default), and turned on prioritized_replay (which had
+	  been off).
+
 
 
 TODO:
+- consider larger LRs?
+- Scan log for "reset: bots that" couldn't be placed. May need to rethink this algo if too many are being left out.
 - Consider training full route episodes to ensure it understand mission completion.
+- Kevin suggestion: initialize NN weights with pytorch Xavier method.
+- Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.
+- Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 
 - Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
+- Use argparse to handle args in inference
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
 - Add off-road icon
