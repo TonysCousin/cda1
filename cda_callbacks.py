@@ -1,4 +1,5 @@
 from typing import Dict
+import torch.nn as nn
 from ray.rllib.policy.policy import Policy
 from ray.rllib.algorithms import Algorithm
 from ray.rllib.algorithms.ppo.ppo import PPO
@@ -8,12 +9,8 @@ from ray.tune.logger import pretty_print
 
 class CdaCallbacks (DefaultCallbacks):
     """This class provides utility callbacks that RLlib training algorithms invoke at various points.
-        This needs to be the path to an algorithm-level directory. This class currently only handles a one-policy
+        This class currently only handles a one-policy
         situation (could be used by multiple agents), with the policy named "default_policy".
-
-        TODO - verify the below, and ensure all is correct.
-        Even though we have no active code here, this class needs to exist to support restoration of checkpoints
-        by the inference program.
     """
 
     def __init__(self,
@@ -31,87 +28,34 @@ class CdaCallbacks (DefaultCallbacks):
         if use_perturbation_controller:
             self.info = PerturbationController()
             self._checkpoint_path = self.info.get_checkpoint_path()
-            #print("///// CdaCallback instantiated! algo counter = ", self.info.get_algo_init_count())
         """
 
 
     def on_algorithm_init(self, *,
-                          algorithm, #: "PPO", #TODO: does this need to be "PPO"?
+                          algorithm,
                           **kwargs,
                          ) -> None:
 
         """Called when a new algorithm instance has finished its setup() but before training begins.
-            We will use it to load NN weights from a previous checkpoint.  No kwargs are passed in,
-            so we have to resort to some tricks to retrieve the deisred checkpoint name.  The RLlib
-            algorithm object creates its own object of this class, so we get info into that object
-            via the class variable, _checkpoint_path.
-
-            ASSUMES that the NN structure in the checkpoint is identical to the current run config,
-            and belongs to the one and only policy, named "default_policy".
+            We will use it to initialize NN weights with Xavier normal distro.
         """
 
         # Update the initialize counter
         if self._use_perturbation_controller:
             self.info.increment_algo_init()
 
-        # If there is no checkpoint specified, then return now
-        if self._checkpoint_path is None:
-            print("///// CdaCallbacks detects checpoint path is None, so returning.")
-            return
+        # Get the initial weights from the newly created NN
+        policy_dict = algorithm.get_weights(["default_policy"])["default_policy"]
 
-        # Once perturbations begin we don't want to be loading checkpoints any more, so return
-        if self._use_perturbation_controller  and  self.info.has_perturb_begun():
-            return
-        print("///// CdaCallbacks restoring model from checkpoint ", self._checkpoint_path)
+        # Re-initialize the weights using torch's Xavier normal function. The dict contains many Tensors, some with 1 dimension, some with 2.
+        # The 2D Tensors are weights, which are the only ones we want to modify. Some of the 1D are biases, which should remain 0, and some
+        # others serve other purposes.
+        for i, key in enumerate(policy_dict):
+            w = policy_dict[key]
+            if w.shape[0] == 2:
+                nn.init.xavier_normal_(w, 1.41) #modify in place; torch docs recommends gain of sqrt(2) for relu activation
 
-        # Get the initial weights from the newly created NN and sample some values
-        initial_weights = algorithm.get_weights(["default_policy"])["default_policy"]
-        self._print_sample_weights("Newly created model", initial_weights)
-
-        # Load the checkpoint into a Policy object and pull the NN weights from there. Doing this avoids all the extra
-        # trainig info that is stored with the full policy and the algorithm.
-        temp_policy = Policy.from_checkpoint("{}/policies/default_policy".format(self._checkpoint_path))
-        saved_weights = temp_policy.get_weights()
-        self._print_sample_weights("Restored from checkpoint", saved_weights)
-
-        # Stuff the loaded weights into the newly created NN, and display a sample of these for comparison
-        to_algo = {"default_policy": saved_weights} #should be of type Dict[PolicyId, ModelWeights]; PolicyID = str, ModelWeights = dict
-        algorithm.set_weights(to_algo)    ### ERROR HERE in ndarray type conversion
-        verif_weights = algorithm.get_weights(["default_policy"])
-        self._print_sample_weights("Verified now in algo to be trained", verif_weights)
-
-
-    def _print_sample_weights(self,
-                              descrip   : str,
-                              weights   : Dict
-                             ) -> None:
-        """Prints a few of the weight values to aid in confirming which model we are dealing with.
-
-            ASSUMES that weights represents a single policy, not a dict of dicts.
-        """
-
-        return
-        # Assume the NN structure is at least [10, 10] with biases and at least 20 inputs and 1 output
-        print("///// Sample NN weights: {}".format(descrip))
-
-        # If the weights were loaded from an Algorithm checkpoint then the dict will be nested in a dict of policies, so first
-        # need to pull out the correct policy. If the weights come from a Policy checkpoint then the wrapping dict will be
-        # absent.
-        dp = weights
-        try:
-            dp = weights["default_policy"]
-        except KeyError as e:
-            pass
-
-        for i, key in enumerate(dp):
-            d = dp[key]
-            if i == 2: #layer 0 weights (at least 10 x 20)
-                print("      L0 weights: [0, 3] = {:8.5f}, [1,  8] = {:8.5f}, [2,  9] = {:8.5f}".format(d[0, 3], d[1, 8], d[2, 9]))
-                print("                  [6, 1] = {:8.5f}, [7, 12] = {:8.5f}, [8, 16] = {:8.5f}".format(d[6, 1], d[7, 2], d[8, 6]))
-            elif i == 3: #layer 0 biases (at least 10 long) (first two items are logits weights & biases)
-                print("      L0 biases:  [2]    = {:8.5f}, [9]     = {:8.5f}".format(d[2], d[9]))
-            elif i == 4: #layer 1 weights (at least 10 x 10)
-                print("      L1 weights: [5, 4] = {:8.5f}, [6, 6]  = {:8.5f}, [7, 8]  = {:8.5f}".format(d[5, 4], d[6, 6], d[7, 8]))
-                print("                  [8, 0] = {:8.5f}, [9, 4]  = {:8.5f}, [9, 9]  = {:8.5f}".format(d[8, 0], d[9, 4], d[9, 9]))
-            elif i == 5: #layer 1 biases (at least 10 long)
-                print("      L1 biases:  [5]    = {:8.5f}, [7]     = {:8.5f}".format(d[5], d[7]))
+        # Stuff the modified weights into the newly created NN
+        to_algo = {"default_policy": policy_dict} #should be of type Dict[PolicyId, ModelWeights]; PolicyID = str, ModelWeights = dict
+        algorithm.set_weights(to_algo)
+        print("///// CdaCallbacks: re-initialized model weights using Xavier normal.")

@@ -10,7 +10,7 @@ import ray.rllib.algorithms.sac as sac
 
 from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
-#from dummy_env import DummyEnv
+from cda_callbacks import CdaCallbacks
 
 """This program tunes (explores) hyperparameters to find a good set suitable for training.
 """
@@ -54,7 +54,7 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["time_step_size"]                = 0.2
-    env_config["episode_length"]                = 500 #80 steps gives roughly 470 m of travel @29 m/s
+    env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
     env_config["verify_obs"]                    = False
@@ -110,6 +110,9 @@ def main(argv):
                     seed                        = 17, #tune.choice([2, 17, 666, 4334, 10003, 29771, 38710, 50848, 81199])
     )
 
+    # Set up custom callbacks for RLlib to use
+    cfg.callbacks(  CdaCallbacks)
+
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
     opt_config["actor_learning_rate"]           = tune.loguniform(1e-6, 1e-4) #default 0.0003
@@ -144,8 +147,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print("\n///// {} training params are:\n".format(algo))
+    #print(pretty_print(cfg.to_dict()))
 
     tune_config = TuneConfig(
                     metric                      = "episode_reward_mean",

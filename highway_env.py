@@ -335,7 +335,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
-        EARLY_EPISODES = 100000 #num episodes to apply early curriculum to
+        EARLY_EPISODES = 20000 #num episodes to apply early curriculum to
 
         if self.debug > 0:
             print("\n///// Entering reset")
@@ -495,7 +495,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-            print("***** reset: bots that don't fit = {}".format(deactivated_count)) #TODO debug
+            if deactivated_count == 0:
+                print("***** reset: bots that don't fit = {}".format(deactivated_count)) #TODO debug
+            else:
+                print("***** reset: bots that don't fit = {}; ego lane = {}, p = {:.1f}".format(deactivated_count, ego_lane_id, ego_p))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -573,7 +576,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Unscale the ego action inputs (both cmd values are in [-1, 1])
         ego_action = [None]*2
         ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
-        ego_action[1] = int(math.floor(cmd[1] + 0.5))
+        raw_lc_cmd = min(max(cmd[1]*5.0/2.0, -1.0), 1.0) #allows threshold of +/- 0.2 for boundary between same lane and changing to adjacent
+        ego_action[1] = int(math.floor(raw_lc_cmd + 0.5)) #TODO: update doc/comment descriptions of cmd interpretation if this is a keeper.
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
         #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
@@ -1070,15 +1074,25 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Reward for following the route planner's recommendations for lane change activity, only if there is a non-zero recommendation that
             # is not "current lane". Staying in the current lane by default doesn't deserve a reward if it is the only possible choice.
+
+            # CAUTION: this code is tightly coupled to the design of the BridgitCtrl class.
             lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
             des_max = max(lc_desired)
             if des_max < 0.001:
                 des_max = 1.0
-            lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is in [-1, 1]
+            lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is quantized in [-1, 1]
             bonus = 0.0
-            if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right is available
+            if lc_cmd != 0: #if a lane change has been commanded, give a bonus if it is going in a desirable direction
+                cmd_desirability = lc_desired[lc_cmd+1]
+                same_lane_desirability = lc_desired[1]
+                if cmd_desirability >= same_lane_desirability:
+                    bonus = 0.1 #bonus needs to be rather large, since this will be a rare event
+                    explanation += "LC des bonus {:.4f}".format(bonus)
+            """ previously used; may come back:
+            if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
                 explanation += "LC des bonus {:.4f}. ".format(bonus)
+            """
             reward += bonus
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
