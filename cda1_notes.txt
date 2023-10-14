@@ -476,7 +476,7 @@ Big picture of this project's goals:
 
 10/12/23
 
-* Run 95004 training with SAC over 40k iterations on multiple trials
+* Run 95004 training with SAC over 40k iterations on multiple trials. Corresponds to train branch commit 02fdd2ab.
 	* Added Xavier normal initialization of all model weights (tested first) in CdaCallbacks, per Kevin's suggestion.
 	* Reduced num early episodes from 100k to 20k, since this large number seems to breed a lot of instability.
 	* Reset the episode length back to 80 steps.
@@ -484,11 +484,50 @@ Big picture of this project's goals:
 	* Changed step() to interpret cmd[1] differently:  the boundaries between STAY_IN_LANE and either of the lane
 	  changes is now +/- 0.2 instead of 0.5. I hope this will encourage more exploration of lane change actions
 	  without needing so much noise to push it into those regions.
+	* All trials died very early, possible OOM error.
+
+* Run 57115 training with SAC over 40k iterations on multiple trials.  Re-do of above (95004) after reboot.
+	* However, changed num early episodes to 0, as it seems to be generating a lot of craziness.
+	* Computer hung in the middle of the first 2 trials, which each completed ~23k iterations (12M steps).
+	* Trial 0 seemed headed for an early stop due to poor rmax.
+	* Trial 1 held a bit of promise, with rmax ~0.4 at the end, and rmin heading upward from -0.7. It had actor LR
+	  = 4.0e-6, critic LR = 1.6e-5, entropy LR = 1.0e-6. Trial 0's LRs were larger on all 3.
+	* Analyzed bot placement problems (where it couldn't place all selected). All cases occurred when the ego p value
+	  was at the very beginning of its chosen lane. However, many cases should be easy to solve. It seems the algo
+	  is too restrictive in the allowed radius.
+	* Training performance was 3130 iters/hr.
+
+10/13/23
+
+* Playing with callback for initializing the replay buffer.
+	* Found a major defect in my code - the env wrapper was not passing through most of the observations in scale_obs()!
+	  Fixed it.
+	* The on_postprocess_trajectory() callback is invoked after a trajectory has been completed, and includes all of the
+	  (s, a, r, s', a') contents, plus the dones/terminateds, etc, for each step.  Therefore, this is not the place to
+	  inject random actions, since it already represents the r, s', etc, of the actions that are included.
+	* It seems the place to inject random actions is at the beginning of the environment step(), where it can then
+	  compute the r, s', etc, from those actions. That won't work, however, as those new action values won't get
+	  captured by RLlib anywhere.
+	* Tried implementing the on_episode_step() callback, but it runs after the environment step() method returns.
+	* More investigation...still not finding where in RLlib the training loop is that my code uses.
+
+* Run 8b8ce training with SAC over 40k iterations.
+	* Fixed tune program to set rollout_fragment_length = 80 to match the episode length, and train_batch_size = 1040.
+	* Added a new CdaCallback method, on_postprocess_trajectory(). It's a no-op for now.
+	* Modified reset() to relax the bot vehicle placement region a bit to minimize the number that have to be
+	  deactivated.
+	* Includes fix to HighwayEnvWrapper to scale all observations rather than zeroing out most of them!
+
+
 
 
 TODO:
 - Scan log for "reset: bots that" couldn't be placed. May need to rethink this algo if too many are being left out.
+- Test on_postprocess_trajectory() callback
+
+- Make bot ACC more aggressive.
 - consider larger LRs?
+- Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
 - Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.
 - Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
@@ -506,3 +545,5 @@ TODO:
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
 
 - For adding messaging, look into RLlib's nested_action_spaces example.
+- For adding messaging, look at https://arxiv.org/pdf/2008.02616.pdf and https://github.com/proroklab/adversarial_comms
+  about adversarial MARL for cooperative & adversarial comms among agents.

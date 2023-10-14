@@ -335,7 +335,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
-        EARLY_EPISODES = 20000 #num episodes to apply early curriculum to
+        EARLY_EPISODES = 0 #num episodes to apply early curriculum to
 
         if self.debug > 0:
             print("\n///// Entering reset")
@@ -451,20 +451,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     attempt += 1
                     # If too many vehicles packed in there, relax the boundaries on P to allow more freedom
                     if attempt == 6:
-                        min_p -= 80.0
-                        max_p += 80.0
+                        min_p -= 100.0
+                        max_p += 100.0
                     elif attempt == 10:
-                        min_p -= 150.0
-                        max_p += 150.0
+                        min_p -= 200.0
+                        max_p += 200.0
                     elif attempt == 14:
-                        min_p -= 300.0
-                        max_p += 300.0
-                    elif attempt == 16:
-                        min_p -= 800.0
-                        max_p += 800.0
+                        min_p -= 500.0
+                        max_p += 500.0
                     elif attempt == 18:
-                        min_p -= 800.0
-                        max_p += 800.0
+                        min_p -= 1200.0
+                        max_p += 1200.0
 
                     lane_id = self._select_bot_lane(ego_lane_id)
                     lane_begin = self.roadway.get_lane_start_p(lane_id)
@@ -483,7 +480,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if not space_found:
                     self.vehicles[i].active = False
                     deactivated_count += 1
-                    print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
+                    #print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
                     continue
 
                 # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
@@ -498,7 +495,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if deactivated_count == 0:
                 print("***** reset: bots that don't fit = {}".format(deactivated_count)) #TODO debug
             else:
-                print("***** reset: bots that don't fit = {}; ego lane = {}, p = {:.1f}".format(deactivated_count, ego_lane_id, ego_p))
+                print("***** reset: bots that don't fit = {}; ego lane = {}, p = {:.1f}, effective scenario = {}"
+                      .format(deactivated_count, ego_lane_id, ego_p, self.effective_scenario))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -556,7 +554,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 - collect each entity's observations from that new state
         """
 
-        print("\n***** step entered: cmd = ", cmd)
         if self.debug > 0:
             print("\n///// Entering step(): ego cmd = ", cmd)
             print("      vehicles array contains:")
@@ -665,7 +662,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped, reached_tgt)
         return_info["reward_detail"] = expl
-        #print("***** step: {} step {}, returning reward of {:.4f}, {}".format(self.rollout_id, self.total_steps, reward, expl)) #TODO debug
+        #print("***** step: {} step {}, returning reward of {:.4f}, {}".format(self.rollout_id, self.steps_since_reset, reward, expl)) #TODO debug
+        #print("      partial obs = ", self.all_obs[0, 0:20])
 
         if self.debug > 0:
             print("///// step {} complete. Returning obs (only first row for ego vehicle).".format(self.steps_since_reset))

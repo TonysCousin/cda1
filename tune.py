@@ -97,7 +97,7 @@ def main(argv):
     cfg.rollouts(   #num_rollout_workers         = 1, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 1,
-                    rollout_fragment_length     = 500, #timesteps pulled from a sampler
+                    rollout_fragment_length     = 80, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
 
@@ -134,7 +134,7 @@ def main(argv):
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1000, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    train_batch_size            = 1040, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
                     initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),

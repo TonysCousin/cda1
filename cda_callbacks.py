@@ -1,10 +1,17 @@
-from typing import Dict
+from typing import Dict, Tuple, Optional, Union
 import torch.nn as nn
+from ray.rllib.env.base_env import BaseEnv
+from ray.rllib.evaluation.episode_v2 import EpisodeV2
 from ray.rllib.policy.policy import Policy
 from ray.rllib.algorithms import Algorithm
 from ray.rllib.algorithms.ppo.ppo import PPO
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.tune.logger import pretty_print
+from ray.rllib.evaluation.episode import Episode
+from ray.rllib.policy import Policy
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.utils.typing import AgentID, PolicyID
+from ray.rllib.evaluation import RolloutWorker
 
 
 class CdaCallbacks (DefaultCallbacks):
@@ -59,3 +66,46 @@ class CdaCallbacks (DefaultCallbacks):
         to_algo = {"default_policy": policy_dict} #should be of type Dict[PolicyId, ModelWeights]; PolicyID = str, ModelWeights = dict
         algorithm.set_weights(to_algo)
         print("///// CdaCallbacks: re-initialized model weights using Xavier normal.")
+
+
+    def on_episode_step(
+        self,
+        *,
+        worker: "RolloutWorker",
+        base_env: BaseEnv,
+        policies: Optional[Dict[PolicyID, Policy]] = None,
+        episode: Union[Episode, EpisodeV2],
+        env_index: Optional[int] = None,
+        **kwargs,
+    ) -> None:
+
+        pass
+        #print("///// Entered CdaCallbacks.on_episode_step.")
+
+
+    def on_postprocess_trajectory(self, *,
+                                  worker: "RolloutWorker",          #ray.rllib.evaluation
+                                  episode: Episode,                 #ray.rllib.evaluation.episode
+                                  agent_id: AgentID,                #ray.rllib.utils.typing
+                                  policy_id: PolicyID,              #ray.rllib.utils.typing
+                                  policies: Dict[PolicyID, Policy], #ray.rllib.policy
+                                  postprocessed_batch: SampleBatch, #ray.rllib.policy.sample_batch
+                                  original_batches: Dict[AgentID, Tuple[Policy, SampleBatch]],
+                                  **kwargs,
+                                 ) -> None:
+
+        """Called immediately after a policy's postprocess_fn is called.
+            Each element of the postprocessed_bacth is a numpy array.
+            NOTE:  apparently SampleBatches don't contain "seq_lens" entries.
+        """
+
+        pass
+
+        """
+        print("///// Entered CdaCallbacks.on_postprocess_trajectory: agent_id = ", agent_id, ", policy_id = ", policy_id)
+        print("      processed_batch obs len = {}, actions len = {}, rewards len = {}, infos len = {}, eps_id = {}"
+              .format(len(postprocessed_batch["obs"]), len(postprocessed_batch["actions"]), len(postprocessed_batch["rewards"]), \
+                        len(postprocessed_batch["infos"]), postprocessed_batch["eps_id"]))
+        print("      action[1] = ", type(postprocessed_batch["actions"][1]), postprocessed_batch["actions"][1])
+        print("      new_obs[1] = ", type(postprocessed_batch["new_obs"][1]), postprocessed_batch["new_obs"][1, 0:20])
+        """
