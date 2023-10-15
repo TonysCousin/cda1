@@ -60,6 +60,9 @@ class BridgitModel(VehicleModel):
         obs[ObsVec.LC_CMD] = actions[1]
         obs[ObsVec.SPEED_PREV] = prev_speed
         obs[ObsVec.SPEED_CUR] = me.cur_speed
+
+        if me.lane_change_count == 1: #a new LC maneuver has just begun
+            steps_since_lc = 0
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC

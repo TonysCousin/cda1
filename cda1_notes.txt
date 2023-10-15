@@ -532,10 +532,27 @@ Big picture of this project's goals:
 
 10/14/23
 
-* Run b24d6 training with SAC for 40k iterations
+* Run b24d6 training with SAC for 40k iterations. Corresponds to train branch commit 44edb60.
 	* Changed reward bonus for LC des from 0.1 to 0.01.
 	* Uncommented reward penalties for varying speed commands and varying LC commands.
 	* Altered the top of step() to change the LC cmd threshold back to 0.5, as it had always been.
+	* Run cut short by a segfault elsewhere in the system. Trials 0 & 1 had completed ~29k iters (5M steps), and were
+	  both showing good promise, with still a long way to go. 
+	* Both trials had rmax gradually climbed from -0.5 to -0.1 while rmean gradually climbed to -0.7 and rmin was
+	  climbing steadily as well.
+	* Inference on trial 1 (the better one at the end) shows improved desire to stay somewhat close to speed limit
+	  with lower frequency speed changes. It also has much fewer lane changes. It appears on lanes 0 & 4 that it is
+	  somewhat attempting to match the speed limits, although reaction is pretty slow.
+
+10/15/23
+
+* Run 5dac3 training with SAC for 50k iterations.
+	* Adjusted rewards so that lane command penalty is reduced from 0.01 to 0.002, since it was wiping out the LC
+	  desired bonus being awarded for just a few time steps.
+	* Fixed defect in obs for steps since lane change that wasn't getting initialized correctly. It will affect
+	  penalties for the first lane change maneuver.
+	* Increased multiplier for lane change penalty from 0.0001 to 0.0002.
+	* Increased multiplier for speed command penalty from 0.04 to 0.1 to encourage more smoothness.
 
 
 

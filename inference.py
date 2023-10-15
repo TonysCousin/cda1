@@ -120,7 +120,11 @@ def main(argv):
         # Grab ego vehicle actions if it is participating, or use dummies if not
         action = np.zeros(2)
         if vehicles[0].active:
-            action = algo.compute_single_action(obs, explore = False)
+            try:
+                action = algo.compute_single_action(obs, explore = False)
+            except:
+                print("///// Exception trapped in inference during call to algo.compute_single_action(). obs = ")
+                print(obs)
 
         # Command masking for first few steps to allow feedback obs to populate
         if step < 2:

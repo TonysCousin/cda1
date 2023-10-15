@@ -492,11 +492,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
+            """
             if deactivated_count == 0:
-                print("***** reset: bots that don't fit = {}".format(deactivated_count)) #TODO debug
+                print("***** reset: bots that don't fit = {}".format(deactivated_count))
             else:
                 print("***** reset: bots that don't fit = {}; ego lane = {}, p = {:.1f}, effective scenario = {}"
                       .format(deactivated_count, ego_lane_id, ego_p, self.effective_scenario))
+            """
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -504,6 +506,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
         #
+
+        # Initialize the num steps since previous lane change to maximum, since there is no history and we don't want to
+        # discourage the initial LC.
+        self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG] = Constants.MAX_STEPS_SINCE_LC
 
         # We must do this after all vehicles have been initialized, otherwise obs from the vehicles placed first won't
         # include sensing of vehicle placed later.
@@ -1096,13 +1102,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.0001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
+                penalty = 0.0002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG])
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
             # Small penalty for widely varying lane commands (these obs are unscaled, so will be integers)
             cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
-            penalty = 0.01 * cmd_diff * cmd_diff
+            penalty = 0.002 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
@@ -1110,7 +1116,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
-            penalty = 0.04 * cmd_diff * cmd_diff
+            penalty = 0.1 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)

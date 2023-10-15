@@ -37,7 +37,7 @@ def main(argv):
     fail_threshold      = -1.2
     avg_over_latest     = 100   #num most recent iters that are averaged to meet stopping criteria
     chkpt_int           = 10    #num iters between storing new checkpoints
-    max_iterations      = 40000
+    max_iterations      = 50000
     burn_in             = 500   #num iters before considering failure stopping
     num_trials          = 4
 
