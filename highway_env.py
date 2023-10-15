@@ -573,7 +573,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Unscale the ego action inputs (both cmd values are in [-1, 1])
         ego_action = [None]*2
         ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
-        raw_lc_cmd = min(max(cmd[1]*5.0/2.0, -1.0), 1.0) #allows threshold of +/- 0.2 for boundary between same lane and changing to adjacent
+        #raw_lc_cmd = min(max(cmd[1]*5.0/2.0, -1.0), 1.0) #allows threshold of +/- 0.2 for boundary between same lane and changing to adjacent
+        raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
         ego_action[1] = int(math.floor(raw_lc_cmd + 0.5)) #TODO: update doc/comment descriptions of cmd interpretation if this is a keeper.
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
@@ -1084,8 +1085,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
                 if cmd_desirability >= same_lane_desirability:
-                    bonus = 0.1 #bonus needs to be rather large, since this will be a rare event
-                    explanation += "LC des bonus {:.4f}".format(bonus)
+                    bonus = 0.01 #bonus needs to be rather large, since this will be a rare event
+                    explanation += "LC des bonus {:.4f}. ".format(bonus)
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
@@ -1102,7 +1103,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Small penalty for widely varying lane commands (these obs are unscaled, so will be integers)
             cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
             penalty = 0.01 * cmd_diff * cmd_diff
-            #TODO: uncomment: reward -= penalty
+            reward -= penalty
             if penalty > 0.0001:
                 #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
@@ -1110,7 +1111,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
             penalty = 0.04 * cmd_diff * cmd_diff
-            #TODO: uncomment: reward -= penalty
+            reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd cmd pen {:.4f}. ".format(penalty)
 

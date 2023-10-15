@@ -517,14 +517,30 @@ Big picture of this project's goals:
 	* Modified reset() to relax the bot vehicle placement region a bit to minimize the number that have to be
 	  deactivated.
 	* Includes fix to HighwayEnvWrapper to scale all observations rather than zeroing out most of them!
+	* First two trials ran to completion (7.5M steps), but trials 2 & 3 stopped very early with an unknow problem (OOM?).
+	* Trial 0 reached rmax ~3.5 at 2.5M steps, then stayed close to that. rmean peaked ~0.7 at that time, then
+	  slowly & noisily drifted down to 0.2. Mean episode length was only 35-40.
+		* Inference on checkpoint 13280 (~2.8M steps) shows the agent starting in lane 1 frequently changing lanes
+		  and speeds, fluctuating them back and forth, but completed the route! Speed was well below speed limit,
+		  but it was making bank on LC cmd rewards, so didn't need to worry about speed penalties.
+		* Several times it made illegal lane changes.
+	* Trial 1 reached rmax of 3.5 in only 0.5M steps, then stayed close to that. Its rmean hit 0.6 at a similar time,
+	  drifted noisily down to 0.3, then back up to 0.6. Both trials had rmin < -1.2, and dropped rapidly after 4M steps.
+	  Mean episode length was similar to trial 0.
+	* Training took 17.6 hr with a productivity of 4840 iters/hr, also 911 steps/hr, which is probably a more
+	  transferrable measurement, since it doesn't depend on batch size.
+
+10/14/23
+
+* Run b24d6 training with SAC for 40k iterations
+	* Changed reward bonus for LC des from 0.1 to 0.01.
+	* Uncommented reward penalties for varying speed commands and varying LC commands.
+	* Altered the top of step() to change the LC cmd threshold back to 0.5, as it had always been.
 
 
 
 
 TODO:
-- Scan log for "reset: bots that" couldn't be placed. May need to rethink this algo if too many are being left out.
-- Test on_postprocess_trajectory() callback
-
 - Make bot ACC more aggressive.
 - consider larger LRs?
 - Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
