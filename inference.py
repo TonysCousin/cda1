@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from typing import List
 import numpy as np
+import argparse
 import ray
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
@@ -18,34 +19,26 @@ from graphics import Graphics
 def main(argv):
 
     # Handle any args
-    num_args = len(argv)
-    if num_args == 1  or  num_args > 4:
-        print("Usage is: {} [ego checkpoint [scenario # [episode length]]]".format(argv[0]))
-        print("Default scenario is 0 (everything randomized), with unlimited episode (drives to end of track).")
-        print("If specifying episode length, use the format 'L<n>', where <n> is the number of steps.")
+
+    program_desc = "Runs a single episode of the cda1 vehicle ML agent in inference mode in its roadway environment with other vehicles."
+    scenario_desc = " 0:  (default) everything randomized.\n" \
+                    + " 1:  all neighbor vehicles in same lane.\n" \
+                    + " 2:  no neighbor vehicles in ego's lane.\n" \
+                    + "10-15:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.\n" \
+                    + "90-95:  no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing)."
+    parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Either -c or -w argument must be used, but never both.")
+    parser.add_argument("-c", "--checkpoint", type = str, help = "Ray checkpoint dir containing the model to be run.")
+    parser.add_argument("-s", "--scenario", type = int, default = 0, help = scenario_desc)
+    parser.add_argument("-L", "--length", type = int, default = inf, help = "Max num time steps to run")
+    parser.add_argument("-w", "--weights", type = str, default = None, help = "Filename with policy network weights to control the Bridgit agent.")
+    args = parser.parse_args()
+    checkpoint = args.checkpoint
+    scenario = args.scenario
+    episode_len = args.length
+    print("***** inputs: scenario = {}, length = {}, checkpoint = {}, weights = {}".format(scenario, episode_len, checkpoint, args.weights))
+    if (checkpoint is None  and  args.weights is None)  or  (checkpoint is not None  and  args.weights is not None):
+        print("///// ERROR: either checkpoint or weights arg must be specified, but not both.")
         sys.exit(1)
-
-    checkpoint = None
-    scenario = 0
-    episode_len = inf
-
-    if num_args > 1:
-        if argv[1] != "none":
-            checkpoint = argv[1]
-
-        if num_args > 2:
-            s = int(argv[2])
-            if 0 <= s < 90 + Roadway.NUM_LANES:
-                scenario = s
-
-            if num_args > 3:
-                print("argv[3] = {}, with type {}".format(argv[3], type(argv[3])))
-                print("split result is: {}".format(argv[3].split('L')[1]))
-                larg = int(argv[3].split('L')[1])
-                if larg > 0:
-                    episode_len = larg
-
-    print("inputs: checkpoint = {}, scenario = {}, length = {}".format(checkpoint, scenario, episode_len))
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
@@ -66,6 +59,7 @@ def main(argv):
     #vehicles[1].print()
 
     # If we are using a checkpointed NN for the ego vehicle, then start up rllib to run it
+    algo = None
     if checkpoint is not None:
 
         # Set up the Ray framework
@@ -96,7 +90,12 @@ def main(argv):
             print("///// Checkpoint {} could not be loaded. {}. Aborting.".format(checkpoint, e))
             sys.exit(2)
 
-   # Set up the graphic display
+    # Else, the model weights file was specified, and we don't need Ray at all - just read the file and have PyTorch load it.
+    else:
+        print("***** Handling model weights is not yet implemented!  Exiting now, until code exists.")
+        sys.exit(3) #TODO: remove when implemented.
+
+    # Set up the graphic display
     graphics = Graphics(env)
 
     # Run a complete episode
