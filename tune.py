@@ -116,8 +116,8 @@ def main(argv):
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
     opt_config["actor_learning_rate"]           = tune.loguniform(1e-6, 1e-4) #default 0.0003
-    opt_config["critic_learning_rate"]          = tune.loguniform(1e-6, 1e-4) #default 0.0003
-    opt_config["entropy_learning_rate"]         = tune.loguniform(1e-6, 1e-4) #default 0.0003
+    opt_config["critic_learning_rate"]          = tune.loguniform(5e-6, 1e-4) #default 0.0003
+    opt_config["entropy_learning_rate"]         = tune.loguniform(5e-6, 1e-4) #default 0.0003
 
     policy_config = cfg_dict["policy_model_config"]
     policy_config["fcnet_hiddens"]              = [600, 256, 128]

@@ -10,6 +10,7 @@ import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 from ray.tune.logger import pretty_print
 
+from obs_vec import ObsVec
 from highway_env_wrapper import HighwayEnvWrapper
 from roadway_b import Roadway
 from graphics import Graphics
@@ -153,8 +154,8 @@ def main(argv):
         obs = env.scale_obs(raw_obs)
 
         print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, vehicles[0].cur_speed, \
-                        vehicles[0].p, reward, info["reward_detail"]))
+                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, \
+                        vehicles[0].cur_speed, vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done

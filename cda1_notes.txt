@@ -539,20 +539,33 @@ Big picture of this project's goals:
 	* Run cut short by a segfault elsewhere in the system. Trials 0 & 1 had completed ~29k iters (5M steps), and were
 	  both showing good promise, with still a long way to go. 
 	* Both trials had rmax gradually climbed from -0.5 to -0.1 while rmean gradually climbed to -0.7 and rmin was
-	  climbing steadily as well.
+	  climbing steadily as well. Episode durations were > 70 at the end.
 	* Inference on trial 1 (the better one at the end) shows improved desire to stay somewhat close to speed limit
 	  with lower frequency speed changes. It also has much fewer lane changes. It appears on lanes 0 & 4 that it is
 	  somewhat attempting to match the speed limits, although reaction is pretty slow.
 
 10/15/23
 
-* Run 5dac3 training with SAC for 50k iterations.
+* Run 5dac3 training with SAC for 50k iterations. Corresponds to train branch commit 62e3976.
 	* Adjusted rewards so that lane command penalty is reduced from 0.01 to 0.002, since it was wiping out the LC
 	  desired bonus being awarded for just a few time steps.
 	* Fixed defect in obs for steps since lane change that wasn't getting initialized correctly. It will affect
 	  penalties for the first lane change maneuver.
 	* Increased multiplier for lane change penalty from 0.0001 to 0.0002.
 	* Increased multiplier for speed command penalty from 0.04 to 0.1 to encourage more smoothness.
+	* I killed it early, after ~27k iters, since I found some fixes/improvements that I felt were essential
+	  (see description of the next run).
+	* Trial 0 rmax was climbing slowly, reaching -0.3 after 5M steps. Trial 1 (with smaller LRs) was jaggedly
+	  moving downward, with recent rmax varying slowly in [-1, -0.5].
+
+* Added Argparse to the inference program and got it ready to take in filename for a NN weights file for the Bridgit
+  controller.
+
+* Run 13930 training with SAC for 50k iterations.
+	* Fixed defect in BridgitModel counting steps since lane change, which led to too much penalty for a lane
+	  change.
+	* Increased reward bonus for lane change desirability from 0.01 to 0.02.
+	* Narrowed the tuning range for LR on critic and entropy from [1e-6, 1e-4] to [5e-6, 1e-4].
 
 
 
@@ -569,7 +582,6 @@ TODO:
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 
 - Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
-- Use argparse to handle args in inference
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
 - Add off-road icon
