@@ -566,6 +566,32 @@ Big picture of this project's goals:
 	  change.
 	* Increased reward bonus for lane change desirability from 0.01 to 0.02.
 	* Narrowed the tuning range for LR on critic and entropy from [1e-6, 1e-4] to [5e-6, 1e-4].
+	* Run ended early with segfault. Seems to be in the json encoder (saving plots?). Both trials 0 & 1 were
+	  near iter 44k (8M steps).
+	* Both trials performed similarly, with rmax climing slowly but pretty steadily to -0.1 at the end. rmean
+	  was on a steady climb, ending at -0.90. rmin was quite noisy, but still climbing also. All 3 look like
+	  they would have kept climbing. Mean episode length hit upper 70s after ~5M steps.
+	* Inference on trial 1 shows it performs lane changes occasionally, but often it seems random, not for a
+	  beneficial purpose. This might be corrected with more training. Also, speed control is still pretty
+	  jittery and earns quite a bit of penalty for speeds too slow. It doesn't seem to understand speed limit
+	  changes.
+	* Performance was 5030 iters/hr, 890k steps/hr.
+
+10/16/23
+
+* Attempted to test the necessary package installation for this project with the requirements.txt file, but could
+  not get pip to work. Then I couldn't get conda to create a new environment (to start a fresh install of python
+  & pip). Giving up - too frustrated.
+
+* Run ac2f2 training with SAC over 80k iterations.
+	* Increased max iterations from 50k to 80k.
+	* Increased reward bonus from 0.02 to 0.04 for LC desirability matching, and added a negative bonus if it
+	  chooses a LC direction associated with a very small desirability.
+
+
+BEFORE NEXT RUN:
+- test installing & running (in the tmp/cda1_dup dir)
+- Investigate ways to pre-populate experience buffer
 
 
 

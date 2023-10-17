@@ -37,7 +37,7 @@ class Graphics:
     PLOT1_R         = WINDOW_SIZE_R/8 #upper-left corner of plot #1
     PLOT1_S         = 0.7*WINDOW_SIZE_S
     NOMINAL_SPEED   = 29.1      #m/s
-    PLOT_STEPS      = 500       #max num time steps that can be plotted
+    PLOT_STEPS      = 600       #max num time steps that can be plotted
 
     # Visual controls
     USE_VEHICLE_IMAGES  = True  #should bitmap images be used to represent vehicles? (if false, then circles)
