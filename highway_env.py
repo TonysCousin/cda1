@@ -1090,7 +1090,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change has been commanded, give a bonus if it is going in a desirable direction. But don't consider if it's overly
             # redundant (more than twice while the maneuver is underway).
-            if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 2:
+            if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
                 if cmd_desirability > same_lane_desirability: #command is better than staying put

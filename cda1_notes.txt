@@ -606,7 +606,7 @@ Big picture of this project's goals:
 
 10/17/23
 
-* Run 5e483 training with SAC for 80k iterations.
+* Run 5e483 training with SAC for 80k iterations. Corresponds to train branch commit b9c43c5.
 	* Added logic to reward bonus for LC desirability to only award the bonus for the first 2 time steps
 	  that the command is given, at the beginning of a maneuver, which prevents the agent from scooping up
 	  extra reward with no effect (leaving the command on for the whole maneuver). Since the bonus will be
