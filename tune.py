@@ -32,13 +32,13 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    success_threshold   = 0.5
+    success_threshold   = 0.9
     min_threshold       = 0.0
     fail_threshold      = -1.2
-    avg_over_latest     = 100   #num most recent iters that are averaged to meet stopping criteria
+    avg_over_latest     = 500   #num most recent iters that are averaged to meet stopping criteria
     chkpt_int           = 10    #num iters between storing new checkpoints
     max_iterations      = 80000
-    burn_in             = 500   #num iters before considering failure stopping
+    burn_in             = 2000   #num iters before considering failure stopping
     num_trials          = 4
 
     # Define the stopping logic - this requires mean reward to stay at the threshold for multiple consiecutive
@@ -115,9 +115,9 @@ def main(argv):
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
-    opt_config["actor_learning_rate"]           = tune.loguniform(1e-6, 1e-4) #default 0.0003
-    opt_config["critic_learning_rate"]          = tune.loguniform(5e-6, 1e-4) #default 0.0003
-    opt_config["entropy_learning_rate"]         = tune.loguniform(5e-6, 1e-4) #default 0.0003
+    opt_config["actor_learning_rate"]           = tune.loguniform(1e-5, 1e-4) #default 0.0003
+    opt_config["critic_learning_rate"]          = tune.loguniform(1e-5, 1e-4) #default 0.0003
+    opt_config["entropy_learning_rate"]         = tune.loguniform(1e-5, 1e-4) #default 0.0003
 
     policy_config = cfg_dict["policy_model_config"]
     policy_config["fcnet_hiddens"]              = [600, 256, 128]

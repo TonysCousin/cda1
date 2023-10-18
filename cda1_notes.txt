@@ -587,6 +587,34 @@ Big picture of this project's goals:
 	* Increased max iterations from 50k to 80k.
 	* Increased reward bonus from 0.02 to 0.04 for LC desirability matching, and added a negative bonus if it
 	  chooses a LC direction associated with a very small desirability.
+	* Run died due to segfault when trials 0 & 1 had completed ~48k iters.
+	* Trial 1 had rmax climbing steadily throughout, reaching 1.5. Its rmean climbed steadily too, until 
+	  ~7.5M steps, then leveled out at ~0. rmin also climbed steadily until ~6M steps, and leveled at ~-1.7.
+	  This trial had actor LR = 6.8e-5, critic LR = 1.6e-5, entropy LR = 3.2e-5.
+		* Inference on lane 0 shows agent has much better speed control than previous runs, but still
+		  fluctuates like a sine wave. It also changed lanes frequently, went to lane 1 before the exit
+		  ramp split off, then selected lane 2/1/2 a couple times. Avoided some close call crashes!
+		* Starting in lanes 1-3 looked similar, with lots of lane changes, but speed profile attempted to
+		  match the speed limit change near the end.
+		* It appears that it can't decide between lanes 1 & 2 (both have targets), so it frequently
+		  goes back and forth between them. Needs more incentive to stay in one lane if it works.
+		* Tested every starting lane. At no point did the agent run off road or crash into a neighbor.
+	* Trial 0 looks less good, with rmax peaking at 0.6, then reducing to ~0. rmean climbed steadily, then
+	  slowed after 4M steps, but continued climbing, ending at -0.4. Its rmin ended slightly better than
+	  that for trial 1.
+	* Training performance was 5090 iters/hr or 891k time steps/hr (took 19 hr).
+
+10/17/23
+
+* Run 5e483 training with SAC for 80k iterations.
+	* Added logic to reward bonus for LC desirability to only award the bonus for the first 2 time steps
+	  that the command is given, at the beginning of a maneuver, which prevents the agent from scooping up
+	  extra reward with no effect (leaving the command on for the whole maneuver). Since the bonus will be
+	  awarded much less now, its value is increased from 0.04 to 0.1. Also changed the bonus decision to
+	  be only if the cmd desirability > current lane desirability (it was >=).
+	* Increased LC cmd penalty (for cmd frequency) from 0.0002 to 0.001.
+	* Doubled the penalty for varying speed commands (multiplier from 0.1 to 0.2).
+	* Changed tuning range for learning rates so that all 3 are now in [1e-5, 1e-4].
 
 
 BEFORE NEXT RUN:
