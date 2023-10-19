@@ -606,7 +606,7 @@ Big picture of this project's goals:
 
 10/17/23
 
-* Run 5e483 training with SAC for 80k iterations. Corresponds to train branch commit b9c43c5.
+* Run 35b28 training with SAC for 80k iterations. Corresponds to train branch commit 0f3ad47.
 	* Added logic to reward bonus for LC desirability to only award the bonus for the first 2 time steps
 	  that the command is given, at the beginning of a maneuver, which prevents the agent from scooping up
 	  extra reward with no effect (leaving the command on for the whole maneuver). Since the bonus will be
@@ -615,6 +615,27 @@ Big picture of this project's goals:
 	* Increased LC cmd penalty (for cmd frequency) from 0.0002 to 0.001.
 	* Doubled the penalty for varying speed commands (multiplier from 0.1 to 0.2).
 	* Changed tuning range for learning rates so that all 3 are now in [1e-5, 1e-4].
+	* Trial 1 ended early due to code defect that allowed an illegal round-off error P value to be used.
+	* Run ended early on a SIGSEGV that again appears to be in the checkpoint storing code of Ray. At
+	  end, trial 0 completed 54k iters and trial 2 completed 25k iters.
+	* Trial 0 rmax crossed 0 at 7M steps and almost leveled out, reaching ~0.05 before dying just after
+	  9M steps. rmean climbed pretty steadily, although slowed after 7M steps, but ended at its peak of
+	  -0.4, while rmin mostly leveled after 7M at -1.0.
+		* Inference: did not change lanes out of lane 0 or 5. Overall, lane changes are way down; only
+		  a couple extraneous one in several runs. Saw one off-road. Speed profile is still somewhat
+		  jagged, but follows speed limit fairly well. Made one poor LC choice from 4 to 5. Overall,
+		  it seems it needs more reward for desired lane changes, and generally a bit more training.
+
+10/18/23
+20:32-
+
+* Run 46d65 training with SAC on 80k iterations.
+	* Changed tuner to store checkpoints only every 50 iters (was 10), and not storing checkpoint at end.
+	  This should minimize the chances of a SIGSEGV killing everything.
+	* Fixed RoadwayB.param_to_map_frame() to ensure slightly small P values are not going to raise an
+	  exception.
+	* Reward penalty for deviating from speed limit increased multiplier from 0.05 to 0.08.
+	* Reward bonus for desirable lane changes changed from 0.1 to 0.4, since they are so rare.
 
 
 BEFORE NEXT RUN:

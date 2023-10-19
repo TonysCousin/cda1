@@ -36,7 +36,7 @@ def main(argv):
     min_threshold       = 0.0
     fail_threshold      = -1.2
     avg_over_latest     = 500   #num most recent iters that are averaged to meet stopping criteria
-    chkpt_int           = 10    #num iters between storing new checkpoints
+    chkpt_int           = 50    #num iters between storing new checkpoints
     max_iterations      = 80000
     burn_in             = 2000   #num iters before considering failure stopping
     num_trials          = 4
@@ -167,7 +167,7 @@ def main(argv):
                                                     checkpoint_frequency        = chkpt_int,
                                                     checkpoint_score_attribute  = "episode_reward_mean",
                                                     num_to_keep                 = 2, #if > 1 hard to tell which one is the best
-                                                    checkpoint_at_end           = True
+                                                    checkpoint_at_end           = False
                     )
                 )
 

@@ -242,6 +242,9 @@ class Roadway:
             if p < join_point:
                 x = max(join_point - (join_point - p)*self.COS_RAMP_ANGLE, self.lanes[5].start_x)
 
+        else: #any remaining straight lanes
+            x = max(p, self.lanes[lane].start_x)
+
         return x
 
 
