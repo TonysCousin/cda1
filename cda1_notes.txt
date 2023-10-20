@@ -627,15 +627,41 @@ Big picture of this project's goals:
 		  it seems it needs more reward for desired lane changes, and generally a bit more training.
 
 10/18/23
-20:32-
 
-* Run 46d65 training with SAC on 80k iterations.
+* More investigation into how to pre-populate the experience buffer.
+
+* Run 07eb6 training with SAC on 80k iterations. Corresponds to train branch commit 5355739.
 	* Changed tuner to store checkpoints only every 50 iters (was 10), and not storing checkpoint at end.
 	  This should minimize the chances of a SIGSEGV killing everything.
 	* Fixed RoadwayB.param_to_map_frame() to ensure slightly small P values are not going to raise an
 	  exception.
 	* Reward penalty for deviating from speed limit increased multiplier from 0.05 to 0.08.
 	* Reward bonus for desirable lane changes changed from 0.1 to 0.4, since they are so rare.
+	* Run stopped prematurely due to segfault (SIGSEGV apparently in JSON logger). Both trials had
+	  reached ~51k iterations (9M steps).
+	* Trial 0 rmax climbed a little unsteadily to ~1.2, rmean climbed fairly steadily past -0.2, and
+	  looks like it would continue. rmin climbed unsteadily to ~-2.0. Mean episode length came close to
+	  80 at 6M steps, then backed off a bit to ~75 for the duration.
+	* Trial 1 rmax was a steady, slow climb to ~1.2. rmean climbed more aggressively, then slowed a bit
+	  but contined to climb to 0, and looks like it would continue. rmin climbed a bit noisily to -1.5
+	  at 6M steps, then almost leveled off, ending ~-1.3. Its mean episode length hit ~57 at 3M steps,
+	  then continued to struggle for more gains, but finally leveled off ~69.
+		* Inference: speed profiles a bit smoother, but the speed command penalties are very small,
+		  and probably not having a noticeable impact. Several extraneous lane changes, but fewer
+		  than seen in previous runs, and most were done safely. Start in lane 2 ended with legal
+		  lane change to 1 into a bot vehicle. Lane 3 start did off-road immediately (one time).
+		* I think it is trying to follow speed limits pretty well, but can't avoid speed noise.
+		  Speed penalties are killing it. Probably need more penalty for speed fluctuations and
+		  less on absolute speed deviations.
+		* Refuses to change lanes out of 0, but easily merges from lanes 4 and 5.
+
+10/19/23
+
+* Run 6a61d training with SAC for 80k iterations.
+	* LC desirability bonus - doubled this from 0.4 to 0.8, and made the poor-choice penalty -0.8.
+	* Doubled the penalty for lane change (based on time since previous). Mult is now 0.002.
+	* Increased speed command penalty mult from 0.2 to 1.0 to help smooth out the profile.
+	* Reduced penalty for speed deviation - multi from 0.08 to 0.04.
 
 
 BEFORE NEXT RUN:
