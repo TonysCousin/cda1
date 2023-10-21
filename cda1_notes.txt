@@ -686,13 +686,33 @@ Big picture of this project's goals:
 
 10/20/23
 
-* Run ?
+* It has gotten to the point that I feel the need to reboot the computer just before starting every
+  run to limit the chances of some sort of a crash. It seems many of these could be OS problems, or
+  Ray memory mgmt problems, which build a history in the OS between runs.
+
+* Run ce230 training with SAC for 80k iterations. Corresponds to train commit 7a01a05.
 	* Increased speed deviation penalty somewhat, from 0.04 to 0.06 to modulate this penalty from
 	  previous run.
 	* Dialed back the speed command penalty mult from 1.0 to 0.5 to modulate from previous run.
 	* Increased lane change penalty by adding a constant 0.002 regardless of time elapsed since
 	  the previous maneuver. It seems most maneuvers have been waiting 60 steps or more, but still
 	  doing them for no particular reason. This should slow that down.
+	* I killed it after 35k iters, as the mean episode length was going way down again, on both
+	  trials (one was < 40 steps). It is apparent the agent prefers suicide over a long, painful
+	  episode.
+	* A few quick inference runs on one of the trials (5M steps) shows wildly fluctuating speeds,
+	  a preference for slow speeds, and several irrational lane changes. Some of this may be due
+	  to insufficient training, however.
+
+10/21/23
+
+* Run 582ee training with SAC for 80k iterations. Corresponds to train branch commit 
+	* Added episode completion bonus of 1.0 to encourage longevity.
+	* Realized that the extraneous lane changes were its way of setting up an unnecessary number
+	  of extra rewarding lane changes later (since the poor ones often don't get a penalty).
+	  Added penalty for any lane change that goes against the desirability factor. Also, dialed
+	  back the magnitude of this bonus/penalty so that it doesn't overwhelm the completion bonus,
+	  and allows speed penalties to be more visible.
 
 
 BEFORE NEXT RUN:
@@ -704,7 +724,6 @@ BEFORE NEXT RUN:
 
 TODO:
 - Make bot ACC more aggressive.
-- consider larger LRs?
 - Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
 - Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.
 - Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.

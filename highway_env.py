@@ -1071,7 +1071,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Else (episode ended successfully)
             else:
-                reward = 0.0
+                reward = 1.0
                 explanation = "Successful episode!"
 
         # Else, episode still underway
@@ -1093,12 +1093,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
+                factor = 0.2
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
-                    bonus = 0.8 #bonus needs to be rather large, since this will be a rare event
+                    bonus = factor #bonus needs to be rather large, since this will be a rare event
                     explanation += "LC des bonus {:.4f}. ".format(bonus)
-                elif cmd_desirability < 0.1: #command was a poor choice
-                    bonus = -0.8
-                    explanation += "LC des bonus {:.4f}. ".format(bonus)
+                elif cmd_desirability < 0.1: #command was an especially poor choice
+                    bonus = -2.0*factor
+                    explanation += "LC des terrible {:.4f}. ".format(bonus)
+                else: #otherwise not desirable
+                    bonus = -factor
+                    explanation += "LC des poor {:.4f}. ".format(bonus)
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
