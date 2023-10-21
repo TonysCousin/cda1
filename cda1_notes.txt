@@ -657,11 +657,42 @@ Big picture of this project's goals:
 
 10/19/23
 
-* Run 6a61d training with SAC for 80k iterations.
+* Run 6a61d training with SAC for 80k iterations. Corresponds to train branch commit 3b0b4e5.
 	* LC desirability bonus - doubled this from 0.4 to 0.8, and made the poor-choice penalty -0.8.
 	* Doubled the penalty for lane change (based on time since previous). Mult is now 0.002.
 	* Increased speed command penalty mult from 0.2 to 1.0 to help smooth out the profile.
 	* Reduced penalty for speed deviation - multi from 0.08 to 0.04.
+	* Run died unexpectedly after 43k iterations (8M steps) due to GCS rpc timeout. gcs_server.out
+	  does not seem to contain any info that would explain the problem.
+	* Both trials had rmax climbing steadily, ending > 3. rmean similary, ending ~0.5 (trial 1 was
+	  a little higher). rmin also steady climb, ending at -2. Oddly, mean episode lengths took a
+	  dive. Trial 0 peaked at 70 ~4M steps, then steadily declined to 45. Trial 1 peaked ~55 at
+	  2M steps, then dropped quickly to ~40 at 4M steps, then stayed there.
+		* Trial 0 had actor LR = 5.8e-5, critic LR = 4.9e-5, entropy LR = 2.8e-5. Trial 1
+		  values were slightly higher on all.
+		* Trial 0 inference using its latest checkpoint (poor episode length). Lots of
+		  extraneous lane changes, and wildly varying speeds (almost to the extremes several
+		  times). Trial 0 inference on its earliest checkpoint (88% training complete, so
+		  still on the downward slope of mean episode length): performed similarly, but speed
+		  variations weren't quite as pronounced. It seems it experienced some catastrophic
+		  forgetting along the way.
+		* Trial 1 inference on its latest checkpoint showed similar behavior to trial 0, but
+		  this one had much more fondness for extremely slow speeds.
+	* Training performance
+		* I am changing the way I look at this, looking at the average for a single trial, so
+		  it will be easier to compare to different numbers of active trials. Usually, only
+		  one trial will be useful anyway.
+		* Avg 2490 iter/hr/trial over a 17.4 hr run (447 steps/hr).
+
+10/20/23
+
+* Run ?
+	* Increased speed deviation penalty somewhat, from 0.04 to 0.06 to modulate this penalty from
+	  previous run.
+	* Dialed back the speed command penalty mult from 1.0 to 0.5 to modulate from previous run.
+	* Increased lane change penalty by adding a constant 0.002 regardless of time elapsed since
+	  the previous maneuver. It seems most maneuvers have been waiting 60 steps or more, but still
+	  doing them for no particular reason. This should slow that down.
 
 
 BEFORE NEXT RUN:
