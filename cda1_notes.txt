@@ -706,7 +706,7 @@ Big picture of this project's goals:
 
 10/21/23
 
-* Run 582ee training with SAC for 80k iterations. Corresponds to train branch commit 
+* Run 582ee training with SAC for 80k iterations. Corresponds to train branch commit b4d2e92.
 	* Added episode completion bonus of 1.0 to encourage longevity.
 	* Realized that the extraneous lane changes were its way of setting up an unnecessary number
 	  of extra rewarding lane changes later (since the poor ones often don't get a penalty).

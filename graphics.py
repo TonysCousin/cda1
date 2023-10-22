@@ -116,6 +116,7 @@ class Graphics:
 
         # Initialize images
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH + "/crash16.bmp").convert()
+        self.off_road_image = pygame.image.load(Graphics.IMAGE_PATH + "/off-road16.bmp").convert()
         self.train_vehicle_image = pygame.image.load(Graphics.IMAGE_PATH + "/Yellow_car16.bmp").convert()
         #TODO need a blue image for bots also
 
@@ -147,11 +148,13 @@ class Graphics:
         self.plot.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
 
         #TODO: sample the vehicle images to see how they fit
+        """
         image_rect = list(self.train_vehicle_image.get_rect())
         veh_image_r_offset = (image_rect[2] - image_rect[0])//2
         veh_image_s_offset = (image_rect[3] - image_rect[1])//2
         pos = self.train_vehicle_image.get_rect().move(Graphics.PLOT1_R + Graphics.PLOT_W + 200, Graphics.PLOT1_S)
         self.window_surface.blit(self.train_vehicle_image, pos)
+        """
 
 
     def update(self,
@@ -167,8 +170,8 @@ class Graphics:
             # Grab the background under where we want the vehicle to appear & erase the old vehicle
             pygame.draw.circle(self.window_surface, Graphics.BLACK, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
 
-            # Skip over vehicles that are inactive for reasons other than a crash
-            if not vehicles[v_idx].active  and  not vehicles[v_idx].crashed:
+            # Skip over vehicles that are inactive for reasons other than a crash or ego off-roading
+            if not vehicles[v_idx].active  and  not (vehicles[v_idx].crashed  or  (v_idx == 0  and  vehicles[v_idx].off_road)):
                 continue
 
             # Get the vehicle's new location on the surface
@@ -183,6 +186,20 @@ class Graphics:
                 s_offset = (image_rect[3] - image_rect[1])//2
                 pos = self.crash_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.crash_image, pos)
+
+            # Else if the ego vehicle ran off-road, display that symbol next to the lane where it happened. Normally off-roading is to the side
+            # of the lane (due to illegal lane change attempt); if so, we show the image to that side.
+            elif v_idx == 0  and  vehicles[v_idx].off_road:
+                lateral_offset = 0 #as if it ran off the end of a lane
+                if vehicles[v_idx].lane_change_status == "left":
+                    lateral_offset = int(self.LANE_WIDTH*self.scale + 0.5)
+                elif vehicles[v_idx].lane_change_status == "right":
+                    lateral_offset = -int(self.LANE_WIDTH*self.scale + 0.5)
+                image_rect = list(self.off_road_image.get_rect())
+                r_offset = (image_rect[2] - image_rect[0])//2
+                s_offset = (image_rect[3] - image_rect[1])//2 + lateral_offset
+                pos = self.off_road_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
+                self.window_surface.blit(self.off_road_image, pos)
 
             # else the vehicle is still active display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
             else:
