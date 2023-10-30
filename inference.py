@@ -158,6 +158,33 @@ def main(argv):
                         vehicles[0].cur_speed, vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
+        #TODO - this section for debugging only
+        """
+        # Display the speed limits observed in each sensor zone - loop through longitudinal rows, front to back, then columns, left to right
+        print("      Sensed speed limits forward of ego:")
+        for row in range(ObsVec.ZONES_FORWARD-1, -1, -1):
+            row_res = [0.0]*5
+            for col in range(5):
+                base = ObsVec.BASE_LL + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
+                num_elem = ObsVec.NORM_ELEMENTS
+                if col == 1:
+                    base = ObsVec.BASE_L + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
+                elif col == 2:
+                    base = ObsVec.BASE_CTR_FRONT
+                    num_elem = ObsVec.CTR_ELEMENTS
+                elif col == 3:
+                    base = ObsVec.BASE_R + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
+                elif col == 4:
+                    base = ObsVec.BASE_RR + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
+                z_idx = base + row*num_elem
+                spd_lim = raw_obs[z_idx + ObsVec.OFFSET_SPD_LMT]
+                row_res[col] = spd_lim
+            print("      row {:2d}   {:.3f}   {:.3f}   {:.3f}   {:.3f}   {:.3f}".format(row, row_res[0], row_res[1], \
+                        row_res[2], row_res[3], row_res[4]))
+        """
+
+
+
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
         # based on when that vehicle exits its assigned lane.
         if scenario >= 90:

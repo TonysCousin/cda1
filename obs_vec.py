@@ -107,15 +107,15 @@ class ObsVec:
     DESIRABILITY_RIGHT  = 17
 
     # More elements specific to the Bridgit vehicle:
-    # Zone columns are represented from rear to front. Each zone occupies a contiguous set or 3 or 5 vector elements,
+    # Zone columns are represented from rear to front. Each zone occupies a contiguous set of 4 or 6 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.
     BASE_LL             = 18 #first element in the far left column
-    BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
-    BASE_R              = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
-    BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
-    BASE_CTR_REAR       = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1)
-    BASE_CTR_FRONT      = BASE_CTR_REAR + NORM_ELEMENTS*ZONES_BEHIND
+    BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near left column
+    BASE_R              = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near right column
+    BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #far right column
+    BASE_CTR_REAR       = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column (ego's current lane), only cells behind ego
+    BASE_CTR_FRONT      = BASE_CTR_REAR + NORM_ELEMENTS*ZONES_BEHIND #center column, only cells in front of ego
     FINAL_ELEMENT       = BASE_CTR_FRONT + CTR_ELEMENTS*ZONES_FORWARD - 1
 
     # Offsets for the individual data elements in each zone

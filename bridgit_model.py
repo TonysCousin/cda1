@@ -96,7 +96,7 @@ class BridgitModel(VehicleModel):
 
             # Initialize all zones as not driveable
             for z in range(zones_per_column):
-                obs[col_base + z*ObsVec.NORM_ELEMENTS + 0] = -1.0 #drivable flag is the 0th element in a zone
+                obs[col_base + z*ObsVec.NORM_ELEMENTS + ObsVec.OFFSET_DRIVABLE] = -1.0
 
             # If the lane that coincides with this column does not exist then skip to next lane
             if col_lane < 0  or  col_lane >= self.roadway.NUM_LANES:

@@ -147,8 +147,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    #print("\n///// {} training params are:\n".format(algo))
-    #print(pretty_print(cfg.to_dict()))
+    print("\n///// {} training params are:\n".format(algo))
+    print(pretty_print(cfg.to_dict()))
 
     tune_config = TuneConfig(
                     metric                      = "episode_reward_mean",

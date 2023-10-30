@@ -101,7 +101,6 @@ class HighwayEnvWrapper(HighwayEnv):
         # Copy the remaining contents directly, as no scaling is needed on these
         scaled[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE + 1] = obs[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE + 1]
 
-
         # Return the obs as an ndarray
         vec = np.array(scaled, dtype = np.float32)
         if self.debug > 1:

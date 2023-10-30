@@ -713,6 +713,24 @@ Big picture of this project's goals:
 	  Added penalty for any lane change that goes against the desirability factor. Also, dialed
 	  back the magnitude of this bonus/penalty so that it doesn't overwhelm the completion bonus,
 	  and allows speed penalties to be more visible.
+	* Died from SIGSEGV, again apparently during checkpointing ops, after ~14 hr.
+	* Trial 0 had all reward curves moving steadily upward, and looking like they would go further
+	  with enough training. rmax reached 0.8, rmean reached -0.1 and rmin ~-1.5. Mean episode
+	  length ~80.
+		* Inference: it performs most necessary lane changes, but not always (esp from lane 0)
+		  and occasionally does an unnecessary one, but that is rare. The big problem is
+		  speed likes to stay down around 23 m/s, regardless of the local speed limit. It
+		  seems it is not seeing this in the obs.
+	* Trial 1 showed slightly higher reward curves, but its episode length was more jittery and
+	  hadn't yet exceeded 70.
+	* Training performance: 2440 iter/hr/trial, 491 steps/hr.
+
+10/29/23
+
+* Tested observations for proper representation of speed limit in each forward sensor zone. It is
+  getting all of these correct.
+	* It seems maybe the best bet now is to train for longer. Need to get lucky with pickling
+	  errors, however.
 
 
 BEFORE NEXT RUN:
@@ -735,7 +753,6 @@ TODO:
 - Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
-- Add off-road icon
 - Add vehicle icons to graphics
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
