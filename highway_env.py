@@ -750,6 +750,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if db is not None  and  db != ""  and  0 <= int(db) <= 2:
             self.debug = int(db)
 
+        self.crash_report = False #should step() log the details of every crash experienced?
+        try:
+            cr = config["crash_report"]
+            if cr:
+                self.crash_report = True
+        except KeyError as e:
+            pass
+
         self.training = False #is the environment being used in a training job? (affects scaling of observations)
         try:
             tr = config["training"]
@@ -922,19 +930,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         vb.active = False
                         va.crashed = True
                         vb.crashed = True
-                        print("///// CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
+                        if self.crash_report:
+                            print("    / CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
                                         .format(i, j, va.p, va.lane_id))
 
                         # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                         if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
-                            print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
-                                    .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
-                                            self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                            k = max(i, j)
-                            print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
-                                                                                                    self.vehicles[k].lane_change_status,
-                                                                                                    self.vehicles[k].lane_change_count))
                             crash = True
+                            if self.crash_report:
+                                print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
+                                        .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
+                                                self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
+                                k = max(i, j)
+                                print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
+                                                                                                        self.vehicles[k].lane_change_status,
+                                                                                                        self.vehicles[k].lane_change_count))
                             break
 
                 # Else if they are in adjacent lanes, then
@@ -954,19 +964,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 vb.active = False
                                 va.crashed = True
                                 vb.crashed = True
-                                print("///// CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
+                                if self.crash_report:
+                                    print("    / CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
                                                 .format(i, j, vb.p, va.lane_id))
 
                                 # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                                 if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
-                                    print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
-                                          .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
-                                                  self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                                    k = max(i, j)
-                                    print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
-                                                                                                           self.vehicles[k].lane_change_status,
-                                                                                                           self.vehicles[k].lane_change_count))
                                     crash = True
+                                    if self.crash_report:
+                                        print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
+                                              .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
+                                                      self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
+                                        k = max(i, j)
+                                        print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
+                                                                                                               self.vehicles[k].lane_change_status,
+                                                                                                               self.vehicles[k].lane_change_count))
                                     break
 
             if crash: #the previous break stmts only break out of the inner loop, so we need to break again

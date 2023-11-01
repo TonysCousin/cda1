@@ -732,6 +732,38 @@ Big picture of this project's goals:
 	* It seems maybe the best bet now is to train for longer. Need to get lucky with pickling
 	  errors, however.
 
+* Run 45914 training with SAC for 80k iterations. No changes since previous run on 10/21.
+	* Run died after ~8k iters due to a checkpointing error I had not seen before. It was a
+	  writing problem to a temp file (.tmp_expermient_state....), but I later found that I had
+	  problems writing to other files, so it seems to be a widespread OS problem.
+
+10/30/23
+
+* Created new Git branch "ray_train" off of "train" to handle an experiment to convert from Ray
+  Tune to Ray Train, since I'm having so much trouble running Tune.
+	* Created a train.py program to replace my heretofore used tune.py and got it to basically
+	  run.  Let it go for 80k iterations just to see what's possible. However, it does not save
+	  any checkpoints, so it is not useful just now. It also isn't able to write to the correct
+	  Tensorboard data directory.
+		* Since there is no tuning, I selected all three LRs to be 5e-5, which is right in
+		  the middle of the ranges that have been used in the recent past.
+		* It ran for 75k iters before I killed it, so seems to be sidestepping whatever
+		  problems Tune was experiencing in long runs.
+		* Performance measured over the latest ~1 hr of its execution shows 3070 iter/hr.
+		  It was hardly using any of the GPU and only ~1 cpu.
+
+10/31/23
+
+* Run a single Ray.Train run with SAC for 80k iterations (still on the ray_train branch).
+	* Set num_gpus = 1, num_cpus_for_local_worker = 4, num_cpus_per_worker = 4.
+	* Added checkpoint storage (pickle format for now) every 500 iters. I have set their
+	  destination to the ~/ray_results/cda1 dir. Checkpoints are taking 33 MB apice!
+	* Tensorboard data is still going to an autogen dir under ~/ray_results, but that's okay
+	  for now.
+	* Played with resource allocations some to figure out how to fully use what's available.
+	  I cannot get it to use more than a small fraction of the GPU without a bunch of cuda
+	  warnings.  Need to investigate that later.
+
 
 BEFORE NEXT RUN:
 - test installing & running (in the tmp/cda1_dup dir)
@@ -741,6 +773,10 @@ BEFORE NEXT RUN:
 
 
 TODO:
+- Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
+- Debug cuda warning from torch/nn/modules/linear.py, "Could not parse CUBLAS_WORKSPACE_CONFIG, using default
+  workspace size" when num_gpus_per_worker > 0. It doesn't seem to be a Ray problem.
+- Add num steps completed to training progress log, then compare different numbers of workers, etc.
 - Make bot ACC more aggressive.
 - Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
 - Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.

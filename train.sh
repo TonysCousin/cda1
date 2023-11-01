@@ -7,4 +7,4 @@ cp -r docs staging
 
 echo "Starting..."
 cd staging
-python -u tune.py $1 > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2
+python -u train.py $1 > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2
