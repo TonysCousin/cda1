@@ -31,9 +31,9 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    status_int          = 500    #num iters between status logs
-    chkpt_int           = 500    #num iters between storing new checkpoints
-    max_iterations      = 80000
+    status_int          = 100    #num iters between status logs
+    chkpt_int           = 100    #num iters between storing new checkpoints
+    max_iterations      = 10000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -72,15 +72,15 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 1, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 2,
+    cfg.resources(  num_gpus                    = 0.2, #for the local worker, which does the learning & evaluation runs
+                    num_cpus_for_local_worker   = 4,
                     num_cpus_per_worker         = 2,  #also applies to the evaluation workers
-                    num_gpus_per_worker         = 0,  #this has to allow gpu left over for local worker & evaluation workers also
+                    num_gpus_per_worker         = 0.2,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    cfg.rollouts(   num_rollout_workers         = 2, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
-                    num_envs_per_worker         = 1,
+                    num_envs_per_worker         = 8,
                     rollout_fragment_length     = 80, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
@@ -121,7 +121,7 @@ def main(argv):
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1040, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    train_batch_size            = 1280, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
                     initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
@@ -135,7 +135,7 @@ def main(argv):
     # ===== Final setup =========================================================================
 
     print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print(pretty_print(cfg.to_dict()))
 
     algo = cfg.build()
 
@@ -146,6 +146,8 @@ def main(argv):
     start_time = pc()
     for iter in range(max_iterations):
         result = algo.train()
+        #if iter == 1:
+        #    print("Sample of results from train() call:\n", pretty_print(result))
 
         # Write data to Tensorboard
         rmin = result["episode_reward_min"]
@@ -157,14 +159,18 @@ def main(argv):
 
         # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
         if iter % chkpt_int == 0:
-            cp = algo.save(checkpoint_dir = DATA_PATH)
+            algo.save(checkpoint_dir = DATA_PATH)
 
         if iter % status_int == 0:
             elapsed_sec = pc() - start_time
             elapsed_hr = elapsed_sec / 3600.0
             perf = int(iter/elapsed_hr)
-            print("///// Iter {}: Rewards = {:7.3f} / {:7.3f} / {:7.3f}.   Elapsed = {:.2f} hr.   Perf = {:d} iter/hr"
-                  .format(iter, rmin, rmean, rmax, elapsed_hr, perf))
+            steps = result["num_env_steps_sampled"]
+            ksteps_per_hr = 0
+            if elapsed_hr > 0.01:
+                ksteps_per_hr = int(0.001*steps/elapsed_hr)
+            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr"
+                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"], elapsed_hr, perf, ksteps_per_hr))
 
 
 

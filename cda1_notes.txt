@@ -754,7 +754,8 @@ Big picture of this project's goals:
 
 10/31/23
 
-* Run a single Ray.Train run with SAC for 80k iterations (still on the ray_train branch).
+* Run a single Ray.Train run with SAC for 80k iterations (still on the ray_train branch). Corresponds
+  to ray_train commit 10ab0c32.
 	* Set num_gpus = 1, num_cpus_for_local_worker = 4, num_cpus_per_worker = 4.
 	* Added checkpoint storage (pickle format for now) every 500 iters. I have set their
 	  destination to the ~/ray_results/cda1 dir. Checkpoints are taking 33 MB apice!
@@ -763,6 +764,40 @@ Big picture of this project's goals:
 	* Played with resource allocations some to figure out how to fully use what's available.
 	  I cannot get it to use more than a small fraction of the GPU without a bunch of cuda
 	  warnings.  Need to investigate that later.
+	* Reward curves pretty much leveled off after 10-12M steps, and the episode mean length
+	  leveled off ~80 after ~6M steps. rmax climbed a bit between 30M and 40M steps to ~1.3,
+	  but rmean stayed about level through this period; rmin actually dropped after 20M steps
+	  by ~20%. Also, episode mean len dropped from 80 to ~70 after 25M steps. So it appears the
+	  best checkpoint may be from ~25M steps, or iter 50k.
+	* Checkpoints are readable by the inference program.
+	* Training ran to completion (~40M steps)! Performance was 3130 iter/hr.
+	* Inference on checkpoint 42001 (training ~half done) shows that speed control is getting
+	  fairly decent. It definitely responds to speed limits, but still is kinda noisy. Penalties
+	  for speed command could stand to be a little larger.  However, lane changes are not very
+	  good. It doesn't like to do them, and always overlooks the need from lanes 0, 4 & 5. But it
+	  regularly does the required LC from 3 to 2. I only saw one extraneous LC in ~10 runs.
+	* Inference on checkpoint 50001 shows similar behavior to that at 42k iters.
+
+11/2/23
+
+* Investigated the cuda error "Could not parse CUBLAS_WORKSPACE_CONFIG, using default workspace size"
+  when num_gpus_per_worker > 0. It is not a Ray problem, it is apparently defective cuda software that
+  performs an invalid regex test on the indicated env variable. Therefore, setting the variable will
+  not fix the problem. The code handles the error by assigning a default value, so it is harmless. 
+  Therefore, I found a way to eliminate these warnings from my run log (in the train.sh script with
+  grep commands). Doing so makes the stdout rather slow & jerky, apparently due to buffering, but it
+  seems to work fine. It does slow down the training performance a bit (~3%).
+
+* Run Ray.Train with SAC for 10k iterations, still on the ray_train branch.
+	* Tuned the resource usage to get more steps/hr. Can now get the above 40M steps in only 8k
+	  iters using 8 environments/worker. This should finish in substantially less time also.
+	* Eliminated the lane change command penalty (for widely differing commands).
+	* Doubled the lane change desirability reward/penalty from 0.2 to 0.4.
+	* Doubled the speed variation penalty mult from 0.5 to 1.0.
+	* Died after 600 iterations due to a segfault in concatenating sample batches.
+
+* Run Ray.Train with SAC for 10k iterations on the ray_train branch. This is a complete duplicate
+  of the above run, after a reboot.
 
 
 BEFORE NEXT RUN:
@@ -774,6 +809,7 @@ BEFORE NEXT RUN:
 
 TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
+- Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Debug cuda warning from torch/nn/modules/linear.py, "Could not parse CUBLAS_WORKSPACE_CONFIG, using default
   workspace size" when num_gpus_per_worker > 0. It doesn't seem to be a Ray problem.
 - Add num steps completed to training progress log, then compare different numbers of workers, etc.

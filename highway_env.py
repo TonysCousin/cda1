@@ -1105,12 +1105,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
-                factor = 0.2
+                factor = 0.4
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
                     bonus = factor #bonus needs to be rather large, since this will be a rare event
                     explanation += "LC des bonus {:.4f}. ".format(bonus)
                 elif cmd_desirability < 0.1: #command was an especially poor choice
-                    bonus = -2.0*factor
+                    bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
                 else: #otherwise not desirable
                     bonus = -factor
@@ -1129,19 +1129,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
             # Small penalty for widely varying lane commands (these obs are unscaled, so will be integers)
+            """
             cmd_diff = abs(self.all_obs[0, ObsVec.LC_CMD] - self.all_obs[0, ObsVec.LC_CMD_PREV])
             penalty = 0.002 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
+            """
 
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
-            penalty = 0.5 * cmd_diff * cmd_diff
+            penalty = 1.0 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
-                explanation += "Spd cmd pen {:.4f}. ".format(penalty)
+                explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
             speed_mult = 0.06
