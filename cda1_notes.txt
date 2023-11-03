@@ -798,6 +798,25 @@ Big picture of this project's goals:
 
 * Run Ray.Train with SAC for 10k iterations on the ray_train branch. This is a complete duplicate
   of the above run, after a reboot.
+	* Inference on an early checkpoint (4401) shows consistent desire to do left-hand LC a little too early,
+	  running off-road. Speed profile is very smooth, but accepts low speeds & big penalties as a result.
+
+***
+* Attempted to create a msgpack checkpoint converter, but got stuck.
+	* It requires installation of msgpack_numpy, which can be added with `pip install msgpack msgpack_numpy`.
+	* I tried to create new conda env cda1 from importing cda0.yaml. Conda/pip barfed due to some python
+	  version incompatibilities on an unidentified package. Also unable to install two packages compatible
+	  with torch 2.0.1+cu118. This is identical errors I found on 10/16 installation attempt (documented
+	  above).
+	* Probably need to create a brand new conda env from scratch and install everything needed using pip,
+	  rather than mixing conda installer & pip installer commands. This might then solve the requirements.txt
+	  problem as well.
+
+* Merged ray_train branch back into the train branch, accepting that this is a better way to go than Tune.
+
+* Run Ray.Train job with SAC for 10k iterations.  Back on the train branch.
+	* Reduced lane change desirability bonus multiplier from 0.4 to 0.3.
+	* Reduced the speed variation penalty mult from 1.0 to 0.7 to allow it to explore a little more.
 
 
 BEFORE NEXT RUN:
@@ -810,9 +829,6 @@ BEFORE NEXT RUN:
 TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
-- Debug cuda warning from torch/nn/modules/linear.py, "Could not parse CUBLAS_WORKSPACE_CONFIG, using default
-  workspace size" when num_gpus_per_worker > 0. It doesn't seem to be a Ray problem.
-- Add num steps completed to training progress log, then compare different numbers of workers, etc.
 - Make bot ACC more aggressive.
 - Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
 - Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.

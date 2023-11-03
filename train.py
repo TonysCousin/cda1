@@ -169,10 +169,12 @@ def main(argv):
             ksteps_per_hr = 0
             if elapsed_hr > 0.01:
                 ksteps_per_hr = int(0.001*steps/elapsed_hr)
-            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr"
-                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"], elapsed_hr, perf, ksteps_per_hr))
-
-
+            remaining_hrs = 0.0
+            if iter > 1:
+                remaining_hrs = (max_iterations - iter) / perf
+            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
+                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
+                  "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
 
     print("\n///// Training completed.  Final iteration results:\n")
     print(pretty_print(result))
@@ -181,21 +183,6 @@ def main(argv):
 
 
     """ for reference:
-    run_config = RunConfig( #some commented-out items will allegedly be needed for Ray 2.6
-                    name                        = "cda1",
-                    local_dir                   = "~/ray_results", #for ray <= 2.5
-                    #storage_path                = "~/ray_results", #required if not using remote storage for ray 2.6
-                    stop                        = stopper,
-                    sync_config                 = tune.SyncConfig(syncer = None), #for single-node or shared checkpoint dir, ray 2.5
-                    #sync_config                 = tune.SyncConfig(syncer = None, upload_dir = None), #for single-node or shared checkpoint dir, ray 2.6
-                    checkpoint_config           = air.CheckpointConfig(
-                                                    checkpoint_frequency        = chkpt_int,
-                                                    checkpoint_score_attribute  = "episode_reward_mean",
-                                                    num_to_keep                 = 2, #if > 1 hard to tell which one is the best
-                                                    checkpoint_at_end           = False
-                    )
-                )
-
     # Execute the HP tuning job, beginning with a previous checkpoint, if one was specified in the CdaCallbacks.
     if len(argv) > 1:
         tuner = Tuner.restore(path = argv[1], trainable = algo, resume_errored = True, param_space = cfg.to_dict())
