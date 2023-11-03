@@ -5,6 +5,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from ray.tune.logger import pretty_print
 import ray.rllib.algorithms.sac as sac
+from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED
 
 from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
@@ -12,9 +13,6 @@ from cda_callbacks import CdaCallbacks
 
 """This program trains the agent with the given environment, using the specified hyperparameters.
 """
-
-# Identify a baseline checkpoint from which to continue training
-_checkpoint_path = None
 
 
 def main(argv):
@@ -33,7 +31,7 @@ def main(argv):
     # Define the stopper object that decides when to terminate training.
     status_int          = 100    #num iters between status logs
     chkpt_int           = 100    #num iters between storing new checkpoints
-    max_iterations      = 10000
+    max_iterations      = 8000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -55,12 +53,12 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.25 #tune.uniform(0.2, 0.6) #this param is specific to GaussianNoise
-    explore_config["random_timesteps"]          = 10000 #tune.qrandint(0, 20000, 50000) #was 20000
+    explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
+    explore_config["random_timesteps"]          = 10000
     explore_config["initial_scale"]             = 1.0
-    explore_config["final_scale"]               = 0.1 #tune.choice([1.0, 0.01])
-    explore_config["scale_timesteps"]           = 12000000 #tune.choice([12000000, 8000000])
-    exp_switch                                  = True #tune.choice([False, True, True]) #should the algo use exploration?
+    explore_config["final_scale"]               = 0.1
+    explore_config["scale_timesteps"]           = 12000000
+    exp_switch                                  = False
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
 
@@ -137,14 +135,26 @@ def main(argv):
     print("\n///// {} training params are:\n".format(algo))
     #print(pretty_print(cfg.to_dict()))
 
+    # Set up starting counters to handle possible checkpoint start
+    starting_step_count = 0
+
+    # Build the algorithm object, and load the starting checkpoint if one was specified
     algo = cfg.build()
+    if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0:
+        try:
+            algo.restore(argv[1])
+            starting_step_count = algo._counters[NUM_ENV_STEPS_SAMPLED]
+            print("///// Successfully restored baseline checkpoint {} with {} steps already trained".format(argv[1], starting_step_count))
+        except Exception as e:
+            print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(argv[1], e))
+            sys.exit(1)
 
     # Run the training loop
     print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(chkpt_int, DATA_PATH))
     tensorboard = SummaryWriter(DATA_PATH)
     result = None
     start_time = pc()
-    for iter in range(max_iterations):
+    for iter in range(1, max_iterations+1):
         result = algo.train()
         #if iter == 1:
         #    print("Sample of results from train() call:\n", pretty_print(result))
@@ -165,7 +175,7 @@ def main(argv):
             elapsed_sec = pc() - start_time
             elapsed_hr = elapsed_sec / 3600.0
             perf = int(iter/elapsed_hr)
-            steps = result["num_env_steps_sampled"]
+            steps = result["num_env_steps_sampled"] - starting_step_count
             ksteps_per_hr = 0
             if elapsed_hr > 0.01:
                 ksteps_per_hr = int(0.001*steps/elapsed_hr)

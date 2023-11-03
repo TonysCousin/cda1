@@ -335,7 +335,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
         """
 
-        EARLY_EPISODES = 0 #num episodes to apply early curriculum to
+        EARLY_EPISODES = 10000 #num episodes to apply early curriculum to
 
         if self.debug > 0:
             print("\n///// Entering reset")

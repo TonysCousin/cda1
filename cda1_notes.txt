@@ -817,6 +817,31 @@ Big picture of this project's goals:
 * Run Ray.Train job with SAC for 10k iterations.  Back on the train branch.
 	* Reduced lane change desirability bonus multiplier from 0.4 to 0.3.
 	* Reduced the speed variation penalty mult from 1.0 to 0.7 to allow it to explore a little more.
+	* Ran to completion in ~5 hr (42M steps at 8900 steps/hr).
+	* Reward curves start to look unstable and generally drop after 30M steps. Mean episode length also
+	  starts to drop around 33M steps. Therefore, last best checkpoint is probably 7201.
+	* Inference on checkpoint 7201: lane 0 start never tries to change lanes
+		* Speed profile is a little rougher than before, and always well below the speed limit. It feels
+		  as if speed is being misinterpreted somewhere so it is trying to reach a target that is slow.
+		* It understands the need to change lanes out of 3, 4 and 5 and tries to do that as early as
+		  possible. This usually results in a) running off road because the attempt is prior to the next
+		  lane becoming available, or b) crashing into a bot next to it. In either case, it doesn't seem
+		  to be paying attention to its sensors (or they are not working properly).
+
+11/3/23
+
+* Debugged the speed command vs actual speed data in actions, observations and vehicle object internal data. All
+  seems to be consistent and correct, and reward penalties are calculated plausibly from those values. Over the
+  course of an episode (80 steps), the penalties it is typically accumulating due to speed errors is roughly the
+  same magnitude as the episode completion bonus, so it seems this penalty is sized reasonably.
+
+* Run Ray.Train job with SAC for 8k iterations, starting from scratch.
+	* Reset the EARLY_EPISODES constant from 0 to 10k to force reset() to place the ego vehicle in the ramp
+	  lanes most of the time in those first episodes. Hoping this will give it enough experience to do a
+	  right lane change from lane 0.
+	* Turned off the Gaussian noise.
+	* Added capability to the train program to begin from a baseline checkpoint. Not using a baseline on
+	  this run, but it is now capable.
 
 
 BEFORE NEXT RUN:
@@ -827,6 +852,7 @@ BEFORE NEXT RUN:
 
 
 TODO:
+- Try noise: lots longer, none.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.

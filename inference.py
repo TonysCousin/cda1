@@ -153,9 +153,9 @@ def main(argv):
         # Scale the observations to be ready for NN ingest next time step
         obs = env.scale_obs(raw_obs)
 
-        print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+        print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
                 .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, \
-                        vehicles[0].cur_speed, vehicles[0].p, reward, info["reward_detail"]))
+                        raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
         #TODO - this section for debugging only
