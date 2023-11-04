@@ -863,6 +863,25 @@ Big picture of this project's goals:
 * Run A6 training with SAC from the A5 checkpoint 80000 for an additional 20k iterations.
 	* Note that this is starting over on the noise level. I wonder if a continuation like this would be
 	  better to set the noise to its minimum level?
+	* Reward plots are quite ragged, but all 3 are trending upward. rmax moved from 1.0 to ~1.4. rmean
+	  started ~-0.7, which is concerning given its baseline performance, but worked its way up to ~0.3.
+	  rmin went from -2.6 to ~-1.4 (very noisy). Mean episode length started ~60 and stayed there (noisy)
+	  for the first 20M steps, then jumped up to 78 and stayed above that for the remainder. This jump
+	  corresponds to a similar jump in rmean and a smaller one in rmin at the same time.
+	* Over this run plus the baseline run, 110M steps were collected. Performance for this run was 8874
+	  steps/hr.
+	* Inference on checkpoint 28000 (the final one; IDs are cumulative iterations from baseline):
+	  speed control looks a little better than I've seen before, but not great. It definitely seems to
+	  recognize the various speed limits. Eager to change lanes to the left, esp starting in lanes 4 & 5.
+	  It even moves from 4/5 all the way to 0, which is a bad choice. It never changes right away from
+	  lane 0 (or any other lane).
+	* Stored this checkpoint for future reference.
+
+11/4/23
+
+* Run A7 training with SAC from scratch for 30k iterations.
+	* Enlarged the NN structure from [600, 256, 128] to [1024, 256, 128] for both the policy & Q networks.
+	* Reduced LR for actor & critic from 5e-5 to 3e-5.
 
 
 BEFORE NEXT RUN:
@@ -873,6 +892,7 @@ BEFORE NEXT RUN:
 
 
 TODO:
+- Increase capacity of replay buffer
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.

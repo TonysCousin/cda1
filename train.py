@@ -31,7 +31,7 @@ def main(argv):
     # Define the stopper object that decides when to terminate training.
     status_int          = 100    #num iters between status logs
     chkpt_int           = 100    #num iters between storing new checkpoints
-    max_iterations      = 20000
+    max_iterations      = 30000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -100,16 +100,16 @@ def main(argv):
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
-    opt_config["actor_learning_rate"]           = 5e-5
-    opt_config["critic_learning_rate"]          = 5e-5
+    opt_config["actor_learning_rate"]           = 3e-5
+    opt_config["critic_learning_rate"]          = 3e-5
     opt_config["entropy_learning_rate"]         = 5e-5
 
     policy_config = cfg_dict["policy_model_config"]
-    policy_config["fcnet_hiddens"]              = [600, 256, 128]
+    policy_config["fcnet_hiddens"]              = [1024, 256, 128]
     policy_config["fcnet_activation"]           = "relu"
 
     q_config = cfg_dict["q_model_config"]
-    q_config["fcnet_hiddens"]                   = [600, 256, 128]
+    q_config["fcnet_hiddens"]                   = [1024, 256, 128]
     q_config["fcnet_activation"]                = "relu"
 
     replay_config = cfg_dict["replay_buffer_config"]
