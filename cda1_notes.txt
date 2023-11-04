@@ -788,7 +788,10 @@ Big picture of this project's goals:
   grep commands). Doing so makes the stdout rather slow & jerky, apparently due to buffering, but it
   seems to work fine. It does slow down the training performance a bit (~3%).
 
-* Run Ray.Train with SAC for 10k iterations, still on the ray_train branch.
+* Starting new nomenclature for these Train runs, since Ray doesn't automatically number them. This
+  first series will start with 'A' to indicate we are still in part 1 of the cda1 project.
+
+* Run A1, Ray.Train with SAC for 10k iterations, still on the ray_train branch.
 	* Tuned the resource usage to get more steps/hr. Can now get the above 40M steps in only 8k
 	  iters using 8 environments/worker. This should finish in substantially less time also.
 	* Eliminated the lane change command penalty (for widely differing commands).
@@ -796,7 +799,7 @@ Big picture of this project's goals:
 	* Doubled the speed variation penalty mult from 0.5 to 1.0.
 	* Died after 600 iterations due to a segfault in concatenating sample batches.
 
-* Run Ray.Train with SAC for 10k iterations on the ray_train branch. This is a complete duplicate
+* Run A2, Ray.Train with SAC for 10k iterations on the ray_train branch. This is a complete duplicate
   of the above run, after a reboot.
 	* Inference on an early checkpoint (4401) shows consistent desire to do left-hand LC a little too early,
 	  running off-road. Speed profile is very smooth, but accepts low speeds & big penalties as a result.
@@ -814,7 +817,7 @@ Big picture of this project's goals:
 
 * Merged ray_train branch back into the train branch, accepting that this is a better way to go than Tune.
 
-* Run Ray.Train job with SAC for 10k iterations.  Back on the train branch.
+* Run A3, Ray.Train job with SAC for 10k iterations.  Back on the train branch.
 	* Reduced lane change desirability bonus multiplier from 0.4 to 0.3.
 	* Reduced the speed variation penalty mult from 1.0 to 0.7 to allow it to explore a little more.
 	* Ran to completion in ~5 hr (42M steps at 8900 steps/hr).
@@ -835,13 +838,31 @@ Big picture of this project's goals:
   course of an episode (80 steps), the penalties it is typically accumulating due to speed errors is roughly the
   same magnitude as the episode completion bonus, so it seems this penalty is sized reasonably.
 
-* Run Ray.Train job with SAC for 8k iterations, starting from scratch.
+* Run A4, Ray.Train job with SAC for 8k iterations, starting from scratch.
 	* Reset the EARLY_EPISODES constant from 0 to 10k to force reset() to place the ego vehicle in the ramp
 	  lanes most of the time in those first episodes. Hoping this will give it enough experience to do a
 	  right lane change from lane 0.
 	* Turned off the Gaussian noise.
 	* Added capability to the train program to begin from a baseline checkpoint. Not using a baseline on
 	  this run, but it is now capable.
+	* After 2300 iters, it is clear that there is no learning occurring, so I killed it.
+
+* Run A5, Ray.Train job with SAC for 8k iterations, starting from scratch
+	* Turned on Gaussian noise again, and changed its params so that it decays over 30M steps (was 12M).
+	* At completion (30M steps), all 3 reward curves were still climbing, but rmax & rmin were fairly
+	  noisy. rmax ended ~1.5, rmean at ~0.1 and rmin ~-1.6. Mean episode length climbed slowly over first
+	  17M steps to only 60, then suddenly jumped to ~80, where it stayed for the duration.
+	* Performance was 8.9M steps/hr.
+	* Inference: lane 0 start shows speeds well below limit, and no inclination to change lanes. Starts in
+	  lanes 3 & 4 performed better, with speeds still low, but not as bad, and appropriate lane changes.
+	  Lane 5 start was similar. Its final LC from 2 to 1 (unnecessary) waited a long time for the two
+	  neighbors that were blocking it to move out of the way before it did the maneuver. Not sure why it
+	  insists on going from 2 to 1 in the first place, but it was a safe maneuver.
+	* Maybe this is going in the right direction and just needs more training time.
+
+* Run A6 training with SAC from the A5 checkpoint 80000 for an additional 20k iterations.
+	* Note that this is starting over on the noise level. I wonder if a continuation like this would be
+	  better to set the noise to its minimum level?
 
 
 BEFORE NEXT RUN:
@@ -852,7 +873,6 @@ BEFORE NEXT RUN:
 
 
 TODO:
-- Try noise: lots longer, none.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.

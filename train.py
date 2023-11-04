@@ -31,7 +31,7 @@ def main(argv):
     # Define the stopper object that decides when to terminate training.
     status_int          = 100    #num iters between status logs
     chkpt_int           = 100    #num iters between storing new checkpoints
-    max_iterations      = 8000
+    max_iterations      = 20000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -57,8 +57,8 @@ def main(argv):
     explore_config["random_timesteps"]          = 10000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1
-    explore_config["scale_timesteps"]           = 12000000
-    exp_switch                                  = False
+    explore_config["scale_timesteps"]           = 30000000
+    exp_switch                                  = True
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
 
