@@ -14,3 +14,4 @@ cd staging
 # all the warning messages in the stored log file, only removing them from stdout.
 python -u train.py $1 > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2 | grep -v "F.linear" | grep -vi CUBLAS
 #python -u train.py $1 > >(tee ~/tmp/log) 2> >(grep -vi CUBLAS | grep -v "F.linear" | tee -a ~/tmp/log) >&2
+#python -u train.py $1 > >(tee ~/tmp/log) 2> >(tee -a ~/tmp/log) >&2

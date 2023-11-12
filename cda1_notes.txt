@@ -870,6 +870,9 @@ Big picture of this project's goals:
 	  corresponds to a similar jump in rmean and a smaller one in rmin at the same time.
 	* Over this run plus the baseline run, 110M steps were collected. Performance for this run was 8874
 	  steps/hr.
+		* Since this run started at step ~30M, it isn't clear to me how much noise it was injecting.
+		  The noise model is specified to degrade over 30M steps, but I don't know if it starts from
+		  the beginning of a run, or continues from the baseline step count.
 	* Inference on checkpoint 28000 (the final one; IDs are cumulative iterations from baseline):
 	  speed control looks a little better than I've seen before, but not great. It definitely seems to
 	  recognize the various speed limits. Eager to change lanes to the left, esp starting in lanes 4 & 5.
@@ -879,9 +882,25 @@ Big picture of this project's goals:
 
 11/4/23
 
-* Run A7 training with SAC from scratch for 30k iterations.
+* Run A7 training with SAC from scratch for 30k iterations. Corresponds to train branch commit e29ac28.
 	* Enlarged the NN structure from [600, 256, 128] to [1024, 256, 128] for both the policy & Q networks.
 	* Reduced LR for actor & critic from 5e-5 to 3e-5.
+	* System crashed after iteration 13100. Rebooted and then restarted this training from that checkpoint.
+		* Restarting doesn't bring back the entire state. This is obvious because the reward curves and
+		  the mean episode length curve start in way different places than where they were left in the
+		  original run.
+	* Ran to completion, but the system started experiencing segfaults very near the end of the run.
+	* Reward curves were somewhat noisy, but moving all over the place - not steady. Best cases, they
+	  were no better than what I'd seen before.
+
+11/11/23
+
+***** Rebuilt Tensorbook laptop - see Notes.txt for details. Now using conda env "cda", which has been
+	redefined as well.
+	* The "cda" env was created with Ray 2.5.1, due to previous bad experience with 2.6. But Ray 2.8.0 is
+	  now available, and docs looks like it may have fixed my previous complaints.
+	* Ran a trial of the cda1 train program, and it is working.
+		* It died after 9k iters (42M steps) due to an error in the replay buffer (SIGABRT).
 
 
 BEFORE NEXT RUN:
@@ -896,7 +915,6 @@ TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.
-- Upon part 1 success, try it again with: 256, 256 NN, LC cmd threshold at 0.5, no Gaussian noise.
 - Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.
 - Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)

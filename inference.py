@@ -70,10 +70,10 @@ def main(argv):
         cfg.framework("torch").exploration(explore = False)
         cfg_dict = cfg.to_dict()
         policy_config = cfg_dict["policy_model_config"]
-        policy_config["fcnet_hiddens"]              = [600, 256, 128]
+        policy_config["fcnet_hiddens"]              = [1024, 256, 128]
         policy_config["fcnet_activation"]           = "relu"
         q_config = cfg_dict["q_model_config"]
-        q_config["fcnet_hiddens"]                   = [600, 256, 128]
+        q_config["fcnet_hiddens"]                   = [1024, 256, 128]
         q_config["fcnet_activation"]                = "relu"
         cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
