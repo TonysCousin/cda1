@@ -18,6 +18,18 @@ Training and testing is currently being performed with the _Roadway B_ test trac
 
 ![Roadway B](docs/images/RoadwayB_map.png)
 
+## Installation & Running
+To install this software, follow these steps:
+0. It is recommended to create a virtual environment (venv or conda) in order to be assured the supporting libraries are exactly what you need, and do not interfere with othe projects. In this case, create your environment with Python 3.10 (Ray currently does not fully support Python 3.11). Then activate the environment you have created.
+1. Clone this repo (e.g. `git clone https://github.com/TonysCousin/cda1 .`), then cd into the directory where it is located
+2. `pip install -r requirements1.txt`
+3. `pip install -r requirements2.txt`
+My apologies for the two requirements files, but the global option used in the first prevents the Ray installation (in the second file), and I'm not enough of a pip expert to resolve that conflict in a single requirements file.
+
+## License & Authorship
+This software is published under the [Apache 2.0 open source license](LICENSE), and can be used and distributed according to the terms of that license.
+The software was created by John Stark.
+
 ## Project Progress
 Latest code ready for public use is on the _master_ branch (not much there now).
 
@@ -38,10 +50,4 @@ The following roadmap outlines where this project is headed:
 - Part 3:  True multi-agent training, with several untrained agents (same policy) learning simultaneously using Ray multi-agent facilities.
 - Part 4:  Multi-agent training for two policies in a single vehicle, one for planning and one for control.
 
-## Installation & Running
-To install this software, simply clone this repo, then run the following command with Python 3.10 or higher installed:
-`pip install -r requirements.txt`
-
-## License & Authorship
-This software is published under the [Apache 2.0 open source license](LICENSE), and can be used and distributed according to the terms of that license.
-The software was created by John Stark.
+**11/12/23** - Structuring the policy NN as a simple MLP prevents it from learning satisfactorily. Starting to looking at alternative structures.
