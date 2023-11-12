@@ -133,3 +133,4 @@ dmypy.json
 
 # training checkpoint storage
 training/
+staging/
