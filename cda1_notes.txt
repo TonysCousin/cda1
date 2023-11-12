@@ -902,9 +902,20 @@ Big picture of this project's goals:
 	* Ran a trial of the cda1 train program, and it is working.
 		* It died after 9k iters (42M steps) due to an error in the replay buffer (SIGABRT).
 
+11/12/23
+
+*** Tentatively completed investigation of how to force random actions at every time step so that I can
+  pre-populate the experience buffer with random action/obs pairs. The hope is that this kind of initial data
+  will give the agent the broad experience base it needs in order to start learning. See RLlib_notes.txt for
+  details, but the gist is that it seems the Gaussian noise class provides this capability already.
+
+* Run A8 using SAC for 30k iterations.
+	* Changed Gaussian noise variable random_timesteps from 10k to 1M. This seems to be what I need to
+	  inject episodes based on fully random action values into the experience buffer at the beginning of
+	  the training.
+
 
 BEFORE NEXT RUN:
-- test installing & running (in the tmp/cda1_dup dir)
 - Investigate ways to pre-populate experience buffer
 
 
@@ -922,7 +933,6 @@ TODO:
   only with torch, no ray involved.
 - Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
 
-- Fix requirements.txt to either be pip compatible (to use pip install -r requirements.txt) or to be a conda import compatible.
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
 - Add vehicle icons to graphics

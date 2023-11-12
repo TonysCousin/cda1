@@ -30,7 +30,7 @@ def main(argv):
 
     # Define the stopper object that decides when to terminate training.
     status_int          = 100    #num iters between status logs
-    chkpt_int           = 100    #num iters between storing new checkpoints
+    chkpt_int           = 500    #num iters between storing new checkpoints
     max_iterations      = 30000
 
     # Define the custom environment for Ray
@@ -54,7 +54,7 @@ def main(argv):
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
     explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
-    explore_config["random_timesteps"]          = 10000
+    explore_config["random_timesteps"]          = 1000000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1
     explore_config["scale_timesteps"]           = 30000000

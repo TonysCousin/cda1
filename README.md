@@ -1,14 +1,14 @@
 # CDA1 (Bridgit)
 **Multiple AI agents driving automated vehicles.**
 
-This project builds on the [CDA0 project](https://github.com/TonysCousin/cda0) which trained an AI automated vehicle to drive a simple highway ramp merge scenario in traffic.
+This project builds on the [CDA0 project](https://github.com/TonysCousin/cda0), which trained an AI automated vehicle to drive a simple highway ramp merge scenario in traffic.
 In this project we will extend the environment model to handle a generic vehicle model for each of the vehicles in the scenario.
 Therefore, each vehicle is capable of running a different control algorithm, which could be an AI agent or something else.
 This new environment could be used to duplicate the CDA0 project by using that AI agent in one of the vehicles and its "neighbor vehicle" algo in the others.
 However, the goal here is to train an AI agent to drive all of the vehicles at once, and have it learn something about safe driving and anticipating others' actions in the process.
 Again, as in CDA0, there is no communication between vehicles, and all sensors are perfect.
 
-This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu Linux.
+This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu.
 
 
 ## Project Description
@@ -24,6 +24,7 @@ To install this software, follow these steps:
 1. Clone this repo (e.g. `git clone https://github.com/TonysCousin/cda1 .`), then cd into the directory where it is located
 2. `pip install -r requirements1.txt`
 3. `pip install -r requirements2.txt`
+
 My apologies for the two requirements files, but the global option used in the first prevents the Ray installation (in the second file), and I'm not enough of a pip expert to resolve that conflict in a single requirements file.
 
 ## License & Authorship
