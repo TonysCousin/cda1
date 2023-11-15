@@ -36,7 +36,7 @@ def main(argv):
     # Define the custom environment for Ray
     env_config = {}
     env_config["time_step_size"]                = 0.2
-    env_config["episode_length"]                = 80 #80 steps gives roughly 470 m of travel @29 m/s
+    env_config["episode_length"]                = 100 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["crash_report"]                  = False
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
@@ -57,7 +57,7 @@ def main(argv):
     explore_config["random_timesteps"]          = 1000000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1
-    explore_config["scale_timesteps"]           = 30000000
+    explore_config["scale_timesteps"]           = 80000000
     exp_switch                                  = True
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)

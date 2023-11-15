@@ -909,24 +909,54 @@ Big picture of this project's goals:
   will give the agent the broad experience base it needs in order to start learning. See RLlib_notes.txt for
   details, but the gist is that it seems the Gaussian noise class provides this capability already.
 
-* Run A8 using SAC for 30k iterations.
+* Run A8 using SAC for 30k iterations. Corresponds to train branch commit da74fee.
 	* Changed Gaussian noise variable random_timesteps from 10k to 1M. This seems to be what I need to
 	  inject episodes based on fully random action values into the experience buffer at the beginning of
 	  the training.
+	* Completed 30k iterations, 142M steps. rmax mostly stayed in [0.8, 1.6], with a couple short dips 
+	  down to 0.4. rmean climbed rapidly to ~0.25 at 30M steps then fluctuated until ~65M steps, when it
+	  dropped to -0.7, then noisily climbed slowly back up to -0.2. rmin reached noisy -1.6 up through
+	  ~65M steps, then dropped back to < -2.0 for the remainder. Mean episode length hit ~78 at 20M steps
+	  then got more noisy & maybe dropped slightly after 60M steps.
+	* Inference on checkpoint 13500 (64M steps): lane 0 starts refused to change lanes, as needed. Lane 1
+	  starts worked okay, but speed is always below speed limit, and drops dramatically near the merge
+	  zone (as previous runs did). Lane 3 & 4 starts attempt illegal lane changes to the left just prior
+	  to the beginning of the merge zones. In short, similar performance to anything I'd seen earlier.
+	* Inference on checkpoint 30000 (142M steps): speed control is definitely better, keeping closer to
+	  the speed limits, but still a bit noisy. LC behavior may be slightly better, but basically the
+	  inconsistent performance reported above. When in lane 0, the raw LC cmd action never even gets
+	  close to the threshold, so it isn't even thinking about changing lanes.
 
+11/13/23
 
-BEFORE NEXT RUN:
-- Investigate ways to pre-populate experience buffer
-
-
+* Run A9 training with SAC for 30k iterations from scratch.
+	* Changed episode length from 80 to 100 steps, thinking this may allow the agent to see bigger
+	  cumulative effects of small penalties.
+	* Increased noise duration from 30M to 80M steps, and increased initial random timesteps from 1M to
+	  4M.
+	* Increased replay buffer capacity from 1M to 5M steps (already was prioritized). Didn't work - 
+	  see below.
+	* Two consecutive runs died between iters 300 and 400 (after 1.5M steps) with a segfault. I suspect
+	  this is a symptom of an overly large replay buffer, so reduced it to a capacity of 2M.
+	* This attempt also had a segfault at roughly the same time.
+	* Adjusted buffer capacity back to 1M, and random_timesteps to 1M also, since there is no point in
+	  generating more random steps than can be held in the buffer.
+	* Third attempt crashed with tensor size mismatch in Ray's sac_torch_model after 8M steps. Considering
+	  that this may be simply due to a need for reboot after previous memory corruptions.
+	* Completed all 30k iters, ~96M steps. rmax peaked at 1.3 ~39M steps, then got real noisy in [0.7, 1.2].
+	  rmean reached -0.2 at 40M steps then lived in [-0.2, 0] until 70M steps, then got a lot more erratic.
+	* Inference on checkpoint 30000 (from 96M steps): similar inadequate speed performance, but lane
+	  changes were worse. From lanes 3, 4, 5 it did illegal LC to the right (which it has never done before).
+	  Did not LC from lane 0.
+	* Inference on checkpoint 12000 (from 41M steps): similar speed behavior. LCs were at least in the correct
+	  direction, but tended to crash sideways into a neighbor (from lane 5). No LC from lane 0.
 
 
 TODO:
-- Increase capacity of replay buffer
+- Add current speed limit as a separate element to the obs vector (redundant)
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.
-- Kevin suggestion #1: pre-populate experience buffer w/steps that have random actions.
 - Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
