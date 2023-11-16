@@ -59,7 +59,7 @@ class Graphics:
 
         # set up the window
         self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), 0, 32)
-        pygame.display.set_caption('cda0')
+        pygame.display.set_caption('cda1')
 
         # set up fonts
         self.basic_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)

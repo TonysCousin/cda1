@@ -269,7 +269,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
-        print("///// Initializing env environment ID {} with configuration: ".format(self.rollout_id, vc["title"]))
+        print("///// Initializing env environment ID {} with configuration: {}".format(self.rollout_id, vc["title"]))
 
         """
         If human-rendering is used, `self.window` will be a reference
