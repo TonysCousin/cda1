@@ -1,9 +1,10 @@
 # Provides definitions for all vehicles to be used in the scenario
+title:            "Embedding runs ONLY"
 vehicles:
 
   - id:           0 ########################## always the ego vehicle
     model:        BridgitModel
-    controller:   BridgitCtrl
+    guidance:     EmbedGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    3.0     #m/s^2
     length:       5.0     #m
@@ -11,7 +12,7 @@ vehicles:
 
   - id:           1 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -19,7 +20,7 @@ vehicles:
 
   - id:           2 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -27,7 +28,7 @@ vehicles:
 
   - id:           3 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -35,7 +36,7 @@ vehicles:
 
   - id:           4 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -43,7 +44,7 @@ vehicles:
 
   - id:           5 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -51,7 +52,7 @@ vehicles:
 
   - id:           6 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -59,7 +60,7 @@ vehicles:
 
   - id:           7 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -67,7 +68,7 @@ vehicles:
 
   - id:           8 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -75,7 +76,7 @@ vehicles:
 
   - id:           9 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
@@ -83,7 +84,7 @@ vehicles:
 
   - id:           10 ##########################
     model:        BotType1Model
-    controller:   BotType1bCtrl
+    guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3
     max_accel:    4.0     #m/s^2
     length:       5.0     #m

@@ -4,9 +4,9 @@ from hp_prng import HpPrng
 from roadway_b import Roadway
 from vehicle import Vehicle
 from bridgit_model import BridgitModel
-from bridgit_ctrl import BridgitCtrl
+from bridgit_guidance import BridgitGuidance
 from bot_type1_model import BotType1Model
-from bot_type1a_ctrl import BotType1aCtrl
+from bot_type1a_guidance import BotType1aGuidance
 
 
 def main(argv):
@@ -29,11 +29,11 @@ def main(argv):
             if is_ego:
                 print("Building ego vehicle")
                 model = BridgitModel(roadway)
-                controller = BridgitCtrl(prng, roadway)
+                controller = BridgitGuidance(prng, roadway)
             else:
                 print("Building a simple bot vehicle.")
                 model = BotType1Model(roadway, length = 5.0)
-                controller = BotType1aCtrl(prng, roadway)
+                controller = BotType1aGuidance(prng, roadway)
             v = Vehicle(model, controller, prng, roadway, learning = is_ego, debug = debug)
         except AttributeError as e:
             print("///// Problem with config for vehicle ", i, " model or controller: ", e)

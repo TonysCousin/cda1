@@ -32,8 +32,7 @@ class BridgitModel(VehicleModel):
         """Produces the observation vector for this vehicle object if it is active. An inactive vehicle produces all 0s. See the ObsVec
             class description for details on the obs vector and its sensor zone construction.
 
-            CAUTION: the returned observation vector is at actual world scale and needs to be
-                     preprocessed before going into a NN!
+            CAUTION: the returned observation vector is at actual world scale and needs to be preprocessed before going into a NN!
 
             NOTE: we use Vehicle objects here, but there is no import statment for that type in this class or in the base class, since it
             creates a circular reference during construction. But Python seems to give us full knowledge of those objects' structures

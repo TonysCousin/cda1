@@ -6,12 +6,12 @@ from obs_vec import ObsVec
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
-from vehicle_controller import VehicleController
+from vehicle_guidance import VehicleGuidance
 
 
-class BotType1bCtrl(VehicleController):
+class BotType1bGuidance(VehicleGuidance):
 
-    """Defines the control algorithm for the Type 1 bot vehicle, which at a small, constant, random offset to the
+    """Defines the guidance algorithm for the Type 1 bot vehicle, which tries to drive at a small, constant, random offset to the
         posted speed limit, but uses crude Adaptive Cruise Control (ACC).
     """
 
@@ -61,9 +61,9 @@ class BotType1bCtrl(VehicleController):
                     found = True
                     break
             if not found:
-                raise ValueError("///// WARNING: BotType1bCtrl.reset could not find a reachable target from lane {}, p = {:.1f}".format(init_lane, init_p))
+                raise ValueError("///// WARNING: BotType1bGuidance.reset could not find a reachable target from lane {}, p = {:.1f}".format(init_lane, init_p))
 
-        #print("***** BotType1bCtrl reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id))
+        #print("***** BotType1bGuidance reset to lane {}, p = {:.1f}, and chose target {}".format(init_lane, init_p, self.target_id))
 
 
     def step(self,
@@ -72,7 +72,7 @@ class BotType1bCtrl(VehicleController):
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (corresponds to type LaneChange)
 
-        """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
+        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)

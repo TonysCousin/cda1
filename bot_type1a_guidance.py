@@ -1,4 +1,4 @@
-from vehicle_controller import VehicleController
+from vehicle_guidance import VehicleGuidance
 import numpy as np
 
 from constants import Constants
@@ -8,9 +8,9 @@ from roadway_b import Roadway
 from lane_change import LaneChange
 
 
-class BotType1aCtrl(VehicleController):
+class BotType1aGuidance(VehicleGuidance):
 
-    """Defines the control algorithm for the Type 1 bot vehicle, which tries to drive at the speed limit at all times,
+    """Defines the guidance algorithm for the Type 1 bot vehicle, which tries to drive at the speed limit at all times,
         but uses crude Adaptive Cruise Control (ACC).
     """
 
@@ -30,57 +30,16 @@ class BotType1aCtrl(VehicleController):
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (-1 = change left, 0 = stay in lane, +1 = change right)
 
-        """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
+        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)
         tgt = speed_limit + self.speed_offset
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
-        #TODO: stub logic needs to be replaced
         action = [None]*2
         action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
         action[1] = LaneChange.STAY_IN_LANE
-
-        """From cda0:
-        #
-        #..........Manage lane change for any neighbors in lane 2
-        #
-
-        # Loop through all active neighbors, looking for any that are in lane 2
-        for n in range(1, self._num_vehicles):
-            v = self.vehicles[n]
-            if not v.active:
-                continue
-
-            if v.lane_id == 2:
-
-                # If it is in the merge zone, then
-                progress = v.p - self.roadway.get_lane_start_p(2)
-                l2_length = self.roadway.get_total_lane_length(2)
-                if progress > 0.7*l2_length:
-
-                    # Randomly decide if it's time to do a lane change
-                    if self.prng.random() < 0.05  or  l2_length - progress < 150.0:
-
-                        # Look for a vehicle beside it in lane 1
-                        safe = True
-                        for j in range(self._num_vehicles):
-                            if j == n:
-                                continue
-                            if self.vehicles[j].lane_id == 1  and  abs(self.vehicles[j].p - v.p) < 2.0*Constants.VEHICLE_LENGTH:
-                                safe = False
-                                break
-
-                        # If it is safe to move, then just do an immediate lane reassignment (no multi-step process like ego does)
-                        if safe:
-                            v.lane_id = 1
-
-                        # Else it is being blocked, then slow down a bit
-                        else:
-                            v.cur_speed *= 0.8
-
-        """
 
         return action
 

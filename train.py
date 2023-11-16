@@ -39,7 +39,7 @@ def main(argv):
     env_config["episode_length"]                = 100 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["crash_report"]                  = False
-    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config.yaml"
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config_ego_training.yaml"
     env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode

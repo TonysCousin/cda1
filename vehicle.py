@@ -2,7 +2,7 @@ from typing import Tuple, Dict, List
 
 from constants import Constants
 from vehicle_model import VehicleModel
-from vehicle_controller import VehicleController
+from vehicle_guidance import VehicleGuidance
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
@@ -10,12 +10,12 @@ from lane_change import LaneChange
 class Vehicle:
     """Represents a single vehicle in the environment.  Contains the physical dynamics logic and is responsible for
         moving the vehicle to a new state in each time step.  Specific vehicle type characteristics are embodied in the
-        _model_ and _controller_ members, so this class should never have to be sub-classed.
+        _model_ and _guidance_ members, so this class should never have to be sub-classed.
     """
 
     def __init__(self,
                     model       : VehicleModel, #describes the specific capabilities of the vehicle type
-                    controller  : VehicleController, #provides the control algo that determines actions for this vehicle
+                    guidance    : VehicleGuidance, #provides the guidance algos that determines actions for this vehicle
                     prng        : HpPrng,       #the pseudo-random number generator to be used
                     roadway     : Roadway,      #the roadway geometry object for this scenario
                     learning    : bool = False, #is this vehicle going to be learning from the experience?
@@ -25,7 +25,7 @@ class Vehicle:
 
         # Read-only inputs
         self.model = model
-        self.controller = controller
+        self.guidance = guidance
         self.prng = prng
         self.roadway = roadway
         self.learning = learning
@@ -69,8 +69,8 @@ class Vehicle:
             p = self.prng.random()*(lane_len - Constants.CONSERVATIVE_LC_DIST) + self.roadway.get_lane_start_p(self.lane_id)
         self.p = p
 
-        # Inform the controller of the new location
-        self.controller.reset(self.lane_id, self.p)
+        # Inform the guidance object of the new location
+        self.guidance.reset(self.lane_id, self.p)
 
         # Reset other stuff to start the episode with a clean slate
         self.cur_speed = init_speed

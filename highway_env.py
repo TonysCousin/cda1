@@ -25,10 +25,10 @@ from lane_change import LaneChange
 from target_destination import TargetDestination
 # Need to import every derived class that a user might choose to use, so that the config will be recognized:
 from bot_type1_model import BotType1Model
-from bot_type1a_ctrl import BotType1aCtrl
-from bot_type1b_ctrl import BotType1bCtrl
+from bot_type1a_guidance import BotType1aGuidance
+from bot_type1b_guidance import BotType1bGuidance
 from bridgit_model import BridgitModel
-from bridgit_ctrl import BridgitCtrl
+from bridgit_guidance import BridgitGuidance
 
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
@@ -50,10 +50,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         failure conditions:  crashing into another vehicle, running off-road, and stopping in the roadway.  This class
         also provides basic physics of motion, by propagating each vehicle's forward motion according to specified
         limits of acceleration, jerk and lane change speed.  Each vehicle in the scenario must specify its own physical
-        properties (accel & jerk limits, lane change speed) and must provide its own control algorith, which takes
-        observations from this environment and produces an action vector.  Vehicles provide these capabilities by
+        properties (accel & jerk limits, lane change speed) and must provide its own tactical guidance algorith, which
+        takes observations from this environment and produces an action vector.  Vehicles provide these capabilities by
         inheriting the basic structure of the abstract Vehicle class.  Therefore, any number of vehicle instances
-        managed by this class may use the same vehicle model (including the same control policy), or each of them
+        managed by this class may use the same vehicle model (including the same guidance policy), or each of them
         could use a different model.
 
         This simple enviroment assumes perfect traction and steering response, so that the physics of driving can
@@ -182,7 +182,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         v_data = vc["vehicles"]
         self.num_vehicles = len(v_data)
 
-        # Instantiate model and controller objects for each vehicle, then use them to construct the vehicle object
+        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
         self.vehicles = []
         for i in range(self.num_vehicles):
             is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
@@ -196,18 +196,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                controller = getattr(sys.modules[__name__], spec["controller"])(self.prng, self.roadway, targets)
-                v = Vehicle(model, controller, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
+                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets)
+                v = Vehicle(model, guidance, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
             except AttributeError as e:
-                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or controller: ", e)
+                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
                 raise e
             except Exception as e:
-                print("///// HighwayEnv.__init__: problem creating vehicle model, controller, or the vehicle itself: ", e)
+                print("///// HighwayEnv.__init__: problem creating vehicle model, guidance, or the vehicle itself: ", e)
                 print("Exception type is ", type(e))
                 raise e
 
             self.vehicles.append(v)
-            controller.set_vehicle(v) #let the new controller know about the vehicle it is driving
+            guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
         if self.debug > 1:
             print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
 
@@ -269,7 +269,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
-        print("///// Initializing env environment ID {}".format(self.rollout_id))
+        print("///// Initializing env environment ID {} with configuration: ".format(self.rollout_id, vc["title"]))
 
         """
         If human-rendering is used, `self.window` will be a reference
@@ -554,7 +554,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
 
             The process is:
-                - gather control commands based on existing observations (for the ego vehicle, these come in as
+                - gather tactical guidance commands based on existing observations (for the ego vehicle, these come in as
                   input args; for other vehicles their model needs to generate)
                 - pass those commands to the dynamic models and move each vehicle to its new state
                 - collect each entity's observations from that new state
@@ -594,11 +594,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if not self.vehicles[i].active:
                 continue
 
-            # Exercise the control algo to generate the next action commands for vehicles that aren't in training.
+            # Exercise the tactical guidance algo to generate the next action commands for vehicles that aren't in training.
             if i > 0:
-                #print("***   step: controlling vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
+                #print("***   step: guiding vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
                 #      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
-                action = self.vehicles[i].controller.step(self.all_obs[i, :]) #unscaled
+                action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #unscaled
 
             # Store the actions for future reference
             vehicle_actions[i] = action
@@ -655,9 +655,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # For the ego vehicle, run its planning algo. This call doesn't fit well here, but is needed until the planner can be
         # replaced with a NN. This will replace a few elements in the obs vector.
-        #TODO: eventually replace this call with a NN in the controller class.
+        #TODO: eventually replace this call with a NN in the guidance class.
         if self.vehicles[0].active:
-            self.all_obs[0, :] = self.vehicles[0].controller.plan_route(self.all_obs[0, :])
+            self.all_obs[0, :] = self.vehicles[0].guidance.plan_route(self.all_obs[0, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.

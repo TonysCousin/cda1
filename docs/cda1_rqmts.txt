@@ -133,3 +133,31 @@ Inference
 * An inference episode will run until all vehicles reach a designated course end point.
   If one or more vehicles is terminated early (e.g. a crash), then the remaining
   vehicles will continue to drive until they reach an endpoint or are terminated.
+
+Scenario Definitions
+--------------------
+* A variety of scenarios may be defined, as needed, that specify the initial setup
+  of the vehicles, and possibly some limitations on their behavior. These scenarios
+  apply to training as well as to inference runs, unless otherwise noted. The scenario
+  IDs recognized are described here:
+
+0 - Random initializations of all vehicles, within some ranges params. Occasionally
+    chooses to run scenario 1 or 2, with its peculiar restrictions.
+
+1 - Ego vehicle randomly initialized; all bot vehicles randomly placed in ego's lane.
+
+2 - Ego vehicle randomly initialized; bot vehicles randomly placed in lanes other than
+    ego's lane.
+
+10-15 - Ego vehicle randomly initialized in the lane indicated by the last digit. Bot
+	vehicles randomly initialized around it.
+
+20-25 - Embedding run. Like ego training scenarios 10-15, but vehicle 0 is not training,
+	and uses Bridgit model (observations) and the Embed guidance. Vehicle 0
+	is initialized to the lane indicated by the last digit.
+
+29    - embedding run like 20-25, but where vehicle 0's location is fully randomized.
+
+90-95 - Runs a single bot vehicle (vehicle index 1) starting in the lane identified by
+	the last digit. No other vehicles will be present. The bot will drive the given
+	lane at its speed limit.

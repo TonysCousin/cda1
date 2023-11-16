@@ -26,6 +26,8 @@ def main(argv):
                     + " 1:  all neighbor vehicles in same lane.\n" \
                     + " 2:  no neighbor vehicles in ego's lane.\n" \
                     + "10-15:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.\n" \
+                    + "20-25:  embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).\n" \
+                    + "29:     embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in a random location.\n" \
                     + "90-95:  no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing)."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Either -c or -w argument must be used, but never both.")
     parser.add_argument("-c", "--checkpoint", type = str, help = "Ray checkpoint dir containing the model to be run.")
@@ -46,7 +48,7 @@ def main(argv):
                     "debug":                    0,
                     "verify_obs":               True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
-                    "vehicle_file":             "vehicle_config.yaml",
+                    "vehicle_file":             "vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
                 }
     env = HighwayEnvWrapper(env_config)
@@ -158,8 +160,8 @@ def main(argv):
                         raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
-        #TODO - this section for debugging only
         """
+        #TODO - this section for debugging only
         # Display the speed limits observed in each sensor zone - loop through longitudinal rows, front to back, then columns, left to right
         print("      Sensed speed limits forward of ego:")
         for row in range(ObsVec.ZONES_FORWARD-1, -1, -1):
@@ -182,8 +184,6 @@ def main(argv):
             print("      row {:2d}   {:.3f}   {:.3f}   {:.3f}   {:.3f}   {:.3f}".format(row, row_res[0], row_res[1], \
                         row_res[2], row_res[3], row_res[4]))
         """
-
-
 
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
         # based on when that vehicle exits its assigned lane.

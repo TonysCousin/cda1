@@ -7,12 +7,12 @@ from obs_vec import ObsVec
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
-from vehicle_controller import VehicleController
+from vehicle_guidance import VehicleGuidance
 
 
-class BridgitCtrl(VehicleController):
+class BridgitGuidance(VehicleGuidance):
 
-    """Defines the control algorithm for the Bridgit NN agent, which has learned some optimum driving in the given roadway."""
+    """Defines the guidance algorithms for the Bridgit NN agent, which has learned some optimum driving in the given roadway."""
 
     PLAN_EVERY_N_STEPS = 5  #num time steps between route plan updates; CAUTION: this needs to be < duration of a lane change
     SMALL_DISTANCE = 150.0  #distance below which an immediate lane change is necessary in order to get to the target, m.
@@ -62,8 +62,7 @@ class BridgitCtrl(VehicleController):
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
 
-        """Makes vehicle's initial location info available in case the instantiated controller wants to use it.
-            Overrides the base class method because the logic here depends upon the base member variable my_vehicle, which is not
+        """Overrides the base class method because the logic here depends upon the base member variable my_vehicle, which is not
             defined in the constructor, but the logic doesn't need to be run every time step.
         """
 
@@ -82,7 +81,7 @@ class BridgitCtrl(VehicleController):
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (corresponds to type LaneChange)
 
-        """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
+        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
         raise NotImplementedError("///// BridgitCtrl.step has yet to get a checkpoint running capability.")
 
@@ -91,10 +90,8 @@ class BridgitCtrl(VehicleController):
                    obs      : np.array,     #the observation vector for this vehicle for the current time step
                   ) -> np.array:
 
-        """Produces a long-range route plan for the agent. This logic will eventually be replaced by a trained NN, but we start with
-            fairly simple procedural logic in order to focus training on the control capability first. This method may feel better placed
-            in the BridgitController class due to its purpose, but to make the training loop work cleanly for the controller NN, this is
-            where all observations are generated, which is how the plan must be communicated to the control NN.
+        """Produces a strategic guidance (route) plan for the agent. This logic will eventually be replaced by a trained NN, but we
+            start with fairly simple procedural logic in order to focus training on the tactical guidance first.
 
             This algorithm will be executed at a lower frequency than the control loop, so the plan is intended to live for several time
             steps. Its output is a 3-tuple of lane preferences, relative to the host's current lane.  Each element represents the preference
@@ -103,8 +100,8 @@ class BridgitCtrl(VehicleController):
             will sum to 1.
 
             The goal is to reach ANY eligible target destination. There is no preference for one over the others. In fact, the plan may
-            change its "intended" destination over the course of the route, to accommodate maneuvering that the controller may decide that
-            it needs to do.
+            change its "intended" destination over the course of the route, to accommodate maneuvering that the tactical guidance may decide
+            that it needs to do.
         """
 
         # If enough time steps have not passed, then return the input vector

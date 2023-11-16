@@ -951,6 +951,13 @@ Big picture of this project's goals:
 	* Inference on checkpoint 12000 (from 41M steps): similar speed behavior. LCs were at least in the correct
 	  direction, but tended to crash sideways into a neighbor (from lane 5). No LC from lane 0.
 
+11/15/23
+
+* Merged the "train" git branch into develop, indicating the end of that effort. Created a new branch off of
+  develop, named "vector-embed", where I am beginning to build a vector embedding solution for the sensor data.
+
+* Began building the code to train the vector embedding.
+
 
 TODO:
 - Add current speed limit as a separate element to the obs vector (redundant)

@@ -5,8 +5,8 @@ from hp_prng import HpPrng
 from roadway_b import Roadway
 from target_destination import TargetDestination
 
-class VehicleController(ABC):
-    """Abstract base class for vehicle control algorithms that map observations to action commands for a vehicle."""
+class VehicleGuidance(ABC):
+    """Abstract base class for vehicle guidance algorithms that map observations to action commands for a vehicle."""
 
     def __init__(self,
                  prng       : HpPrng,   #pseudo-random number generator
@@ -22,7 +22,7 @@ class VehicleController(ABC):
 
 
     def set_vehicle(self,
-                    vehicle         : object   #the vehicle that owns this controller (type Vehicle is not available during construction)
+                    vehicle         : object   #the vehicle that owns this guidance object (type Vehicle is not available during construction)
                    ):
         """Stores the host vehicle's info.  This must be called before step(); ideally as soon as the vehicle object is constructed."""
 
@@ -34,7 +34,7 @@ class VehicleController(ABC):
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
 
-        """Makes vehicle's initial location info available in case the instantiated controller wants to use it."""
+        """Makes vehicle's initial location info available in case the instantiated guidance wants to use it."""
 
         pass
 
@@ -46,6 +46,6 @@ class VehicleController(ABC):
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (corresponds to type LaneChange)
 
-        """Applies the control algorithm for one time step to convert vehicle observations into action commands."""
+        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
-        raise NotImplementedError("///// VehicleController.step needs to be overridden by a concrete instantiation.")
+        raise NotImplementedError("///// VehicleGuidance.step needs to be overridden by a concrete instantiation.")

@@ -1,10 +1,10 @@
 import sys
 from typing import Dict
-from bridgit_ctrl import BridgitCtrl, PosInfo
+from bridgit_guidance import BridgitGuidance, PosInfo
 
 def main(argv):
 
-    bridgit = BridgitCtrl(None, None, None)
+    bridgit = BridgitGuidance(None, None, None)
 
     # Case 1 - distinct sets
     a = {1: 14.0, 2: 16.0}
