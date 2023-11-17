@@ -185,7 +185,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
         self.vehicles = []
         for i in range(self.num_vehicles):
-            is_ego = i == 0 #need to identify the ego vehicle as the only one that will be learning
+            # Mark this vehicle as ego if it is index 0 and it is going to be learning (i.e. not in embed collection mode)
+            is_ego =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
             v = None
             spec = v_data[i]
             targets = self.t_targets if is_ego  else  self.b_targets #list of possible targets to navigate to
