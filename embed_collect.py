@@ -14,32 +14,25 @@ from graphics import Graphics
 def main(argv):
 
     # Handle any args
-    #TODO: change this to what is needed for embedding:
-    #       -g: turn on graphics to show the runs (for debugging)
-    #       -s: scenario number to run (in [20, 25] or 29; default is 29, which randomly chooses a starting lane)
-    #       -e: the number of episodes to run
-    #       -s: max number of steps to collect
-    #       -o: overwrite the data file (default is to append)
-    #       -f: name of the data file to be written
-
+    filename = "observations.csv"
     program_desc = "Runs data collection for vector embedding in the cda1 project."
     scenario_desc = "20-25:  starting in lanes 0-5 (primarily testing).\n" \
-                    + "29:     starting in a random location.\n"
+                    + "29:     starting in a random lane.\n"
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Will run until either max episodes or max timesteps is reached.")
-    parser.add_argument("-e", "--episodes", type = int, default = 10000, help = "Max number of episodes to run")
-    parser.add_argument("-t", "--timesteps", type = int, default = 1000000, help = "Max total timesteps to collect")
-    parser.add_argument("-g", "--graphics", type = bool, default = False, help = "Show each episode graphically?")
-    parser.add_argument("-s", "--scenario", type = int, default = 0, help = scenario_desc)
-    parser.add_argument("-f", "--filename", type = str, default = "observations.csv", help = "Name of the data file produced")
-    parser.add_argument("-o", "--overwrite", type = bool, default = False, help = "If the specified filename already exists, should it be overwritten?")
+    parser.add_argument("-e", type = int, default = 10000, help = "Max number of episodes to run")
+    parser.add_argument("-t", type = int, default = 1000000, help = "Max total timesteps to collect")
+    parser.add_argument("-g", action = "store_true", default = False, help = "Show each episode graphically (default: no)")
+    parser.add_argument("-s", type = int, default = 29, help = scenario_desc)
+    parser.add_argument("-f", type = str, default = filename, help = "Name of the data file produced (default: {})".format(filename))
+    parser.add_argument("-o", action = "store_true", default = False, help = "If the specified filename already exists, overwrite it (default: no overwrite)")
     args = parser.parse_args()
 
-    max_episodes = args.episodes
-    max_time_steps = args.timesteps
-    use_graphics = args.graphics
-    filename = args.filename
-    overwrite = args.overwrite
-    scenario = args.scenario
+    max_episodes = args.e
+    max_time_steps = args.t
+    use_graphics = args.g
+    filename = args.f
+    overwrite = args.o
+    scenario = args.s
     if scenario not in [20, 21, 22, 23, 24, 25, 29]:
         print("///// ERROR: invalid scenario specified: {}".format(scenario))
         sys.exit(1)

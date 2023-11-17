@@ -49,3 +49,14 @@ class VehicleGuidance(ABC):
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
         raise NotImplementedError("///// VehicleGuidance.step needs to be overridden by a concrete instantiation.")
+
+
+    def plan_route(self,
+                   obs      : np.array,     #the observation vector for this vehicle for the current time step
+                  ) -> np.array:
+
+        """Produces a strategic guidance (route) plan for the agent. It does not have to be implemented for every vehicle type,
+            but the environment expects this method to be overridden and implemented for the ego vehicle (vehicle ID 0).
+        """
+
+        raise NotImplementedError("///// VehicleGuidance.plan_route needs to be overridden for the selected vehicle type (probably in vehicle[0]).")
