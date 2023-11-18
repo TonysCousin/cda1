@@ -40,7 +40,7 @@ class BotType1aGuidance(VehicleGuidance):
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
         action = [None]*2
-        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
+        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED] + obs[ObsVec.SPEED_CUR])
         action[1] = LaneChange.STAY_IN_LANE
 
         return action

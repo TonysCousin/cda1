@@ -293,7 +293,7 @@ class Roadway:
             rb = self.lanes[lane_id].right_sep - p_loc
             r_rem = self.lanes[right_id].length - (p_loc - self.map_to_param_frame(self.lanes[right_id].start_x, right_id))
 
-        if self.debug > 0:
+        if self.debug > 1:
             print("///// get_current_lane_geom complete. Returning rem = ", rem_this_lane)
             print("      lid = {}, la = {:.2f}, lb = {:.2f}, l_rem = {:.2f}".format(left_id, la, lb, l_rem))
             print("      rid = {}, ra = {:.2f}, rb = {:.2f}, r_rem = {:.2f}".format(right_id, ra, rb, r_rem))

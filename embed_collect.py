@@ -74,6 +74,7 @@ def main(argv):
     # Loop on episodes
     total_steps = 0
     for ep in range(max_episodes):
+        print("///// Beginning data collection episode ", ep)
 
         # Set up for the next episode
         done = False
@@ -84,7 +85,7 @@ def main(argv):
         obs = env.scale_obs(raw_obs)
         step = 0
         if use_graphics:
-            time.sleep(1)
+            time.sleep(2)
 
         # Loop on time steps until end of episode
         while not done:
@@ -122,7 +123,7 @@ def main(argv):
             break
 
     # Summarize the run and close up resources
-    print("///// All data collected.  {} episodes complete, covering {} time steps.".format(ep, total_steps))
+    print("///// All data collected.  {} episodes complete, covering {} time steps.".format(ep+1, total_steps))
     input("///// Press Enter to close...")
     data_file.close()
     if use_graphics:

@@ -211,6 +211,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             self.vehicles.append(v)
             guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
+            print("///// Vehicle {} model: {}, guidance: {}".format(i, spec["model"], spec["guidance"]))
+
         if self.debug > 1:
             print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
 
@@ -362,7 +364,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Clear any lingering observations from the previous episode
         self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE))
 
-        # Clear the locations of all vehicles to get them out of the way for the random placement below
+        # Reset the states of all vehicles to get them out of the way for the random placement below
         for i in range(self.num_vehicles):
             self.vehicles[i].reset()
 
@@ -434,7 +436,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     # Check that the candidate location is at least two vehicle lengths away from anyone else in the same lane
                     # (one vehicle length of gap in between them)
                     far_away = True
-                    for ovi in range(0, episode_vehicles + 1):
+                    for ovi in range(0, episode_vehicles):
                         ov = self.vehicles[ovi]
                         if ovi != i  and  ov.active:
                             if ov.lane_id == lane_id:
@@ -652,9 +654,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         if self.debug > 0:
             print("\n///// Entering step(): ego cmd = ", cmd)
-            print("      vehicles array contains:")
-            for i, v in enumerate(self.vehicles):
-                v.print(i)
+            if self.debug > 1:
+                print("      vehicles array contains:")
+                for i, v in enumerate(self.vehicles):
+                    v.print(i)
 
         self.total_steps += 1
         self.steps_since_reset += 1
@@ -690,6 +693,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***   step: guiding vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
                 #      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
                 action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #unscaled
+                if self.debug > 0:
+                    print("///// step: returned from vehicle guidance step for vehicle {}. Action = ".format(i), action)
+                    print("      obs fwd_dist = {:.1f}, fwd_speed = {:.1f}".format(self.all_obs[i, ObsVec.FWD_DIST], self.all_obs[i, ObsVec.FWD_SPEED]))
 
             # Store the actions for future reference
             vehicle_actions[i] = action

@@ -60,14 +60,11 @@ class EmbedGuidance(VehicleGuidance):
             starts = tgt.get_starting_points()
             self.starting_points = self._dict_union(self.starting_points, starts)
 
-        # Pick an initial offset from whatever the posted speed limit is, m/s (will be +/- 20% of the speed limit)
-        self.speed_offset = (self.prng.random() - 0.5) * 0.6*Constants.MAX_SPEED
-        print("///// EmbedGuidance: initial speed offset = {:.1f}".format(self.speed_offset))
-
         # Define an empty variable to hold the ID of the target destination
         self.target_id = None
 
         # Other member initializations
+        self.speed_offset = 0.0
         self.prev_lc_cmd = LaneChange.STAY_IN_LANE #lane change command from the previous time step
 
 
@@ -80,6 +77,10 @@ class EmbedGuidance(VehicleGuidance):
 
         super().reset(init_lane, init_p)
         self.target_id = None
+
+        # Pick an initial offset from whatever the posted speed limit is, m/s (will be +/- 20% of the speed limit)
+        self.speed_offset = self.prng.gaussian(stddev = 0.2*Constants.MAX_SPEED)
+        print("///// EmbedGuidance: initial speed offset = {:.1f}".format(self.speed_offset))
 
         # Choose one of the targets to drive to, but verify that it is reachable first
         ctr = 0
@@ -118,7 +119,7 @@ class EmbedGuidance(VehicleGuidance):
 
         # Occasionally change the target speed
         if self.prng.random() < 0.02:
-            self.speed_offset += (self.prng.random() - 0.5) * 0.4*Constants.MAX_SPEED
+            self.speed_offset += self.prng.gaussian(stddev = 0.2*Constants.MAX_SPEED)
             print("///// EmbedGuidance: changed speed offset to {:.1f}".format(self.speed_offset))
 
         # Update the target speed based on the local speed limit in this lane segment
@@ -127,7 +128,8 @@ class EmbedGuidance(VehicleGuidance):
         self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
         action = [None]*2
-        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED])
+        action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED] + obs[ObsVec.SPEED_CUR])
+        assert action[0] >= 0.0, "ERROR in EmbedGuidance.step: invalid speed cmd {:.2f}".format(action[0])
 
         #
         #..........Determine lane change command
@@ -357,5 +359,8 @@ class EmbedGuidance(VehicleGuidance):
             if fwd_speed < self.my_vehicle.cur_speed:
                 f = (fwd_dist - CRITICAL_DISTANCE) / (DISTANCE_OF_CONCERN - CRITICAL_DISTANCE)
                 speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, fwd_speed), tgt_speed)
+                if speed_cmd < 0.0:
+                    print("///// Embed ACC: speed_cmd = {:.1f}, f = {:.3f}, tgt_speed = {:.1f}, fwd_speed = {:.1f}, fwd_dist = {:.1f}"
+                          .format(speed_cmd, f, tgt_speed, fwd_speed, fwd_dist)) #TODO debug
 
         return speed_cmd
