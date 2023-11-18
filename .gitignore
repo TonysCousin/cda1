@@ -134,3 +134,6 @@ dmypy.json
 # training checkpoint storage & execution areas
 training/
 staging/
+
+# training data for the embedding program
+observations.csv

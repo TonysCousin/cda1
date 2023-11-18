@@ -50,6 +50,7 @@ def main(argv):
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
+                    "crash_report":             True,
                 }
     env = HighwayEnvWrapper(env_config)
     #print("///// Environment configured. Params are:")

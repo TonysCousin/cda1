@@ -1,5 +1,6 @@
 from vehicle_guidance import VehicleGuidance
 import numpy as np
+from typing import List
 
 from constants import Constants
 from obs_vec import ObsVec
@@ -17,8 +18,9 @@ class BotType1aGuidance(VehicleGuidance):
     def __init__(self,
                  prng   : HpPrng,
                  roadway: Roadway,
+                 targets: List,
                 ):
-        super().__init__(prng, roadway)
+        super().__init__(prng, roadway, targets)
 
         # Pick an offset from whatever the posted speed limit
         self.speed_offset = 0.0 #follow the speed limit exactly

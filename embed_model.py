@@ -6,9 +6,16 @@ from obs_vec import ObsVec
 from roadway_b import Roadway, PavementType
 from vehicle_model import VehicleModel
 
-class BridgitModel(VehicleModel):
+class EmbedModel(VehicleModel):
 
-    """Realizes a concrete model for the Bridgit RL agent vehicle."""
+    """Realizes a concrete model for the Embed agent vehicle.  This is a mash-up of the BridgitModel and the BotType1Model,
+        as it uses the observations from both.
+
+        CAUTION:  This is the ONLY class that should be using both the bots section and the Bridgit section of the obs vector!
+                    It is safe to do so here because no agent is learning directly from these observations, and it is only used
+                    to build a collection of observations by the embed_collect program. That program explicitly erases the bot
+                    section of the observations before storing them.
+    """
 
     def __init__(self,
                  roadway    : Roadway,      #roadway geometry model
@@ -66,16 +73,54 @@ class BridgitModel(VehicleModel):
             steps_since_lc = self.lc_compl_steps - 1
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
-
         # Put the lane change desired values back into place, since that planning doesn't happen every time step
         obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1] = lane_change_des
-
-        # Skip a few here that are used for bots or reserved for future
 
         # Find the host vehicle in the roadway (parametric frame)
         # NOTE: allow the case where the host is not on any pavement - it could be sitting in the grass with sensors on watching the world go by
         host_lane_id = me.lane_id
         host_p = me.p
+
+        #
+        #..........Get observations from the bot perspective
+        #
+
+        # Identify the closest neighbor downtrack of this vehicle in the same lane
+        closest_id = None
+        closest_dist = Constants.REFERENCE_DIST #we don't need to worry about anything farther than this
+        for i in range(len(vehicles)):
+            if i == my_id:
+                continue
+
+            v = vehicles[i]
+            if not v.active:
+                continue
+
+            if v.lane_id == me.lane_id:
+                fwd_dist = v.p - me.p
+                if fwd_dist > 0.0  and  fwd_dist < closest_dist:
+                    closest_dist = fwd_dist
+                    closest_id = i
+        #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
+
+        # Build the downtrack portions of the obs vector
+        obs[ObsVec.FWD_DIST] = closest_dist
+        obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED - me.cur_speed
+        if closest_id is not None:
+            obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed - me.cur_speed
+
+        # Check for neighboring vehicles in the 9 zones immediately to the left or right
+        obs[ObsVec.LEFT_OCCUPIED] = 0.0
+        obs[ObsVec.RIGHT_OCCUPIED] = 0.0
+        for i in range(len(vehicles)):
+            v = vehicles[i]
+            if v.lane_id == me.lane_id - 1: #it is to our left
+                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.LEFT_OCCUPIED] = 1.0
+
+            elif v.lane_id == me.lane_id + 1: #it is to our right
+                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.RIGHT_OCCUPIED] = 1.0
 
         #
         #..........Determine pavement observations in each zone

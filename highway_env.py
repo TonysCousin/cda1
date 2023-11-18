@@ -29,6 +29,8 @@ from bot_type1a_guidance import BotType1aGuidance
 from bot_type1b_guidance import BotType1bGuidance
 from bridgit_model import BridgitModel
 from bridgit_guidance import BridgitGuidance
+from embed_model import EmbedModel
+from embed_guidance import EmbedGuidance
 
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
@@ -185,11 +187,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
         self.vehicles = []
         for i in range(self.num_vehicles):
-            # Mark this vehicle as ego if it is index 0 and it is going to be learning (i.e. not in embed collection mode)
-            is_ego =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
+            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
+            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
             v = None
             spec = v_data[i]
-            targets = self.t_targets if is_ego  else  self.b_targets #list of possible targets to navigate to
+            targets = self.t_targets if is_learning  else  self.b_targets #list of possible targets to navigate to
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
@@ -198,7 +200,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
                 guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets)
-                v = Vehicle(model, guidance, self.prng, self.roadway, is_ego, self.time_step_size, self.debug)
+                v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
             except AttributeError as e:
                 print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
                 raise e
@@ -367,7 +369,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Embedding data collection scenarios - this doesn't train anything, so vehicle 0 is a bot, but is still the center
         # of attention here, so we can call it the ego vehicle.
         if 20 <= self.effective_scenario <= 29:
-            if self.effective_scenario - 20 >= self.roadway.NUM_LANES:
+            if self.effective_scenario != 29  and  self.effective_scenario - 20 >= self.roadway.NUM_LANES:
                 raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
 
             # Ego's initial lane is random or specified by the scenario
@@ -670,7 +672,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
             #raw_lc_cmd = min(max(cmd[1]*5.0/2.0, -1.0), 1.0) #allows threshold of +/- 0.2 for boundary between same lane and changing to adjacent
             raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
-            ego_action[1] = int(math.floor(raw_lc_cmd + 0.5)) #TODO: update doc/comment descriptions of cmd interpretation if this is a keeper.
+            ego_action[1] = int(math.floor(raw_lc_cmd + 0.5))
             if self.steps_since_reset < 2: #force it to stay in lane for first time step
                 ego_action[1] = 0.0
             #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
@@ -906,8 +908,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             fraction = min(self.episode_count/MANY_EPISODES, 1.0)
             fav_low = min(float(nv23 - 1.0)*fraction + 1.0, float(nv23)) #lower bound for the favorite number range
             fav_high = min(float(nv - nv3)*fraction + nv3, float(nv)) #upper bound for the favorite number range
-        #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high)) #TODO debug
-        assert fav_high >= fav_low, "///// ERROR in reset(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
+        #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high))
+        assert fav_high >= fav_low, "///// ERROR in _decide_num_vehicles(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
         episode_vehicles = 1
         draw1 = self.prng.random() #determines if we are in the favored band or not
         draw2 = self.prng.random() #chooses the value from within the selected band

@@ -45,7 +45,6 @@ class BotType1Model(VehicleModel):
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
 
-
         # If this vehicle is inactive, then stop now
         me = vehicles[my_id]
         if not me.active:
@@ -61,6 +60,8 @@ class BotType1Model(VehicleModel):
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC
+        if me.lane_change_count >= self.lc_compl_steps - 1: #a new LC maneuver has just completed, so a new mvr can now be considered
+            steps_since_lc = self.lc_compl_steps - 1
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Identify the closest neighbor downtrack of this vehicle in the same lane

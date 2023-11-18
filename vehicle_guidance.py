@@ -42,9 +42,7 @@ class VehicleGuidance(ABC):
     @abstractmethod
     def step(self,
              obs    : np.array, #vector of local observations available to the instantiating vehicle
-            ) -> List:          #returns a list of action commands, such that
-                                # item 0: desired speed, m/s
-                                # item 1: lane change command (corresponds to type LaneChange)
+            ) -> List:          #returns the observation vector (allows an opportunity to modify its plan elements)
 
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 

@@ -88,7 +88,7 @@ class BridgitGuidance(VehicleGuidance):
 
     def plan_route(self,
                    obs      : np.array,     #the observation vector for this vehicle for the current time step
-                  ) -> np.array:
+                  ) -> np.array:            #returns the (possibly modified) observation vector
 
         """Produces a strategic guidance (route) plan for the agent. This logic will eventually be replaced by a trained NN, but we
             start with fairly simple procedural logic in order to focus training on the tactical guidance first.

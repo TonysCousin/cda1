@@ -2,6 +2,7 @@ from cmath import inf
 import sys
 import time
 from typing import List
+import copy
 import numpy as np
 import argparse
 
@@ -50,6 +51,7 @@ def main(argv):
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "vehicle_config_embedding.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
+                    "crash_report":             True,
                 }
     env = HighwayEnvWrapper(env_config)
     env.reset()
@@ -92,8 +94,10 @@ def main(argv):
             # environment will produce commands for vehicle 0 as well, so the action list passed in here is ignored.
             raw_obs, reward, done, truncated, info = env.step(action_list) #obs returned is UNSCALED
 
-            # Scale the new observattion vector and add it to the output file
-            obs = env.scale_obs(raw_obs)
+            # Scale the new observattion vector, then erase the elements used only by the bots (we don't want the ego policy to
+            # learn something from erroneous data here). Then and add it to the output file.
+            obs = copy.copy(env.scale_obs(raw_obs))
+            obs[ObsVec.FWD_DIST : ObsVec.RIGHT_OCCUPIED+1] = 0.0
             np.savetxt(data_file, obs, delimiter = ", ", fmt = "%f")
 
             # Display current status of all the vehicles
