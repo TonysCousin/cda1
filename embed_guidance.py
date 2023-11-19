@@ -80,7 +80,6 @@ class EmbedGuidance(VehicleGuidance):
 
         # Pick an initial offset from whatever the posted speed limit is, m/s (will be +/- 20% of the speed limit)
         self.speed_offset = self.prng.gaussian(stddev = 0.2*Constants.MAX_SPEED)
-        print("///// EmbedGuidance: initial speed offset = {:.1f}".format(self.speed_offset))
 
         # Choose one of the targets to drive to, but verify that it is reachable first
         ctr = 0
@@ -120,7 +119,7 @@ class EmbedGuidance(VehicleGuidance):
         # Occasionally change the target speed
         if self.prng.random() < 0.02:
             self.speed_offset += self.prng.gaussian(stddev = 0.2*Constants.MAX_SPEED)
-            print("///// EmbedGuidance: changed speed offset to {:.1f}".format(self.speed_offset))
+            #print("///// EmbedGuidance: changed speed offset to {:.1f}".format(self.speed_offset))
 
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)
@@ -178,7 +177,7 @@ class EmbedGuidance(VehicleGuidance):
                     cmd = LaneChange.CHANGE_LEFT
                 else:
                     cmd = LaneChange.CHANGE_RIGHT
-                print("///// EmbedGuidance: initiated random lane change.")
+                #print("///// EmbedGuidance: initiated random lane change.")
 
         action[1] = cmd
         self.prev_lc_cmd = cmd

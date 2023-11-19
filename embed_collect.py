@@ -16,12 +16,14 @@ def main(argv):
 
     # Handle any args
     filename = "observations.csv"
+    max_episodes = 10000
+    max_time_steps = 2000000
     program_desc = "Runs data collection for vector embedding in the cda1 project."
     scenario_desc = "20-25:  starting in lanes 0-5 (primarily testing).\n" \
                     + "29:     starting in a random lane.\n"
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Will run until either max episodes or max timesteps is reached.")
-    parser.add_argument("-e", type = int, default = 10000, help = "Max number of episodes to run")
-    parser.add_argument("-t", type = int, default = 1000000, help = "Max total timesteps to collect")
+    parser.add_argument("-e", type = int, default = max_episodes, help = "Max number of episodes to run (default = {})".format(max_episodes))
+    parser.add_argument("-t", type = int, default = max_time_steps, help = "Max total timesteps to collect (default = {})".format(max_time_steps))
     parser.add_argument("-g", action = "store_true", default = False, help = "Show each episode graphically (default: no)")
     parser.add_argument("-s", type = int, default = 29, help = scenario_desc)
     parser.add_argument("-f", type = str, default = filename, help = "Name of the data file produced (default: {})".format(filename))
@@ -51,7 +53,7 @@ def main(argv):
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "vehicle_config_embedding.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
-                    "crash_report":             True,
+                    "crash_report":             False,
                 }
     env = HighwayEnvWrapper(env_config)
     env.reset()
@@ -74,7 +76,6 @@ def main(argv):
     # Loop on episodes
     total_steps = 0
     for ep in range(max_episodes):
-        print("///// Beginning data collection episode ", ep)
 
         # Set up for the next episode
         done = False
@@ -99,21 +100,20 @@ def main(argv):
             # learn something from erroneous data here). Then and add it to the output file.
             obs = copy.copy(env.scale_obs(raw_obs))
             obs[ObsVec.FWD_DIST : ObsVec.RIGHT_OCCUPIED+1] = 0.0
-            np.savetxt(data_file, obs, delimiter = ", ", fmt = "%f")
+            np.savetxt(data_file, obs.reshape(1, ObsVec.OBS_SIZE), delimiter = ", ", fmt = "%f") #requires a 2D array
 
             # Display current status of all the vehicles
             if use_graphics:
                 action = np.array(action_list)
                 vehicles = env.get_vehicle_data()
                 graphics.update(action, raw_obs, vehicles)
-
-            print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                    .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, \
+                print("///// step {:3d}: lane = {}, LC # = {}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+                    .format(step, vehicles[0].lane_id, vehicles[0].lane_change_count, \
                             raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
 
             # Wrap up the episode
             if done:
-                print("///// Episode {} complete: {}.".format(ep, info["reason"]))
+                print("//    Episode {} complete: {}".format(ep, info["reason"]))
                 if use_graphics:
                     time.sleep(1)
 
@@ -124,9 +124,9 @@ def main(argv):
 
     # Summarize the run and close up resources
     print("///// All data collected.  {} episodes complete, covering {} time steps.".format(ep+1, total_steps))
-    input("///// Press Enter to close...")
     data_file.close()
     if use_graphics:
+        input("///// Press Enter to close...")
         graphics.close()
     sys.exit()
 

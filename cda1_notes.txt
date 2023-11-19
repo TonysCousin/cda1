@@ -958,6 +958,12 @@ Big picture of this project's goals:
 
 * Began building the code to train the vector embedding.
 
+11/18/23
+
+* Completed writing & testing the embedding data capture program.
+
+* Ran a data capture for 1000 episodes. Run time was ~3 min.
+
 
 TODO:
 - Add current speed limit as a separate element to the obs vector (redundant)
