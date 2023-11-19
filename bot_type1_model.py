@@ -57,6 +57,7 @@ class BotType1Model(VehicleModel):
         obs[ObsVec.LC_CMD] = actions[1]
         obs[ObsVec.SPEED_PREV] = prev_speed
         obs[ObsVec.SPEED_CUR] = me.cur_speed
+        obs[ObsVec.LOCAL_SPD_LIMIT] = self.roadway.get_speed_limit(me.lane_id, me.p)
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC

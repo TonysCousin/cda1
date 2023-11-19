@@ -962,11 +962,12 @@ Big picture of this project's goals:
 
 * Completed writing & testing the embedding data capture program.
 
-* Ran a data capture for 1000 episodes. Run time was ~3 min.
+* Ran a data capture for 1000 episodes. Run time was ~3 min. This corresponds to vector-embed branch commit 41020523.
 
 
 TODO:
 - Add current speed limit as a separate element to the obs vector (redundant)
+- consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.

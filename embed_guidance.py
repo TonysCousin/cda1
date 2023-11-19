@@ -251,16 +251,16 @@ class EmbedGuidance(VehicleGuidance):
             # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
             # (vehicle will travers approx 6 sensor zones during that time).
             if i == self.LEFT:
-                for i in range(6):
-                    bdry = obs[ObsVec.BASE_CTR_FRONT + i*ObsVec.CTR_ELEMENTS + ObsVec.OFFSET_LEFT_BDRY]
+                for j in range(7):
+                    bdry = obs[ObsVec.BASE_LEFT_CTR_BDRY + j]
                     if bdry < 0.0:
                         pos.prob = 0.0
                         break
 
             # Same test for lane to the right
             elif i == self.RIGHT:
-                for i in range(6):
-                    bdry = obs[ObsVec.BASE_CTR_FRONT + i*ObsVec.CTR_ELEMENTS + ObsVec.OFFSET_RIGHT_BDRY]
+                for j in range(7):
+                    bdry = obs[ObsVec.BASE_RIGHT_CTR_BDRY + j]
                     if bdry < 0.0:
                         pos.prob = 0.0
                         break

@@ -45,6 +45,7 @@ def main(argv):
         oi = "WITH"
     print("\n***** inputs: scenario = {}, max_episodes = {}, max_time_steps = {} to file {} {} overwrite"
           .format(scenario, max_episodes, max_time_steps, filename, oi))
+    print("      Each obs entry will be {} elements long.".format(ObsVec.FINAL_ELEMENT + 1 - ObsVec.BASE_SENSOR_DATA))
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
@@ -96,11 +97,11 @@ def main(argv):
             # environment will produce commands for vehicle 0 as well, so the action list passed in here is ignored.
             raw_obs, reward, done, truncated, info = env.step(action_list) #obs returned is UNSCALED
 
-            # Scale the new observattion vector, then erase the elements used only by the bots (we don't want the ego policy to
-            # learn something from erroneous data here). Then and add it to the output file.
+            # Scale the new observattion vector, then extract only the "sensor" data from the relative location zones.
+            # Then and add that info to the output file.
             obs = copy.copy(env.scale_obs(raw_obs))
-            obs[ObsVec.FWD_DIST : ObsVec.RIGHT_OCCUPIED+1] = 0.0
-            np.savetxt(data_file, obs.reshape(1, ObsVec.OBS_SIZE), delimiter = ", ", fmt = "%f") #requires a 2D array
+            sensor_obs = obs[ObsVec.BASE_SENSOR_DATA : ObsVec.FINAL_ELEMENT+1]
+            np.savetxt(data_file, sensor_obs.reshape(1, len(sensor_obs)), delimiter = ", ", fmt = "%f") #requires a 2D array
 
             # Display current status of all the vehicles
             if use_graphics:

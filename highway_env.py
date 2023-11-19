@@ -231,6 +231,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lower_obs[ObsVec.STEPS_SINCE_LN_CHG]    = 0.0
         lower_obs[ObsVec.SPEED_CUR]             = 0.0
         lower_obs[ObsVec.SPEED_PREV]            = 0.0
+        lower_obs[ObsVec.LOCAL_SPD_LIMIT]       = 0.0
         lower_obs[ObsVec.FWD_DIST]              = 0.0
         lower_obs[ObsVec.FWD_SPEED]             = -Constants.MAX_SPEED
 
@@ -242,6 +243,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         upper_obs[ObsVec.STEPS_SINCE_LN_CHG]    = Constants.MAX_STEPS_SINCE_LC
         upper_obs[ObsVec.SPEED_CUR]             = Constants.MAX_SPEED
         upper_obs[ObsVec.SPEED_PREV]            = Constants.MAX_SPEED
+        upper_obs[ObsVec.LOCAL_SPD_LIMIT]       = Constants.MAX_SPEED
         upper_obs[ObsVec.FWD_DIST]              = Constants.REFERENCE_DIST
         upper_obs[ObsVec.FWD_SPEED]             = Constants.MAX_SPEED
 
@@ -1273,7 +1275,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Loop through obs zones forward of the ego vehicle to find the first one occupied and get its speed
         for z in range(6):
-            z_idx = ObsVec.BASE_CTR_FRONT + z*ObsVec.CTR_ELEMENTS
+            z_idx = ObsVec.BASE_CTR + (ObsVec.ZONES_BEHIND + 1 + z)*ObsVec.NORM_ELEMENTS
             occupied = self.all_obs[0, z_idx + ObsVec.OFFSET_OCCUPIED]
             if occupied > 0.5:
                 fwd_speed = self.all_obs[0, z_idx + ObsVec.OFFSET_SPEED]*Constants.MAX_SPEED + self.all_obs[0, ObsVec.SPEED_CUR]

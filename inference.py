@@ -45,7 +45,7 @@ def main(argv):
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
-                    "debug":                    0,
+                    "debug":                    1,
                     "verify_obs":               True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
@@ -169,17 +169,15 @@ def main(argv):
             row_res = [0.0]*5
             for col in range(5):
                 base = ObsVec.BASE_LL + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                num_elem = ObsVec.NORM_ELEMENTS
                 if col == 1:
                     base = ObsVec.BASE_L + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
                 elif col == 2:
-                    base = ObsVec.BASE_CTR_FRONT
-                    num_elem = ObsVec.CTR_ELEMENTS
+                    base = ObsVec.BASE_CTR + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
                 elif col == 3:
                     base = ObsVec.BASE_R + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
                 elif col == 4:
                     base = ObsVec.BASE_RR + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                z_idx = base + row*num_elem
+                z_idx = base + row*ObsVec.NORM_ELEMENTS
                 spd_lim = raw_obs[z_idx + ObsVec.OFFSET_SPD_LMT]
                 row_res[col] = spd_lim
             print("      row {:2d}   {:.3f}   {:.3f}   {:.3f}   {:.3f}   {:.3f}".format(row, row_res[0], row_res[1], \

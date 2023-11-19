@@ -37,9 +37,9 @@ class ObsVec:
               -------------------------
               -------------------------
 
-        We will represent the zones in longituudinal columns (parallel to the direction of travel).  The columns on
-        each side of the vehicle will all be defined, then the center column (fore & aft of the vehicle) will appear
-        last, since it has slightly different attributes. These zones move with the vehicle, and are a schematic
+        We will represent the zones in longitudinal columns (parallel to the direction of travel). The columns will
+        be stored from left to right. The center column looks exactly like the others, with a zone surrounding the
+        host vehicle. These zones move with the vehicle, and are a schematic
         representation of the nearby roadway situation. That is, they don't include any lane shape geometry,
         representing every lane as straight, and physically adjacent to its next lane. This is possible because we
         ASSUME that the vehicles are operating well inside their performance limits, so that road geometry won't
@@ -47,35 +47,36 @@ class ObsVec:
         use of the parametric coordinate frame, which allows this zone construction.
 
         NOTE: this structure ignores possibley physical realities of having "adjacent" lanes separated (e.g. a ramp
-        coming it at an angle to the mainline lane), which could degrade observations.
+        coming it at an angle to the mainline lane), which could degrade observations with real world sensors.
 
-        Each zone in a side column and in the center column behind the host vehicle will include the following
-        attributes (all are floats):
+        Each zone will include the following attributes (all are floats):
             * Drivable:     1.0 if that location covers a main lane or on-ramp that leads to a trained agent target,
                                 0.0 if it covers an exit ramp, or -1.0 if it not a paved surface
             * Speed limit:  regulatory limit of the lane at the front of the zone, if drivable, normalized by MAX_SPEED,
                                 else 0.0 if not driveable.
-            * Occupied:     1.0 if any part of a vehicle is in this zone, 0 if empty
+            * Occupied:     1.0 if any part of a vehicle is in this zone, 0 if empty (always 1 in the host's zone)
             * Speed:        relative to host vehicle's speed, (veh_spd - host_spd), normalized by MAX_SPEED, if the
-                                zone is occupied, else 0.0.
-
-        Each zone in the forward center column (representing the host's current lane) will have the above attributes, but
-        also contain:
-            * Left boundary:  -1.0 if cannot be crossed (e.g. solid line or grass on the other side), +1.0 if it
-                                can be crossed (in either direction)
-            * right boundary: -1.0 if cannot be crossed, +1.0 if it can be crossed (in either direction)
+                                zone is occupied, else 0.0 (always 0 in host's zone)
 
         If a neighbor vehicle is observed to be changing lanes, it will indicate occupancy in two adjacent zones,
         as it will have 2 wheels in each during the maneuver. Often, a vehicle of 5 m in length will occupy two
         longitudinally adjacent zones, since this simulation models continuous physics, not discrete grid motion.
         Also, it is allowed to have vehicles of any length - a tractor-trailer could occupy 4 or 5 zones
-        longitudianlly.
+        longitudinally.
+
+        Because the center lane houses the host vehicle, it is important to additionally represent its boundaries
+        to allow planning for legal lane changes. Therefore, after the five columns are represented, as described
+        above, there will be two more contiguous segments of data. One of these represents the left-hand boundary
+        on each zone forward of the host vehicle (including host's zone), and one represents the right-hand
+        boundary of each forward zone.  Values are:
+            * Left boundary:  -1.0 if cannot be crossed (e.g. solid line or grass on the other side), +1.0 if it
+                                can be crossed (in either direction)
+            * right boundary: -1.0 if cannot be crossed, +1.0 if it can be crossed (in either direction)
     """
 
     ZONES_FORWARD       = 20 #num zones in front of the vehicle in a given lane
     ZONES_BEHIND        = 4  #num zones behind the vehicle in a given lane
-    NORM_ELEMENTS       = 4  #num data elements in a normal zone (side column)
-    CTR_ELEMENTS        = NORM_ELEMENTS + 2 #num data elements in a forward zone of the center column
+    NORM_ELEMENTS       = 4  #num data elements in a normal zone
     OBS_ZONE_LENGTH     = 5.0#longitudinal length of a single zone, m
 
     # Common elements
@@ -86,44 +87,47 @@ class ObsVec:
     STEPS_SINCE_LN_CHG  =  4 #num time steps since the previous lane change was initiated
     SPEED_CUR           =  5 #agent's actual forward speed, m/s
     SPEED_PREV          =  6 #agent's actual speed in previous time step, m/s
+    LOCAL_SPD_LIMIT     =  7 #posted speed limit at the host's current location, m/s
 
     # Elements specific to bots running ACC & changing lanes to reach a target destination
-    FWD_DIST            =  7 #distance to nearest downtrack vehicle in same lane, m
-    FWD_SPEED           =  8 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
-    TGT_LANE_OFFSET     =  9 #target dest is this many lanes left (negative) or right (positive) from current lane
-    LEFT_OCCUPIED       = 10 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
-    RIGHT_OCCUPIED      = 11 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    FWD_DIST            =  8 #distance to nearest downtrack vehicle in same lane, m
+    FWD_SPEED           =  9 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
+    TGT_LANE_OFFSET     = 10 #target dest is this many lanes left (negative) or right (positive) from current lane
+    LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
     #
     #..........Elements specific to the ego vehicle (Bridgit) is everything below here
     #
-    FUTURE1             = 12 #reserved for future use
-    FUTURE2             = 13
-    FUTURE3             = 14
+    FUTURE1             = 13 #reserved for future use
+    FUTURE2             = 14
+    FUTURE3             = 15
 
     # Bridgit controller lane change command outputs; relative desirability for each lane relative to the vehicle's current lane
-    DESIRABILITY_LEFT   = 15
-    DESIRABILITY_CTR    = 16
-    DESIRABILITY_RIGHT  = 17
+    DESIRABILITY_LEFT   = 16
+    DESIRABILITY_CTR    = 17
+    DESIRABILITY_RIGHT  = 18
 
     # More elements specific to the Bridgit vehicle:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set of 4 or 6 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.
-    BASE_LL             = 18 #first element in the far left column
+    BASE_LL             = 19 #first element in the far left column
     BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near left column
-    BASE_R              = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near right column
+    BASE_CTR            = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column
+    BASE_R              = BASE_CTR+ NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near right column
     BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #far right column
-    BASE_CTR_REAR       = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column (ego's current lane), only cells behind ego
-    BASE_CTR_FRONT      = BASE_CTR_REAR + NORM_ELEMENTS*ZONES_BEHIND #center column, only cells in front of ego
-    FINAL_ELEMENT       = BASE_CTR_FRONT + CTR_ELEMENTS*ZONES_FORWARD - 1
+    BASE_LEFT_CTR_BDRY  = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #left-hand boundaries of the forward center lane
+    BASE_RIGHT_CTR_BDRY = BASE_LEFT_CTR_BDRY + ZONES_FORWARD + 1 #right-hand boundaries of the forward center lane
+    FINAL_ELEMENT       = BASE_RIGHT_CTR_BDRY + ZONES_FORWARD + 1 - 1
+
+    # This one is just a convenient alias to where the "sensor" data block begins
+    BASE_SENSOR_DATA    = BASE_LL
 
     # Offsets for the individual data elements in each zone
     OFFSET_DRIVABLE     = 0
     OFFSET_SPD_LMT      = 1
     OFFSET_OCCUPIED     = 2
     OFFSET_SPEED        = 3
-    OFFSET_LEFT_BDRY    = 4 #in forward center column only
-    OFFSET_RIGHT_BDRY   = 5 #in forward center column only
 
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector
