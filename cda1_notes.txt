@@ -973,7 +973,20 @@ Big picture of this project's goals:
   it gets compressed), so wanted to pull it out separately to make it stand out more.
 
 * Started a run of the embed_collect program for 20k episodes or 2M steps. This corresponds to commit 5af04473 on
-  the vector-embed branch.
+  the vector-embed branch. It completed 20k episodes and collected 1,675,049 steps in a couple hours. The data file
+  is observations_231118.csv, and is 8.6 GB.
+	* Realized that the final step of an episode that ends in off-roading shows a vector of all zeros. Crashes
+	  don't have this problem.
+
+11/21/23
+
+* Fixed BridgitModel and EmbedModel so that they don't bail out if the vehicle is inactive; they will still collect
+  observations. This should prevent the all-zeros rows seen earlier.
+	* Removed the previous observation capture, since it had many episodes affected by this problem.
+
+* Redefined the obs vector elements for host's lane boundary data. Rather than have one element for each side of
+  each zone, I reduced it to only 3 "regions" along the length of that lane, so only 6 data elements. These are
+  now pulled out of the "sensor grid" and stored separately, so won't be captured for the autoencoder to look at.
 
 
 TODO:

@@ -149,10 +149,9 @@ class BridgitGuidance(VehicleGuidance):
                     pos.prob = 1.0 - self.SMALL_DISTANCE/pos.delta_p
 
             # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
-            # (vehicle will traverse approx 6 sensor zones during that time). We loop through 7 zones to account for the host's zone plus
-            # 6 downtrack zones.
+            # (vehicle will traverse approx 6 sensor zones, or 2 boundary regions, during that time).
             if i == self.LEFT:
-                for j in range(7):
+                for j in range(2):
                     bdry = obs[ObsVec.BASE_LEFT_CTR_BDRY + j]
                     if bdry < 0.0:
                         pos.prob = 0.0
@@ -160,7 +159,7 @@ class BridgitGuidance(VehicleGuidance):
 
             # Same test for lane to the right
             elif i == self.RIGHT:
-                for j in range(7):
+                for j in range(2):
                     bdry = obs[ObsVec.BASE_RIGHT_CTR_BDRY + j]
                     if bdry < 0.0:
                         pos.prob = 0.0

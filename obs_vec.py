@@ -64,14 +64,16 @@ class ObsVec:
         Also, it is allowed to have vehicles of any length - a tractor-trailer could occupy 4 or 5 zones
         longitudinally.
 
-        Because the center lane houses the host vehicle, it is important to additionally represent its boundaries
-        to allow planning for legal lane changes. Therefore, after the five columns are represented, as described
-        above, there will be two more contiguous segments of data. One of these represents the left-hand boundary
-        on each zone forward of the host vehicle (including host's zone), and one represents the right-hand
-        boundary of each forward zone.  Values are:
-            * Left boundary:  -1.0 if cannot be crossed (e.g. solid line or grass on the other side), +1.0 if it
-                                can be crossed (in either direction)
-            * right boundary: -1.0 if cannot be crossed, +1.0 if it can be crossed (in either direction)
+        Because the center lane houses the host vehicle, it is important to represent its boundaries to allow planning
+        for legal lane changes. However, we don't need to represent these on as fine a grid as we do the other sensor
+        data. Using only a small number of data elements here avoids problems trying to mash this info into a raster-
+        like grid that may require convolutional compression; rather, these elements can be exempt from that process.
+        There are 3 data elements representing the left boundary through the length of the forward sensor region
+        (100 m ahead of the host plus the length of host's zone). Then 3 elements representing the right boundary in
+        the same way. For each boundary, element 0 is the host's zone plus the first two forward zones (0-1); element
+        1 is forward zones 2-8; element 2 is zones 9-19 (the farthest forward). Values in these cells are:
+            * -1 if a lane change is blocked (e.g. solid line or edge of pavement) in any part of its length
+            * +1 if a lane change is legal over the entire length represented (i.e. a dashed line)
     """
 
     ZONES_FORWARD       = 20 #num zones in front of the vehicle in a given lane
@@ -79,7 +81,7 @@ class ObsVec:
     NORM_ELEMENTS       = 4  #num data elements in a normal zone
     OBS_ZONE_LENGTH     = 5.0#longitudinal length of a single zone, m
 
-    # Common elements
+    # Common elements for all models
     SPEED_CMD           =  0 #agent's most recent speed command, m/s (action feedback from this step)
     SPEED_CMD_PREV      =  1 #desired speed from previous time step, m/s
     LC_CMD              =  2 #agent's most recent lane change command, quantized (values map to the enum class LaneChange)
@@ -97,8 +99,9 @@ class ObsVec:
     RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
     #
-    #..........Elements specific to the ego vehicle (Bridgit) is everything below here
+    #..........Elements specific to the Bridgit model is everything below here
     #
+
     FUTURE1             = 13 #reserved for future use
     FUTURE2             = 14
     FUTURE3             = 15
@@ -108,18 +111,21 @@ class ObsVec:
     DESIRABILITY_CTR    = 17
     DESIRABILITY_RIGHT  = 18
 
+    # Host lane edge markings/permeability
+    NUM_BDRY_REGIONS    = 3 #number of data elements representing one side boundary of the lane forward of host
+    BASE_LEFT_CTR_BDRY  = DESIRABILITY_RIGHT + 1 #left-hand boundaries of the forward center lane
+    BASE_RIGHT_CTR_BDRY = BASE_LEFT_CTR_BDRY + NUM_BDRY_REGIONS #right-hand boundaries of the forward center lane
+
     # More elements specific to the Bridgit vehicle:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set of 4 or 6 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.
-    BASE_LL             = 19 #first element in the far left column
+    BASE_LL             = BASE_RIGHT_CTR_BDRY + NUM_BDRY_REGIONS #first element in the far left column
     BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near left column
     BASE_CTR            = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column
     BASE_R              = BASE_CTR+ NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near right column
     BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #far right column
-    BASE_LEFT_CTR_BDRY  = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #left-hand boundaries of the forward center lane
-    BASE_RIGHT_CTR_BDRY = BASE_LEFT_CTR_BDRY + ZONES_FORWARD + 1 #right-hand boundaries of the forward center lane
-    FINAL_ELEMENT       = BASE_RIGHT_CTR_BDRY + ZONES_FORWARD + 1 - 1
+    FINAL_ELEMENT       = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) - 1
 
     # This one is just a convenient alias to where the "sensor" data block begins
     BASE_SENSOR_DATA    = BASE_LL

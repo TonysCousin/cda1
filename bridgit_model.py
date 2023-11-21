@@ -46,11 +46,10 @@ class BridgitModel(VehicleModel):
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
         lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
-
-        # If this vehicle is inactive, then stop now
         me = vehicles[my_id]
-        if not me.active:
-            return obs
+
+        # If this vehicle is inactive, keep collecting data; doing so may mean an extra time step of work, but it prevents the storage
+        # of an all-zero obs vector for a key vehicle in its final time step.
 
         # Build the common parts of the obs vector
         obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
@@ -66,7 +65,6 @@ class BridgitModel(VehicleModel):
         if me.lane_change_count >= self.lc_compl_steps - 1: #a new LC maneuver has just completed, so a new mvr can now be considered
             steps_since_lc = self.lc_compl_steps - 1
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
-
 
         # Put the lane change desired values back into place, since that planning doesn't happen every time step
         obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1] = lane_change_des
@@ -136,23 +134,40 @@ class BridgitModel(VehicleModel):
             ra_p = ra + host_p
             rb_p = rb + host_p
 
-        # Loop through each zone in the center column, from host zone forward
-        for zone_id in range(ObsVec.ZONES_FORWARD + 1):
+        # Loop through the center column, boundary regions
+        zone_min = 0
+        zone_max = 2
+        for bdry_region in range(ObsVec.NUM_BDRY_REGIONS):
 
-            # Determine the zone's center P
-            zone_rear_p = host_p - half_zone + zone_id*ObsVec.OBS_ZONE_LENGTH
-            zone_ctr_p = zone_rear_p + half_zone
+            # Define the zone IDs covered by this region. (see ObsVec class description). Note that the loop index
+            # covers one more than the number of forward sensor zones; the first zone addressed here is the host's
+            # own zone.
+            if bdry_region == 1:
+                zone_min = 3
+                zone_max = 9
+            elif bdry_region == 2:
+                zone_min = 10
+                zone_max = 20
 
-            # If there is a reachable lane to the side of interest, consider the boundary passable. We are only
-            # concerned with physical connectivity here, not painted lines.
-            left_idx = ObsVec.BASE_LEFT_CTR_BDRY + zone_id
-            obs[left_idx] = -1.0 #default to unpassable - left side
-            if la_p < zone_ctr_p < lb_p:
-                obs[left_idx] = 1.0
-            right_idx = ObsVec.BASE_RIGHT_CTR_BDRY + zone_id
-            obs[right_idx] = -1.0 #default to unpassable - right side
-            if ra_p < zone_ctr_p < rb_p:
-                obs[right_idx] = 1.0
+            # Initialize the boundary to passable
+            left_idx = ObsVec.BASE_LEFT_CTR_BDRY + bdry_region
+            right_idx = ObsVec.BASE_RIGHT_CTR_BDRY + bdry_region
+            obs[left_idx] = 1.0
+            obs[right_idx] = 1.0
+
+            # Loop through each zone in this region
+            for zone_id in range(zone_min, zone_max+1):
+
+                # Determine the zone's center P
+                zone_rear_p = host_p - half_zone + zone_id*ObsVec.OBS_ZONE_LENGTH
+                zone_ctr_p = zone_rear_p + half_zone
+
+                # If there is no reachable lane to the side of interest, then mark this region impassable. We are only
+                # concerned with physical connectivity here, not painted lines.
+                if zone_ctr_p <= la_p  or  zone_ctr_p >= lb_p:
+                    obs[left_idx] = -1.0
+                if zone_ctr_p <= ra_p  or  zone_ctr_p >= rb_p:
+                    obs[right_idx] = -1.0
 
         #
         #..........Map vehicles to zones for those that are within the grid
@@ -203,8 +218,8 @@ class BridgitModel(VehicleModel):
 
             # Get the zone numbers for both ends of the vehicle, limited to the valid range of zones in a column
             total_zones = ObsVec.ZONES_BEHIND + ObsVec.ZONES_FORWARD + 1
-            z_num_rear = min(max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), total_zones)
-            z_num_front = min(max(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), total_zones)
+            z_num_rear = min(max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), total_zones - 1)
+            z_num_front = min(max(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), total_zones - 1)
 
             assert z_num_rear <= z_num_front, \
                     "///// BridgitModel.get_obs_vector: host lane = {}, host_p = {:.2f}; vehicle {} in lane {}, p = {:.2f} has has z_num_rear = {}, " \

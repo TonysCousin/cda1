@@ -195,8 +195,14 @@ def print_obs(obs, label):
         c2 = ObsVec.BASE_CTR + z*ObsVec.NORM_ELEMENTS
         c3 = ObsVec.BASE_R + z*ObsVec.NORM_ELEMENTS
         c4 = ObsVec.BASE_RR + z*ObsVec.NORM_ELEMENTS
-        l_bdry = ObsVec.BASE_LEFT_CTR_BDRY + z + 1 - 5
-        r_bdry = ObsVec.BASE_RIGHT_CTR_BDRY + z + 1 - 5
+        br = 0
+        zm5 = z - 5
+        if 2 < zm5 < 10:
+            br = 1
+        elif 9 < zm5 < 20:
+            br = 2
+        l_bdry = ObsVec.BASE_LEFT_CTR_BDRY + br
+        r_bdry = ObsVec.BASE_RIGHT_CTR_BDRY + br
 
         if row < 20:
             print("{:2d} Type: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(z, obs[c0+0], obs[c1+0], obs[c2+0], obs[c3+0], obs[c4+0]))
