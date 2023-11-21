@@ -989,6 +989,7 @@ Big picture of this project's goals:
   now pulled out of the "sensor grid" and stored separately, so won't be captured for the autoencoder to look at.
 
 
+
 TODO:
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
