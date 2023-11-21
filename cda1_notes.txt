@@ -964,9 +964,19 @@ Big picture of this project's goals:
 
 * Ran a data capture for 1000 episodes. Run time was ~3 min. This corresponds to vector-embed branch commit 41020523.
 
+* Rearranged the obs vector to make a regular raster map of the whole zone grid. The center column now has no special
+  treatment - it looks just like the other columns, and holds data in the ego zone. Center lane's boundary indicators
+  have been moved to the end of the sensor area by themselves.
+
+* I also added an up-front obs element reflecting the local speed limit at ego's location. This is redundant with
+  info available in the sensor zone data, but I'm afraid that is getting lost in all the noise (and even moreso when
+  it gets compressed), so wanted to pull it out separately to make it stand out more.
+
+* Started a run of the embed_collect program for 20k episodes or 2M steps. This corresponds to commit 5af04473 on
+  the vector-embed branch.
+
 
 TODO:
-- Add current speed limit as a separate element to the obs vector (redundant)
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
