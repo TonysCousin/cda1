@@ -1022,10 +1022,16 @@ Big picture of this project's goals:
 
 * Run E3 of embed training for 50 epochs. embedding dim = 200, batch = 256, LR = 0.0001.
 	* Weights stored as embedding_200_231122-2205.pt
+	* Both training & test losses monotonically dropped through all 50 epochs.  Need to run again with
+	  longer duration.
+
+* Run E4 - same as E3, but for 200 epochs.  Same output weight file also.
+	* ???
 
 * Wrote the embed_eval program to help visualize a side-by-side comparison of the input sensor tensor
   and the embedding output tensor. Ideally, these will be identical, and this will help to understand
   where the challenges may be.
+	* Began testing it.
 
 
 TODO:
