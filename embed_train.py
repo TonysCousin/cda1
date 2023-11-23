@@ -1,147 +1,185 @@
 from cmath import inf
 import sys
 import time
-from typing import List
+from typing import List, Union
 import copy
 import numpy as np
 import argparse
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset
+import pandas as pd
+from torch.utils.tensorboard import SummaryWriter
+
 
 from obs_vec import ObsVec
-from highway_env_wrapper import HighwayEnvWrapper
-from graphics import Graphics
-
-"""This program trains an autoencoder to compress the host vehicle's sensor observations, then decompress them to form
-    a reasonably accurate reproduction of the original sensor data. Once the training is satisfactory, the weights of
-    the encoder layer are saved for future use in our CDA agent.
-"""
 
 
+class ObsDataset(Dataset):
+    """Defines a custom dataset for the CDA1 sensor observations."""
+
+    def __init__(self,
+                 obs_datafile   : str,  #fully qualified pathname to the CSV file containing the data
+                ):
+
+        self.df = pd.read_csv(obs_datafile)
 
 
+    def __len__(self):
+        """Returns the number of items in the dataset."""
+
+        return len(self.df)
 
 
+    def __getitem__(self,
+                    idx         : Union[int, torch.Tensor],  #index of the desired data record (or a batch of indices)
+                   ) -> torch.Tensor:   #returns the data record as a 1D tensor
+        """Retrieves a single data record."""
+
+        # Handle the production of a batch if multiple indices have been provided
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        item = self.df.iloc[idx, :]
+        npitem = item.to_numpy(dtype = np.float32)
+        return npitem
 
 
+class Autoencoder(nn.Module):
+    """Defines an autoencoder NN that will compress and then decompress the observation grid data, attempting to
+        recreate the original input data.
+    """
+
+    def __init__(self,
+                 encoding_size  : int,  #number of data elements in the encoded data (number of first layer neurons)
+                ):
+        super(Autoencoder, self).__init__()
+
+        self.encoder = nn.Linear(ObsVec.SENSOR_DATA_SIZE, encoding_size)
+        self.decoder = nn.Linear(encoding_size, ObsVec.SENSOR_DATA_SIZE)
+
+
+    def forward(self, x):
+        """Computes a forward pass through the NN."""
+
+        x = F.relu(self.encoder(x))
+        x = F.sigmoid(self.decoder(x))
+
+        return x
 
 
 def main(argv):
+    """This program trains an autoencoder to compress the host vehicle's sensor observations, then decompress them to form
+        a reasonably accurate reproduction of the original sensor data. Once the training is satisfactory, the weights of
+        the encoder layer are saved for future use in our CDA agent.
+    """
 
     # Handle any args
-    filename = "observations.csv"
-    max_episodes = 10000
-    max_time_steps = 2000000
-    program_desc = "Runs data collection for vector embedding in the cda1 project."
-    scenario_desc = "20-25:  starting in lanes 0-5 (primarily testing).\n" \
-                    + "29:     starting in a random lane.\n"
+    train_filename = "train.csv"
+    test_filename = "test.csv"
+    weights_filename = "embedding_weights.pt"
+    max_epochs = 100
+    lr = 0.001
+    batch_size = 4
+    enc_size = 50
+    num_workers = 0
+    program_desc = "Trains the auto-encoder for vector embedding in the cda1 project."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Will run until either max episodes or max timesteps is reached.")
-    parser.add_argument("-e", type = int, default = max_episodes, help = "Max number of episodes to run (default = {})".format(max_episodes))
-    parser.add_argument("-t", type = int, default = max_time_steps, help = "Max total timesteps to collect (default = {})".format(max_time_steps))
-    parser.add_argument("-g", action = "store_true", default = False, help = "Show each episode graphically (default: no)")
-    parser.add_argument("-s", type = int, default = 29, help = scenario_desc)
-    parser.add_argument("-f", type = str, default = filename, help = "Name of the data file produced (default: {})".format(filename))
-    parser.add_argument("-o", action = "store_true", default = False, help = "If the specified filename already exists, overwrite it (default: no overwrite)")
+    parser.add_argument("-b", type = int, default = batch_size, help = "Number of data rows in a training batch (default = {})".format(batch_size))
+    parser.add_argument("-d", type = int, default = enc_size, help = "Number of neurons in the encoding layer (default = {})".format(enc_size))
+    parser.add_argument("-e", type = int, default = max_epochs, help = "Max number of epochs to train (default = {})".format(max_epochs))
+    parser.add_argument("-l", type = float, default = lr, help = "Learning rate (default = {})".format(lr))
+    parser.add_argument("-n", type = int, default = num_workers, help = "Number of training worker processes (default = {})".format(num_workers))
+    parser.add_argument("-r", type = str, default = train_filename, help = "Filename of the training observation dataset (default: {})".format(train_filename))
+    parser.add_argument("-t", type = str, default = test_filename, help = "Filename of the test observation dataset (default: {})".format(test_filename))
+    parser.add_argument("-w", type = str, default = weights_filename, help = "Name of the weights file produced (default: {})".format(weights_filename))
     args = parser.parse_args()
 
-    max_episodes = args.e
-    max_time_steps = args.t
-    use_graphics = args.g
-    filename = args.f
-    overwrite = args.o
-    scenario = args.s
-    if scenario not in [20, 21, 22, 23, 24, 25, 29]:
-        print("///// ERROR: invalid scenario specified: {}".format(scenario))
-        sys.exit(1)
+    batch_size = args.b
+    enc_size = args.d
+    max_epochs = args.e
+    lr = args.l
+    num_workers = args.n
+    train_filename = args.r
+    test_filename = args.t
+    weights_filename = args.w
+    print("///// Training for {} epochs with training data from {} and testing data from {}.".format(max_epochs, train_filename, test_filename))
+    print("      Writing final weights to {}".format(weights_filename))
+    DATA_PATH = "/home/starkj/projects/cda1/training"
 
-    oi = "without"
-    if overwrite:
-        oi = "WITH"
-    print("\n***** inputs: scenario = {}, max_episodes = {}, max_time_steps = {} to file {} {} overwrite"
-          .format(scenario, max_episodes, max_time_steps, filename, oi))
-    print("      Each obs entry will be {} elements long.".format(ObsVec.FINAL_ELEMENT + 1 - ObsVec.BASE_SENSOR_DATA))
+    # Load the observation data
+    print("///// Loading training dataset...")
+    train_data = ObsDataset(train_filename)
+    print("      {} data rows ready.".format(len(train_data)))
+    print("///// Loading test dataset...")
+    test_data = ObsDataset(test_filename)
+    print("      {} data rows ready.".format(len(test_data)))
 
-    # Set up the environment
-    env_config = {  "time_step_size":           0.2,
-                    "debug":                    0,
-                    "verify_obs":               True,
-                    "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
-                    "vehicle_file":             "vehicle_config_embedding.yaml", #"vehicle_config_embedding.yaml",
-                    "ignore_neighbor_crashes":  True,
-                    "crash_report":             False,
-                }
-    env = HighwayEnvWrapper(env_config)
-    env.reset()
-
-    # Set up a local copy of all vehicles that have been configured
-    vehicles = env.get_vehicle_data()
-
-    # Set up the graphic display
-    graphics = None
-    if use_graphics:
-        graphics = Graphics(env)
-
-    # Open the data file that will hold the experiences
-    data_file = None
-    if overwrite:
-        data_file = open(filename, 'w')
+    # Verify GPU availability
+    use_gpu = torch.cuda.is_available()
+    if use_gpu:
+        device = torch.device("cuda:0")
+        print("///// Beginning training on GPU")
     else:
-        data_file = open(filename, 'a')
+        device = torch.device("cpu")
+        print("///// Beginning training, but reverting to cpu.")
 
-    # Loop on episodes
-    total_steps = 0
-    for ep in range(max_episodes):
+    # Set up the data loaders
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size = batch_size, shuffle = True, num_workers = num_workers)
+    num_training_batches = len(train_loader)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = batch_size, num_workers = num_workers)
+    num_testing_batches = len(test_loader)
+    print("      Batches per epoch = {} for training, {} for testing".format(num_training_batches, num_testing_batches))
 
-        # Set up for the next episode
-        done = False
-        action_list = [0, 0]
-        raw_obs, _ = env.unscaled_reset()
-        if use_graphics:
-            graphics.update(action_list, raw_obs, vehicles)
-        obs = env.scale_obs(raw_obs)
-        step = 0
-        if use_graphics:
-            time.sleep(2)
+    # Define model, loss function and optimizer
+    model = Autoencoder(encoding_size = enc_size)
+    model = model.to(device)
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.Adam(params = model.parameters(), lr = lr)
 
-        # Loop on time steps until end of episode
-        while not done:
-            step += 1
+    # Loop on epochs
+    tensorboard = SummaryWriter(DATA_PATH)
+    for ep in range(max_epochs):
+        train_loss = 0.0
+        model.train()
 
-            # Move the environment forward one time step (includes dynamics of all vehicles); for scenarios 20-29 the
-            # environment will produce commands for vehicle 0 as well, so the action list passed in here is ignored.
-            raw_obs, reward, done, truncated, info = env.step(action_list) #obs returned is UNSCALED
+        # Loop on batches of data records
+        for batch in train_loader:
+            batch = batch.to(device)
 
-            # Scale the new observattion vector, then extract only the "sensor" data from the relative location zones.
-            # Then and add that info to the output file.
-            obs = copy.copy(env.scale_obs(raw_obs))
-            sensor_obs = obs[ObsVec.BASE_SENSOR_DATA : ObsVec.FINAL_ELEMENT+1]
-            np.savetxt(data_file, sensor_obs.reshape(1, len(sensor_obs)), delimiter = ", ", fmt = "%f") #requires a 2D array
+             # Perform the learning step
+            optimizer.zero_grad()
+            output = model(batch)
+            loss = loss_fn(output, batch)    # compare to the original input data
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
 
-            # Display current status of all the vehicles
-            if use_graphics:
-                action = np.array(action_list)
-                vehicles = env.get_vehicle_data()
-                graphics.update(action, raw_obs, vehicles)
-                print("///// step {:3d}: lane = {}, LC # = {}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                    .format(step, vehicles[0].lane_id, vehicles[0].lane_change_count, \
-                            raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
+        # Compute the avg loss over the epoch
+        train_loss /= num_training_batches
+        tensorboard.add_scalar("training_loss", train_loss)
 
-            # Wrap up the episode
-            if done:
-                print("//    Episode {} complete: {}".format(ep, info["reason"]))
-                if use_graphics:
-                    time.sleep(1)
+        # Evaluate performance against the test dataset
+        test_loss = 0.0
+        model.eval()
+        for batch in test_loader:
+            batch = batch.to(device)
+            output = model(batch)
+            loss = loss_fn(output, batch)
+            test_loss += loss.item()
 
-        # If we've maxed out the number of time steps in the run, then exit the loop
-        total_steps += step
-        if total_steps >= max_time_steps:
-            break
+        # Compute the avg test loss
+        test_loss /= num_testing_batches
+        tensorboard.add_scalar("test_loss", test_loss)
+        print("Epoch {}: train loss = {:.7f}, test loss = {:.7f}".format(ep, train_loss, test_loss))
 
-    # Summarize the run and close up resources
-    print("///// All data collected.  {} episodes complete, covering {} time steps.".format(ep+1, total_steps))
-    data_file.close()
-    if use_graphics:
-        input("///// Press Enter to close...")
-        graphics.close()
-    sys.exit()
+    # Summarize the run and store the encoder weights
+    print("///// All data collected.  {} epochs complete.".format(ep+1))
+
+    torch.save(model.state_dict(), weights_filename)
+    print("      Model weights saved to {}".format(weights_filename))
+
 
 
 ######################################################################################################

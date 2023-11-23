@@ -129,6 +129,7 @@ class ObsVec:
 
     # This one is just a convenient alias to where the "sensor" data block begins
     BASE_SENSOR_DATA    = BASE_LL
+    SENSOR_DATA_SIZE    = FINAL_ELEMENT - BASE_SENSOR_DATA + 1
 
     # Offsets for the individual data elements in each zone
     OFFSET_DRIVABLE     = 0

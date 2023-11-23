@@ -987,7 +987,19 @@ Big picture of this project's goals:
 * Redefined the obs vector elements for host's lane boundary data. Rather than have one element for each side of
   each zone, I reduced it to only 3 "regions" along the length of that lane, so only 6 data elements. These are
   now pulled out of the "sensor grid" and stored separately, so won't be captured for the autoencoder to look at.
+	* In the process I found & fixed a defect where the forward-most element of the sensor grid was being
+	  populating incorrectly and overwriting some of the host lane boundary cells, which may have hurt the
+	  prior training.
 
+* Ran embed collection program again. This time each step's vector is 500 elements long.
+	* Dataset contains 1,834,984 time steps (20k episodes), and is 8.7 GB. It is stored in the training dir.
+	* Created & tested a custom dataset class, and found that it expects a header row on the CSV, so I
+	  added one.
+	* Wrote a splitter script and split this file into 85% training data and 15% test data.
+
+11/22/23
+
+* j
 
 
 TODO:
