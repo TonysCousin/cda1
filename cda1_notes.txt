@@ -999,7 +999,33 @@ Big picture of this project's goals:
 
 11/22/23
 
-* j
+* Completed a first version of the embed_train program that trains the autoencoder, from which I will extract
+  its embedding layer. Stored in vector-embed branch commit 95f3372.
+
+* Run E1 of embed training for 50 epochs. Embedding dim = 200 neurons, batch size = 256, LR = 0.0005.
+	* Used 4 workers
+	* Unable to get tensorboard to plot the results, but didn't try very hard.
+	* Training loss started at 0.09299, and steadily dropped to 0.08894.
+	* Test loss started at 0.08954, and dropped somewhat jerkily to 0.08909.
+	* Both losses were still dropping at the end, indicating more epochs would be useful.
+	* Weights stored as embedding_200_231122-1830.pt
+
+* Run E2 of embed training for 80 epochs. embedding dim = 200, batch = 32, LR = 0.0005.
+	* used 4 workers again. This uses ~30% of GPU.
+	* Training loss started at 0.08985, then settled ~0.08895 after 26 epochs.
+	* Test loss started at 0.08918 and dropped to 0.08911 at epoch 33. After that min, no epoch reached
+	  more than 0.2% above the min value.
+	* The whole thing took ~1 hr.
+	* Weights stored as embedding_200_231122-2047.pt
+	* Losses here are almost identical to those in run E1 (slightly higher), so it seems batch size
+	  is not a big factor, but larger may be preferred.
+
+* Run E3 of embed training for 50 epochs. embedding dim = 200, batch = 256, LR = 0.0001.
+	* Weights stored as embedding_200_231122-2205.pt
+
+* Wrote the embed_eval program to help visualize a side-by-side comparison of the input sensor tensor
+  and the embedding output tensor. Ideally, these will be identical, and this will help to understand
+  where the challenges may be.
 
 
 TODO:
@@ -1007,7 +1033,6 @@ TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.
-- Kevin suggestion #2: pre-train an encoder to abstract the sensor data lieu of a CNN, to reduce its size to the obs.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.

@@ -1,72 +1,11 @@
 from cmath import inf
 import sys
-import time
-from typing import List, Union
-import copy
-import numpy as np
 import argparse
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
-import pandas as pd
-from torch.utils.tensorboard import SummaryWriter
-
 
 from obs_vec import ObsVec
-
-
-class ObsDataset(Dataset):
-    """Defines a custom dataset for the CDA1 sensor observations."""
-
-    def __init__(self,
-                 obs_datafile   : str,  #fully qualified pathname to the CSV file containing the data
-                ):
-
-        self.df = pd.read_csv(obs_datafile)
-
-
-    def __len__(self):
-        """Returns the number of items in the dataset."""
-
-        return len(self.df)
-
-
-    def __getitem__(self,
-                    idx         : Union[int, torch.Tensor],  #index of the desired data record (or a batch of indices)
-                   ) -> torch.Tensor:   #returns the data record as a 1D tensor
-        """Retrieves a single data record."""
-
-        # Handle the production of a batch if multiple indices have been provided
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        item = self.df.iloc[idx, :]
-        npitem = item.to_numpy(dtype = np.float32)
-        return npitem
-
-
-class Autoencoder(nn.Module):
-    """Defines an autoencoder NN that will compress and then decompress the observation grid data, attempting to
-        recreate the original input data.
-    """
-
-    def __init__(self,
-                 encoding_size  : int,  #number of data elements in the encoded data (number of first layer neurons)
-                ):
-        super(Autoencoder, self).__init__()
-
-        self.encoder = nn.Linear(ObsVec.SENSOR_DATA_SIZE, encoding_size)
-        self.decoder = nn.Linear(encoding_size, ObsVec.SENSOR_DATA_SIZE)
-
-
-    def forward(self, x):
-        """Computes a forward pass through the NN."""
-
-        x = F.relu(self.encoder(x))
-        x = F.sigmoid(self.decoder(x))
-
-        return x
+from embed_support import ObsDataset, Autoencoder
 
 
 def main(argv):
@@ -138,8 +77,11 @@ def main(argv):
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(params = model.parameters(), lr = lr)
 
+    # Set up to track test loss performance for possible early stopping
+    test_loss_min = inf
+
     # Loop on epochs
-    tensorboard = SummaryWriter(DATA_PATH)
+    #tensorboard = SummaryWriter(DATA_PATH)
     for ep in range(max_epochs):
         train_loss = 0.0
         model.train()
@@ -158,7 +100,7 @@ def main(argv):
 
         # Compute the avg loss over the epoch
         train_loss /= num_training_batches
-        tensorboard.add_scalar("training_loss", train_loss)
+        #tensorboard.add_scalar("training_loss", train_loss)
 
         # Evaluate performance against the test dataset
         test_loss = 0.0
@@ -171,8 +113,20 @@ def main(argv):
 
         # Compute the avg test loss
         test_loss /= num_testing_batches
-        tensorboard.add_scalar("test_loss", test_loss)
-        print("Epoch {}: train loss = {:.7f}, test loss = {:.7f}".format(ep, train_loss, test_loss))
+        #tensorboard.add_scalar("test_loss", test_loss)
+        regression = 0.0
+        regression_msg = " "
+        if test_loss < test_loss_min:
+            test_loss_min = test_loss
+        else:
+            regression = 100.0*(test_loss - test_loss_min) / test_loss_min
+            regression_msg = "{:.3}% above min".format(regression)
+        print("Epoch {:4d}: train loss = {:.7f}, test loss = {:.7f} {}".format(ep, train_loss, test_loss, regression_msg))
+
+        # Early stopping if the test loss has increased significantly
+        if regression >= 5.0:
+            print("///// Early stopping due to test loss increase.")
+            break
 
     # Summarize the run and store the encoder weights
     print("///// All data collected.  {} epochs complete.".format(ep+1))
