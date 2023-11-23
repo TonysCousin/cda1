@@ -45,9 +45,7 @@ def main(argv):
         data_index = int(prng.random() * len(dataset))
         if data_index == 0: #row 0 is the column header labels
             data_index = 1
-    data_record = dataset[data_index]
-    print("data_record = ", type(data_record))
-    print(data_record)
+    data_record = torch.from_numpy(dataset[data_index]) #returns np array
 
     # Define model and load its parameters
     model = Autoencoder(encoding_size = enc_size)
@@ -61,7 +59,7 @@ def main(argv):
     eval_loss = loss_fn(output, data_record).item()
 
     # Display the comparison
-    label = "Model: {}, on record {} of {}".format(weights_filename, data_index, data_filename)
+    label = "Model: {}, on record {} of {}. Loss = {:.6f}".format(weights_filename, data_index, data_filename, eval_loss)
     print_obs(data_record, output, label)
 
 
@@ -80,62 +78,66 @@ def print_obs(input     : torch.Tensor, #the input observation record
     print("                Input                               Output")
     print("                -----                               ------\n")
 
-    print("Pavement type:\n")
-    display_layer(input, output, 0, True, -1)
+    print("Pavement type (-1 = no pavement, 0 = exit ramp, 1 = through lane):\n")
+    display_layer(input, output, 0, True, -0.99)
 
-    print("\n\nSpeed limit:\n")
-    display_layer(input, output, 1, False)
+    print("\n\nSpeed limit (normalized by max_speed):\n")
+    display_layer(input, output, 1, True, 0.01)
 
-    print("\n\nOccupied:\n")
-    display_layer(input, output, 2, True, 0)
+    print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
+    display_layer(input, output, 2, True, 0.01)
 
-    print("\n\nRelative speed:\n")
+    print("\n\nRelative speed ((neighbor speed - host speed)/max_speed):\n")
     display_layer(input, output, 3, False)
 
 
 def display_layer(input:    torch.Tensor,   #input data record
                   output:   torch.Tensor,   #output data record
                   layer:    int,            #index of the layer to display
-                  is_enum:  bool,           #are the values in this layer enumerations?
-                  empty_val:int = 0,        #if values are enumerations, this value represents an empty cell
+                  use_empty:bool = True,    #should the empty_val be used to indicate an empty cell?
+                  empty_val:int = 0,        #if value < empty_val, the cell will show as empty rather than the numeric value
                  ) -> None:
     """Prints the content of a single pair of layers to compare the specified layer of the input record to that of the output record."""
+
+    # Create an adjustment to the base index of the obs vector. The BASE constants from ObsVec assume we have the full observation
+    # vector in place. For the embedding we are only looking at the sensor data, which is the last block in the observation vector.
+    # Therefore, we need to subtract the offset of that block from everything.
 
     # Build each row in the layer for both input and output
     for row in range(25):
         z = 24 - row
-        c0 = ObsVec.BASE_LL + z*ObsVec.NORM_ELEMENTS
-        c1 = ObsVec.BASE_L + z*ObsVec.NORM_ELEMENTS
-        c2 = ObsVec.BASE_CTR + z*ObsVec.NORM_ELEMENTS
-        c3 = ObsVec.BASE_R + z*ObsVec.NORM_ELEMENTS
-        c4 = ObsVec.BASE_RR + z*ObsVec.NORM_ELEMENTS
+        c0 = ObsVec.BASE_LL + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
+        c1 = ObsVec.BASE_L + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
+        c2 = ObsVec.BASE_CTR + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
+        c3 = ObsVec.BASE_R + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
+        c4 = ObsVec.BASE_RR + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
 
         # Initialize the row display with all empties
         in_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
         out_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
 
         # Populate the row of the input layer
-        if (is_enum and input[c0+layer] > empty_val)  or  not is_enum:
+        if (use_empty and input[c0+layer] > empty_val)  or  not use_empty:
             in_row[0] = "{:5.2f}".format(input[c0+layer])
-        if (is_enum and input[c1+layer] > empty_val)  or  not is_enum:
+        if (use_empty and input[c1+layer] > empty_val)  or  not use_empty:
             in_row[1] = "{:5.2f}".format(input[c1+layer])
-        if (is_enum and input[c2+layer] > empty_val)  or  not is_enum:
+        if (use_empty and input[c2+layer] > empty_val)  or  not use_empty:
             in_row[2] = "{:5.2f}".format(input[c2+layer])
-        if (is_enum and input[c3+layer] > empty_val)  or  not is_enum:
+        if (use_empty and input[c3+layer] > empty_val)  or  not use_empty:
             in_row[3] = "{:5.2f}".format(input[c3+layer])
-        if (is_enum and input[c4+layer] > empty_val)  or  not is_enum:
+        if (use_empty and input[c4+layer] > empty_val)  or  not use_empty:
             in_row[4] = "{:5.2f}".format(input[c4+layer])
 
         # Populate this row of the output layer
-        if (is_enum and output[c0+layer] > empty_val)  or  not is_enum:
+        if (use_empty and output[c0+layer] > empty_val)  or  not use_empty:
             out_row[0] = "{:5.2f}".format(output[c0+layer])
-        if (is_enum and output[c1+layer] > empty_val)  or  not is_enum:
+        if (use_empty and output[c1+layer] > empty_val)  or  not use_empty:
             out_row[1] = "{:5.2f}".format(output[c1+layer])
-        if (is_enum and output[c2+layer] > empty_val)  or  not is_enum:
+        if (use_empty and output[c2+layer] > empty_val)  or  not use_empty:
             out_row[2] = "{:5.2f}".format(output[c2+layer])
-        if (is_enum and output[c3+layer] > empty_val)  or  not is_enum:
+        if (use_empty and output[c3+layer] > empty_val)  or  not use_empty:
             out_row[3] = "{:5.2f}".format(output[c3+layer])
-        if (is_enum and output[c4+layer] > empty_val)  or  not is_enum:
+        if (use_empty and output[c4+layer] > empty_val)  or  not use_empty:
             out_row[4] = "{:5.2f}".format(output[c4+layer])
 
         if row == 20:
