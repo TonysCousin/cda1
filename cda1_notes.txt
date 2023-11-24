@@ -1026,12 +1026,43 @@ Big picture of this project's goals:
 	  longer duration.
 
 * Run E4 - same as E3, but for 200 epochs.  Same output weight file also.
-	* ???
+	* Computer crashed.
 
 * Wrote the embed_eval program to help visualize a side-by-side comparison of the input sensor tensor
   and the embedding output tensor. Ideally, these will be identical, and this will help to understand
   where the challenges may be.
-	* Began testing it.
+	* Began testing it & confirmed it is working okay. Commit 0d0a616 on the vector-embed branch.
+
+11/23/23
+
+* Running evaluation program on the 231122-1830 model. Ran it on several randomly chosen records from
+  the test dataset.
+	* The pavement layer correctly reproduces all of the mainline surfaces, but for all the non-
+	  pavements it shows them as exit ramps (0 instead of -1).
+	* Speed limits are all very close.
+	* Vehicle occupancy is very close to correct.
+	* Normally, vehicle speeds are all zeros, as if it just ignored this layer completely, at least
+	  in the tiny dataset. It looks like all neighbor vehicles in the single episode represented by
+	  this dataset are all moving at negative relative speeds to the host vehicle.
+	* On record 178372 it reflected the speeds of the single vehicle accurately.
+	* On record 40971 all neighbor speeds were accurate, and the varying speed limits were good.
+	* On record 190964 it performed well on all 4 neighbors. Only non-pavement is wrong.
+**	* I wonder if the activation function in the autoencoder is preventing it from generating 
+	  large negative numbers, e.g. for the pavement layer. Need to find some counter examples in
+	  the neighbor speed layer. Yes! I realize the output layer on the autoencoder is using a
+	  sigmoid activation, which definitely prevents any negative values in the output.
+**	* Good test cases for future reference:
+		* 35923 - host is in lane 4 with 2 neighbors at greatly varying speeds.
+		* 65532 - host is very close to end of exit ramp (apparently lane 4) and no neighbors.
+		* 40971 - includes new lane starting and another lane dropping, differing speed limits
+			  across lanes and along lane length, plus 4 neighbors.
+		* 254992 - includes pavement & speed limit change at front edge of grid, plus 4
+			  neighbors with negative relative speeds.
+		* 182945 - 5 neighbors with large negative relative speeds.
+
+* Run E5 training the embedding for 200 epochs. batch = 256, LR = 0.0001, embedding dim = 200.
+	* Changed the Autoencoder layer 2 to have tanh activation.
+	* Output file is embedding_200_231123-2236.pt
 
 
 TODO:

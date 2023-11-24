@@ -57,6 +57,6 @@ class Autoencoder(nn.Module):
         """Computes a forward pass through the NN."""
 
         x = F.relu(self.encoder(x))
-        x = F.sigmoid(self.decoder(x))
+        x = F.tanh(self.decoder(x))
 
         return x
