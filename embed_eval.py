@@ -79,23 +79,23 @@ def print_obs(input     : torch.Tensor, #the input observation record
     print("                -----                               ------\n")
 
     print("Pavement type (-1 = no pavement, 0 = exit ramp, 1 = through lane):\n")
-    display_layer(input, output, 0, True, -0.99)
+    display_layer(input, output, 0, True, -1.0)
 
     print("\n\nSpeed limit (normalized by max_speed):\n")
-    display_layer(input, output, 1, True, 0.01)
+    display_layer(input, output, 1, True, 0.0)
 
     print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
-    display_layer(input, output, 2, True, 0.01)
+    display_layer(input, output, 2, True, 0.0)
 
     print("\n\nRelative speed ((neighbor speed - host speed)/max_speed):\n")
-    display_layer(input, output, 3, False)
+    display_layer(input, output, 3)
 
 
 def display_layer(input:    torch.Tensor,   #input data record
                   output:   torch.Tensor,   #output data record
                   layer:    int,            #index of the layer to display
                   use_empty:bool = True,    #should the empty_val be used to indicate an empty cell?
-                  empty_val:int = 0,        #if value < empty_val, the cell will show as empty rather than the numeric value
+                  empty_val:float = 0.0,    #if value < empty_val, the cell will show as empty rather than the numeric value
                  ) -> None:
     """Prints the content of a single pair of layers to compare the specified layer of the input record to that of the output record."""
 
@@ -104,6 +104,7 @@ def display_layer(input:    torch.Tensor,   #input data record
     # Therefore, we need to subtract the offset of that block from everything.
 
     # Build each row in the layer for both input and output
+    EMPTY_THRESH = 0.03
     for row in range(25):
         z = 24 - row
         c0 = ObsVec.BASE_LL + z*ObsVec.NORM_ELEMENTS - ObsVec.BASE_SENSOR_DATA
@@ -117,27 +118,27 @@ def display_layer(input:    torch.Tensor,   #input data record
         out_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
 
         # Populate the row of the input layer
-        if (use_empty and input[c0+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= input[c0+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             in_row[0] = "{:5.2f}".format(input[c0+layer])
-        if (use_empty and input[c1+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= input[c1+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             in_row[1] = "{:5.2f}".format(input[c1+layer])
-        if (use_empty and input[c2+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= input[c2+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             in_row[2] = "{:5.2f}".format(input[c2+layer])
-        if (use_empty and input[c3+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= input[c3+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             in_row[3] = "{:5.2f}".format(input[c3+layer])
-        if (use_empty and input[c4+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= input[c4+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             in_row[4] = "{:5.2f}".format(input[c4+layer])
 
         # Populate this row of the output layer
-        if (use_empty and output[c0+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= output[c0+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             out_row[0] = "{:5.2f}".format(output[c0+layer])
-        if (use_empty and output[c1+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= output[c1+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             out_row[1] = "{:5.2f}".format(output[c1+layer])
-        if (use_empty and output[c2+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= output[c2+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             out_row[2] = "{:5.2f}".format(output[c2+layer])
-        if (use_empty and output[c3+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= output[c3+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             out_row[3] = "{:5.2f}".format(output[c3+layer])
-        if (use_empty and output[c4+layer] > empty_val)  or  not use_empty:
+        if (use_empty and not (empty_val-EMPTY_THRESH <= output[c4+layer] <= empty_val+EMPTY_THRESH))  or  not use_empty:
             out_row[4] = "{:5.2f}".format(output[c4+layer])
 
         if row == 20:

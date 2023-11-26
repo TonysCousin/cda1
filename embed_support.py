@@ -49,8 +49,8 @@ class Autoencoder(nn.Module):
                 ):
         super(Autoencoder, self).__init__()
 
-        self.encoder = nn.Linear(ObsVec.SENSOR_DATA_SIZE, encoding_size)
-        self.decoder = nn.Linear(encoding_size, ObsVec.SENSOR_DATA_SIZE)
+        self.encoder = nn.Linear(ObsVec.SENSOR_DATA_SIZE//2, encoding_size)
+        self.decoder = nn.Linear(encoding_size, ObsVec.SENSOR_DATA_SIZE//2)
 
 
     def forward(self, x):

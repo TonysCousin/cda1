@@ -106,10 +106,11 @@ class ObsVec:
     FUTURE2             = 14
     FUTURE3             = 15
 
-    # Bridgit controller lane change command outputs; relative desirability for each lane relative to the vehicle's current lane
-    DESIRABILITY_LEFT   = 16
-    DESIRABILITY_CTR    = 17
-    DESIRABILITY_RIGHT  = 18
+    # Bridgit controller lane change command outputs; relative desirability for each lane that the vehicle can choose.
+    # Values are floats from 0 (don't go there) to 1 (highly desirable).
+    DESIRABILITY_LEFT   = 16 #to the left of host's current lane
+    DESIRABILITY_CTR    = 17 #host's current lane
+    DESIRABILITY_RIGHT  = 18 #to the right of host's current lane
 
     # Host lane edge markings/permeability
     NUM_BDRY_REGIONS    = 3 #number of data elements representing one side boundary of the lane forward of host

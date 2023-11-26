@@ -1058,11 +1058,88 @@ Big picture of this project's goals:
 			  across lanes and along lane length, plus 4 neighbors.
 		* 254992 - includes pavement & speed limit change at front edge of grid, plus 4
 			  neighbors with negative relative speeds.
+		* 260976 - 3 neighbors, one with rel speed ~0.0; also speed limit changes in 2 different
+			  lanes
 		* 182945 - 5 neighbors with large negative relative speeds.
+		* 267115 - 2 neighbors with very large positive rel speeds.
+		* 42709 - 6 neighbors, one with rel speed ~0, two bumper-to-bumper, varying negative
+			   rel speeds.
 
-* Run E5 training the embedding for 200 epochs. batch = 256, LR = 0.0001, embedding dim = 200.
+* Run E5 training the embedding for 200 epochs. batch = 256, LR = 0.0001, embedding dim = 200. Run with
+  commit 54abfba on the vector-embed branch.
 	* Changed the Autoencoder layer 2 to have tanh activation.
 	* Output file is embedding_200_231123-2236.pt
+	* Training loss started at 0.01025 and dropped fairly steadily to 0.00024 in epoch 199.
+	* Test loss started at 0.00228 and dropped fairly steadily to 0.00024 in epoch 197. These are
+	  much lower losses than seen in runs E1 or E2.
+	* Eval shows that the negative values generally work well now. Pavement types are all reasonable
+	  but there is a little more uncertainty in the values than before (+/- 0.04 maybe), and a bit
+	  more smoothing in the longitudinal transitions.
+	* Ditto comment for the speed limits.
+	* Occupation layer is quite accurate, but the neighbor speed layer is a bit mushy, with 
+	  non-trivial speeds spread out over several zones longitudinally, but their values definitely
+	  peak at the proper location with approximately correct values, and drop off sharply outside of
+	  those zones. Also, rel speeds with small magnitudes tend to be less accurately represented, or
+	  overlooked completely (|val| < 0.08 or so).
+
+11/24/23
+
+* Run E6 training the embedding for 200 epochs with embedding dim = 100, batch = 256, LR = 0.0001.
+	* Output file is embedding_100_231124-0008.pt
+	* Training loss started at 0.01573 and dropped to 0.00133.
+	* Test loss started at 0.00537 and dropped to 0.00131 at epoch 198. Several epochs reversed
+	  the trend, getting up to 0.5% above the current min, but then a new min was set after that.
+	* Eval shows a lot more fluctuation in the outputs. 
+	  Speed limit errors are not bad, and shouldn't be a concern now. But actual neighbor speeds
+	  are hit or miss on their accuracy. When they appear, they are spread out over several cells
+	  with an error up to 0.08 or 0.10 at times. 
+	* Since I will only be using the encoder layer, it is not possible to look at these results
+	  and consider procedural filters on the output.
+
+* Run E7 training the embedding for 400 epochs with embedding dim = 100, batch = 256, LR = 0.00005.
+	* Slowing it down a little and allowing it to run longer may help.
+	* Output file is embedding_100_231124-1031.pt
+	* Training loss similar to run E6 through first 200 epochs, then stayed pretty steady at
+	  0.001306.
+	* Test loss similar to run E6 through first 200, but dropped a little more to 0.001284 at
+	  epoch 398.
+	* Eval shows this performed slightly worse than E6, in that rel speeds were often way off,
+	  and several times it completely overlooked negative values.
+
+* Run E8 training the embedding for 300 epochs with embedding dim = 100, batch = 256, LR = 0.00005.
+	* Changed the Autoencoder's first layer activation from relu to tanh in hopes that might
+	  generate more accuracy for the negative speeds.
+	* Output file is embedding_100_231124-1307.pt
+	* Training loss ended at 0.00126 and test loss ended at 0.00124, which was the min.
+	* All 4 of the negative rel speeds in test case 182945 were overlooked again.
+	* In general, it seems to represent rel speeds a lot closer to zero than they should be,
+	  on either size of zero. In one case, it even showed two ghost neighbors that weren't
+	  there.
+
+* I don't think that building a custom loss function is practical, as the loss Tensor has a
+  built-in loss function that is related to the loss class being used.
+
+* Run E9 training the embedding for 400 epochs with embedding dim = 64, batch = 256, LR = 0.00005.
+	* Output is embedding_64_231124-1916.pt.
+	* Training loss ended at 0.00290, test loss hit min of 0.00284 on ep 398.
+	* As expected, it did not perform well at all on the rel speed layer; in a couple cases,
+	  even the speed limit layer was kinda far off.
+
+11/25/23
+
+* Reworked the embed training program to only handle two "layers" of data at a time (of the 4
+  elements in each sensor zone). Because of the unfortunate flat structure of the original obs
+  vector, doing this required a lot of cpu-intensive reshaping to pull out individual layers.
+	* This layer separation slows things down a lot.  Performance tests:
+		* with 1, 2, 4 or 8 workers, batch = 16, I get ~27 sec/1000 batches, or 1.69e-3 sec/record.
+		* with 0 workers, batch = 16, gives 26.3 sec/1000 batches, or 1.65e-3 sec/record.
+		* with 4 or 8 workers, batch = 64, I get 102 sec/1000 batches, or 1.59e-3 sec/record.
+		* with 0 workers, batch = 128, gives 215 sec/1000 batches, or 1.68e-3 sec/record
+
+* Run E10 training the embedding for layers 0-1 (pavement) for 200 epochs with embedding dim = 64,
+  batch = 256, LR = 0.0001.
+	* Output file is embedding_64p_231125-2120.pt. The 'p' after dim value indicates that it is trained
+	  on pavement data.
 
 
 TODO:
