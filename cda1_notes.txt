@@ -1136,10 +1136,31 @@ Big picture of this project's goals:
 		* with 4 or 8 workers, batch = 64, I get 102 sec/1000 batches, or 1.59e-3 sec/record.
 		* with 0 workers, batch = 128, gives 215 sec/1000 batches, or 1.68e-3 sec/record
 
+11/26/23
+
 * Run E10 training the embedding for layers 0-1 (pavement) for 200 epochs with embedding dim = 64,
-  batch = 256, LR = 0.0001.
-	* Output file is embedding_64p_231125-2120.pt. The 'p' after dim value indicates that it is trained
+  batch = 256, LR = 0.0001. Corresponds to vector-embed commit 7dd6b7d.
+	* Fixed a defect in handling the final partial batch.
+	* Sped up the batch reshaping code a bit, but found that it is still 100x of the time that the
+	  entire rest of the loop is taking.  Searched for ways to speed it up more, but I think the only
+	  way is to refactor the env to spit out a multi-dim tensor, and even that is challenging because
+	  there are 25 scalar elements that are not part of the sensor grid. So I'll just put up with the long
+	  training time for now.
+	* Output file is embedding_64p_231126-0910.pt. The 'p' after dim value indicates that it is trained
 	  on pavement data.
+	* Job competed after 190 epochs due to early stopping criterion; test loss jumped by 7.8% above min.
+	  Unfortunately, it saved the model at the very end, not the one with the lowest loss.
+	* Training loss upon stopping was 0.000120, test loss was 0.000129 (previous min was 0.000119).
+	* Evaluation on my above test cases all looked very good. There is a bit of smoothing where values
+	  change longitudinally, but minimal.
+
+* Run E11 training the embedding for layers 2-3 (vehicles) for 200 epochs with embedding dim = 64,
+  batch = 256, LR = 0.0001.
+	* Fixed a defect in reshaping for the higher layers giving a layer index out-of-bounds.
+	* Output file is embedding_64v_231126-1300.pt.
+	* Training ran the full 200 epochs. Final training loss = 0.00331, test loss = 0.00324. There was
+	  a segfault apparently after the pt file was written. It looks like the same size as the previous
+	  one, so maybe it's okay.
 
 
 TODO:

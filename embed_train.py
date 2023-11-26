@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from obs_vec import ObsVec
-from embed_support import ObsDataset, Autoencoder
+from embed_support import ObsDataset, Autoencoder, reshape_batch
 
 
 def main(argv):
@@ -100,6 +100,9 @@ def main(argv):
         # Loop on batches of data records
         for bn, batch in enumerate(train_loader):
 
+            # Check the batch size, as the final one may be only a partial
+            batch_size = batch.shape[0]
+
             # Trim and reshape the batch so that we only get the desired data layers from each record
             reshaped_batch = reshape_batch(batch, batch_size, layer_min, layer_max)
             reshaped_batch = reshaped_batch.to(device)
@@ -114,13 +117,17 @@ def main(argv):
 
         # Compute the avg loss over the epoch
         train_loss /= num_training_batches
-        print("training of epoch {} complete".format(ep))
         #tensorboard.add_scalar("training_loss", train_loss)
 
         # Evaluate performance against the test dataset
         test_loss = 0.0
         model.eval()
         for batch in test_loader:
+
+            # Check the batch size, as the final one may be only a partial
+            batch_size = batch.shape[0]
+
+            # Evaluate the performance on the next batch
             reshaped_batch = reshape_batch(batch, batch_size, layer_min, layer_max)
             reshaped_batch = reshaped_batch.to(device)
             output = model(reshaped_batch)
@@ -149,78 +156,6 @@ def main(argv):
 
     torch.save(model.state_dict(), weights_filename)
     print("      Model weights saved to {}".format(weights_filename))
-
-
-def reshape_batch(batch         : torch.Tensor, #a batch of 1D vectors (as defined in ObsVec)
-                  batch_size    : int,          #num data records in the batch
-                  layer_min     : int,          #lower layer number that will be transposed
-                  layer_max     : int,          #upper lwyer num that will be transposed
-                 ) -> torch.Tensor:
-    """Copies a data batch into a new tensor with a different shape that only represents 2 of the 4 layers."""
-
-    num_cols = 5
-    col_len = ObsVec.BASE_L - ObsVec.BASE_LL
-    num_rows = ObsVec.ZONES_BEHIND + 1 + ObsVec.ZONES_FORWARD
-
-    reshaped_batch = torch.Tensor(batch_size, 2, num_cols, num_rows) #always 2 layers
-    for b in range(batch_size):
-        for layer in range(layer_min, layer_max+1):
-            for c in range(num_cols):
-                for r in range(num_rows):
-                    try:
-                        index = c*col_len + r*ObsVec.NORM_ELEMENTS + layer
-                        reshaped_batch[b, layer, c, r] = batch[b, index]
-                    except IndexError as e:
-                        print("IndexError trapped in reshape_batch: b = {}, layer = {}, c = {}, r = {}, index = {}, batch shape = {}"
-                              .format(b, layer, c, r, index, batch.shape))
-                        raise e
-
-    #TODO: testing only - the data rows only contain sensor data, not the full observation set.
-    """
-    try:
-    #                 b  c  r   layer
-        compare_cells(0, 0, 22, layer_min, batch, reshaped_batch)
-        compare_cells(0, 1, 5,  layer_min, batch, reshaped_batch)
-        compare_cells(0, 2, 1,  layer_min, batch, reshaped_batch)
-        compare_cells(0, 3, 12, layer_min, batch, reshaped_batch)
-
-        compare_cells(0, 4, 15, layer_min, batch, reshaped_batch)
-        compare_cells(0, 0, 20, layer_max, batch, reshaped_batch)
-        compare_cells(0, 1, 6,  layer_max, batch, reshaped_batch)
-        compare_cells(0, 2, 17, layer_max, batch, reshaped_batch)
-        compare_cells(0, 3, 10, layer_max, batch, reshaped_batch)
-        compare_cells(0, 4, 3,  layer_max, batch, reshaped_batch)
-
-        compare_cells(0, 0, 0,  layer_min, batch, reshaped_batch)
-        compare_cells(0, 1, 6,  layer_min, batch, reshaped_batch)
-        compare_cells(0, 2, 11, layer_min, batch, reshaped_batch)
-        compare_cells(0, 3, 23, layer_min, batch, reshaped_batch)
-        compare_cells(0, 4, 14, layer_min, batch, reshaped_batch)
-
-        compare_cells(0, 0, 0,  layer_max, batch, reshaped_batch)
-        compare_cells(0, 1, 6,  layer_max, batch, reshaped_batch)
-        compare_cells(0, 2, 11, layer_max, batch, reshaped_batch)
-        compare_cells(0, 3, 23, layer_max, batch, reshaped_batch)
-        compare_cells(0, 4, 14, layer_max, batch, reshaped_batch)
-
-    except AssertionError as e:
-        print("\noriginal batch:")
-        print(batch)
-        print("\nReshaped:")
-        print(reshaped_batch)
-        raise e
-    """
-
-    return reshaped_batch.view(batch_size, -1)
-
-
-def compare_cells(b, c, r, layer, batch, rb):
-    """For testing only."""
-    col_len = ObsVec.BASE_L - ObsVec.BASE_LL
-    orig_cell = batch[b, c*col_len + r*ObsVec.NORM_ELEMENTS + layer]
-    new_cell = rb[b, layer, c, r]
-    assert orig_cell == new_cell, "Failed compare: b {}, c {}, r {}, layer {}: orig = {:.2f}, new = {:.2f}".format(b, c, r, layer, orig_cell, new_cell)
-
 
 
 ######################################################################################################
