@@ -1,5 +1,6 @@
 from cmath import inf
 import sys
+from os.path import splitext
 import argparse
 import torch
 import torch.nn as nn
@@ -49,7 +50,7 @@ def main(argv):
     print("///// Training for {} epochs with training data from {} and testing data from {}. Modeling vehicle layers: {}"
           .format(max_epochs, train_filename, test_filename, model_vehicles))
     print("      Writing final weights to {}".format(weights_filename))
-    DATA_PATH = "/home/starkj/projects/cda1/training"
+    CKPT_INT = 20
 
     # Load the observation data
     print("///// Loading training dataset...")
@@ -146,6 +147,14 @@ def main(argv):
             regression_msg = "{:.2f}% above min".format(regression)
         print("Epoch {:4d}: train loss = {:.7f}, test loss = {:.7f} {}".format(ep, train_loss, test_loss, regression_msg))
 
+        # Save a checkpoint of the model occasionally
+        if (ep + 1) % CKPT_INT == 0:
+            fn_root, fn_ext = splitext(weights_filename)
+            filename = fn_root + "_{}".format(ep) + fn_ext
+            torch.save(model.state_dict(), filename)
+            print("      Model weights saved to {}".format(filename))
+
+
         # Early stopping if the test loss has increased significantly
         if regression >= 5.0:
             print("///// Early stopping due to test loss increase.")
@@ -153,9 +162,6 @@ def main(argv):
 
     # Summarize the run and store the encoder weights
     print("///// All data collected.  {} epochs complete.".format(ep+1))
-
-    torch.save(model.state_dict(), weights_filename)
-    print("      Model weights saved to {}".format(weights_filename))
 
 
 ######################################################################################################

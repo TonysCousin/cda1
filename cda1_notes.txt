@@ -1161,6 +1161,39 @@ Big picture of this project's goals:
 	* Training ran the full 200 epochs. Final training loss = 0.00331, test loss = 0.00324. There was
 	  a segfault apparently after the pt file was written. It looks like the same size as the previous
 	  one, so maybe it's okay.
+	* Eval shows performance on par with the pre-splitting of layers, which is not satisfactory. It
+	  consistently overlooks rel speeds that are far from 0. It does a lot of smoothing on occupancy,
+	  which may be acceptable to some extent. But in one case it registered a vehicle's presence with
+	  a value of 0.12, where any others show at least 0.72.
+
+* Run E12 training the embedding for vehicle layers again. Want to see if it's possible to keep the
+  embeding dim = 64, so trying with batch = 256, LR = 1e-5, 500 epochs.
+	* Output file is embedding_64v_231126-1823.pt.
+	* Test loss hit its min of 0.003324 on epoch 496. At epoch 200 it was 0.00335, so basically didn't
+	  learn anything useful beyond that point. Training loss ended at 0.003394.
+	* Eval runs showed expected performance as poor as earlier 64 models. Not acceptable.
+
+11/27/23
+
+* Run E13 training the embedding for vehicle layers with embedding dim = 100, batch = 256, LR = 1e-4 for
+  200 epochs.
+	* Output file is embedding_100v_231127-2012.pt.
+	* Test loss reached 0.001157 at epoch 197, which is only slightly better than its 0.001166 at
+	  epoch 100. Train loss ended at 0.001170.
+	* Evaluation of a few test cases shows this didn't significantly improve performance over the 64
+	  neuron model. It still routinely ignores large magnitude rel speeds, or even represents them
+	  with a small value of the opposite sign.
+
+11/28/23
+
+* Run E14 training the embedding for vehicle layers with dim = 150, batch = 256, LR = 1e-4 for 140 epochs.
+	* Output file is embedding_150v_231128-0921.pt
+	* Test loss ended at 0.000306 and train loss at 0.000310, which is ~4x better than E13.
+	* Eval shows much expected improvement over previous models. Neighbor locations are spot on. Speeds
+	  are usually pretty close, but all are estimated a little closer to zero than reality. There is
+	  also occasional noise values up to magnitude 0.07 where no vehicles exist.
+	* Overall, this is acceptable for now. I don't think I'd want to reduce its size any more and take
+	  any worse performance.
 
 
 TODO:
