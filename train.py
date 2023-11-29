@@ -6,16 +6,19 @@ from torch.utils.tensorboard import SummaryWriter
 from ray.tune.logger import pretty_print
 import ray.rllib.algorithms.sac as sac
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED
+from ray.rllib.models import ModelCatalog
 
 from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
 from cda_callbacks import CdaCallbacks
+from bridgit_nn import BridgitNN
 
-"""This program trains the agent with the given environment, using the specified hyperparameters.
-"""
-
+"""This program trains the agent with the given environment, using the specified hyperparameters."""
 
 def main(argv):
+
+    # Identify our custom NN model
+    ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
     # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
@@ -105,8 +108,7 @@ def main(argv):
     opt_config["entropy_learning_rate"]         = 5e-5
 
     policy_config = cfg_dict["policy_model_config"]
-    policy_config["fcnet_hiddens"]              = [1024, 256, 128]
-    policy_config["fcnet_activation"]           = "relu"
+    policy_config["custom_model"]               = "bridgit_policy_model"
 
     q_config = cfg_dict["q_model_config"]
     q_config["fcnet_hiddens"]                   = [1024, 256, 128]
@@ -114,7 +116,7 @@ def main(argv):
 
     replay_config = cfg_dict["replay_buffer_config"]
     replay_config["type"]                       = "MultiAgentPrioritizedReplayBuffer"
-    replay_config["capacity"]                   = 1000000
+    replay_config["capacity"]                   = 1000000 #1M seems to be the max allowable
     replay_config["prioritized_replay"]         = True
 
     cfg.training(   twin_q                      = True,
@@ -133,7 +135,7 @@ def main(argv):
     # ===== Final setup =========================================================================
 
     print("\n///// {} training params are:\n".format(algo))
-    #print(pretty_print(cfg.to_dict()))
+    print(pretty_print(cfg.to_dict()))
 
     # Set up starting counters to handle possible checkpoint start
     starting_step_count = 0

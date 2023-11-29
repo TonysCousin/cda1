@@ -1148,7 +1148,7 @@ Big picture of this project's goals:
 	  training time for now.
 	* Output file is embedding_64p_231126-0910.pt. The 'p' after dim value indicates that it is trained
 	  on pavement data.
-	* Job competed after 190 epochs due to early stopping criterion; test loss jumped by 7.8% above min.
+	* Job completed after 190 epochs due to early stopping criterion; test loss jumped by 7.8% above min.
 	  Unfortunately, it saved the model at the very end, not the one with the lowest loss.
 	* Training loss upon stopping was 0.000120, test loss was 0.000129 (previous min was 0.000119).
 	* Evaluation on my above test cases all looked very good. There is a bit of smoothing where values
@@ -1194,6 +1194,21 @@ Big picture of this project's goals:
 	  also occasional noise values up to magnitude 0.07 where no vehicles exist.
 	* Overall, this is acceptable for now. I don't think I'd want to reduce its size any more and take
 	  any worse performance.
+
+* Run E15 training the embedding for pavement layers with dim = 30, batch = 256, LR = 1e-4 for 100 epochs.
+  Building on success in run E10 on 11/26, trying to squeeze the size down as far as possible while still
+  performing decently.
+	* Output file is embedding_30p_231128-1655.pt.
+	* Test loss ended at 0.000399 with training loss = 0.000399.
+	* Evaluation shows that this reproduces the input data quite well, with a minimal amount of
+	  smoothing.
+	* It might be possible to squeeze it down to 25 neurons or so, but that doesn't feel like much of
+	  a gain in the big picture, so I'll say this is acceptable as it to go forward with.
+
+***
+* The embedding models that will be going forward in the full Bridgit model will be:
+	* Pavement: embedding_30p_231128-1655_99.pt
+	* Vehicles: embedding_150v_231128-0921_139.pt
 
 
 TODO:
