@@ -1211,6 +1211,9 @@ Big picture of this project's goals:
 	* Vehicles: embedding_150v_231128-0921_139.pt
 
 
+11/29/23
+
+
 TODO:
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)

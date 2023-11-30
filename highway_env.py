@@ -648,8 +648,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                      preprocessed before going into a NN!
 
             The process is:
-                - gather tactical guidance commands based on existing observations (for the ego vehicle, these come in as
-                  input args; for other vehicles their model needs to generate)
+                - gather tactical guidance commands based on existing observations (for the ego vehicle in training,
+                  these come in as input args; for other vehicles (including ego vehicle not in training) their model
+                  needs to generate)
                 - pass those commands to the dynamic models and move each vehicle to its new state
                 - collect each entity's observations from that new state
         """
@@ -673,14 +674,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Unscale the ego action inputs if ego is being trained (both cmd values are in [-1, 1])
         ego_action = [None]*2
-        if 20 <= self.effective_scenario <= 29:
-            ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
-            #raw_lc_cmd = min(max(cmd[1]*5.0/2.0, -1.0), 1.0) #allows threshold of +/- 0.2 for boundary between same lane and changing to adjacent
-            raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
-            ego_action[1] = int(math.floor(raw_lc_cmd + 0.5))
-            if self.steps_since_reset < 2: #force it to stay in lane for first time step
-                ego_action[1] = 0.0
-            #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
+        #if 20 <= self.effective_scenario <= 29:
+        ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
+        raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
+        ego_action[1] = int(math.floor(raw_lc_cmd + 0.5))
+        if self.steps_since_reset < 2: #force it to stay in lane for first time step
+            ego_action[1] = 0.0
+        #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
         vehicle_actions = [None]*self.num_vehicles

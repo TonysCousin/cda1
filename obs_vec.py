@@ -121,6 +121,7 @@ class ObsVec:
     # Zone columns are represented from rear to front. Each zone occupies a contiguous set of 4 or 6 vector elements,
     # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
     # zone in that column.
+    NUM_COLUMNS         = 5
     BASE_LL             = BASE_RIGHT_CTR_BDRY + NUM_BDRY_REGIONS #first element in the far left column
     BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near left column
     BASE_CTR            = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column
@@ -131,6 +132,12 @@ class ObsVec:
     # This one is just a convenient alias to where the "sensor" data block begins
     BASE_SENSOR_DATA    = BASE_LL
     SENSOR_DATA_SIZE    = FINAL_ELEMENT - BASE_SENSOR_DATA + 1
+
+    # Size references for the number of elements in certain groupings defined in this file.
+    # CAUTION! these need to be maintained in sync with any changes to the index structures elsewhere in this file.
+    NUM_COMMON_ELEMENTS =  8
+    NUM_BOT_ELEMENTS    =  5
+    NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FUTURE1
 
     # Offsets for the individual data elements in each zone
     OFFSET_DRIVABLE     = 0
