@@ -1213,6 +1213,13 @@ Big picture of this project's goals:
 
 11/29/23
 
+* Began building code to integrate the embeddings into the Bridgit NN model.
+
+NEXT: restructure ObsVec sensor data to make each layer contiguous
+
+
+
+
 
 TODO:
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
