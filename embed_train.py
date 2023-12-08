@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from obs_vec import ObsVec
-from embed_support import ObsDataset, Autoencoder, reshape_batch
+from embed_support import ObsDataset, Autoencoder
 
 
 def main(argv):
@@ -104,14 +104,14 @@ def main(argv):
             # Check the batch size, as the final one may be only a partial
             batch_size = batch.shape[0]
 
-            # Trim and reshape the batch so that we only get the desired data layers from each record
-            reshaped_batch = reshape_batch(batch, batch_size, layer_min, layer_max)
-            reshaped_batch = reshaped_batch.to(device)
+            # Trim the batch so that we only get the desired data layers from each record
+            sensor_data_batch = batch[:, ObsVec.BASE_SENSOR_DATA : ObsVec.SENSOR_DATA_SIZE+1]
+            sensor_data_batch = sensor_data_batch.to(device)
 
              # Perform the learning step
             optimizer.zero_grad()
-            output = model(reshaped_batch)
-            loss = loss_fn(output, reshaped_batch)    # compare to the original input data
+            output = model(sensor_data_batch)
+            loss = loss_fn(output, sensor_data_batch)    # compare to the original input data
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -129,10 +129,10 @@ def main(argv):
             batch_size = batch.shape[0]
 
             # Evaluate the performance on the next batch
-            reshaped_batch = reshape_batch(batch, batch_size, layer_min, layer_max)
-            reshaped_batch = reshaped_batch.to(device)
-            output = model(reshaped_batch)
-            loss = loss_fn(output, reshaped_batch)
+            sensor_data_batch = batch[:, ObsVec.BASE_SENSOR_DATA : ObsVec.SENSOR_DATA_SIZE+1]
+            sensor_data_batch = sensor_data_batch.to(device)
+            output = model(sensor_data_batch)
+            loss = loss_fn(output, sensor_data_batch)
             test_loss += loss.item()
 
         # Compute the avg test loss

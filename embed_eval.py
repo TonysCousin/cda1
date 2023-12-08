@@ -7,7 +7,7 @@ from datetime import datetime
 
 from obs_vec import ObsVec
 from hp_prng import HpPrng
-from embed_support import ObsDataset, Autoencoder, reshape_batch
+from embed_support import ObsDataset, Autoencoder
 
 
 def main(argv):

@@ -223,6 +223,6 @@ class BridgitModel(VehicleModel):
 
                 # Compute the zone index in the obs vector, and set the occupied flag and relative speed for that zone
                 obs[base_occ_idx + z] = 1.0 #occupied
-                obs[base_rs_idx] = rel_speed
+                obs[base_rs_idx + z] = rel_speed
 
         return obs

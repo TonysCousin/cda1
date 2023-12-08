@@ -1222,10 +1222,12 @@ Big picture of this project's goals:
   algorithm.
 
 12/7/23
-19:53- , int 10
 
-NEXT: restructure ObsVec sensor data to make each layer contiguous
-	Find & reconsider all uses of reshape_batch()
+* Completed refactoring the code for the sensor data reshaping. Passed the updated test_bridgit.
+
+* Made a new run of embed_collect for 10k episodes or 2M steps.
+
+NEXT: 
 	Finish writing BridgitNN
 
 

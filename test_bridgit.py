@@ -85,7 +85,7 @@ def main(argv):
     # Case A1
     vehicles[0].lane_id = 3
     vehicles[0].p       = 805.0
-    vehicles[0].cur_speed = 25.5
+    vehicles[0].cur_speed = 24.38
     actions = [0.75, 0.8]
     obs = vehicles[0].model.get_obs_vector(0, vehicles, actions, obs)
     print_obs(obs, "Case A1 - ego lane = {}, p = {:.1f}".format(vehicles[0].lane_id, vehicles[0].p))
