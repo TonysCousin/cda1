@@ -168,17 +168,9 @@ def main(argv):
         for row in range(ObsVec.ZONES_FORWARD-1, -1, -1):
             row_res = [0.0]*5
             for col in range(5):
-                base = ObsVec.BASE_LL + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                if col == 1:
-                    base = ObsVec.BASE_L + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                elif col == 2:
-                    base = ObsVec.BASE_CTR + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                elif col == 3:
-                    base = ObsVec.BASE_R + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                elif col == 4:
-                    base = ObsVec.BASE_RR + (ObsVec.ZONES_BEHIND + 1)*ObsVec.NORM_ELEMENTS
-                z_idx = base + row*ObsVec.NORM_ELEMENTS
-                spd_lim = raw_obs[z_idx + ObsVec.OFFSET_SPD_LMT]
+                base = ObsVec.BASE_SPD_LIMIT + col*ObsVec.NUM_ROWS
+                z_idx = base + row
+                spd_lim = raw_obs[z_idx]
                 row_res[col] = spd_lim
             print("      row {:2d}   {:.3f}   {:.3f}   {:.3f}   {:.3f}   {:.3f}".format(row, row_res[0], row_res[1], \
                         row_res[2], row_res[3], row_res[4]))

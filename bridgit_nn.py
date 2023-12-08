@@ -27,14 +27,13 @@ class BridgitNN(TorchModelV2, nn.Module):
         nn.Module.__init__(self)
 
         # Define constants for this implementation (better to put these into model_config once I figure out how to do that)
-        COL_LENGTH = ObsVec.ZONES_BEHIND + 1 + ObsVec.ZONES_FORWARD     #num zones in a column of sensor data, longitudinally
         PAVEMENT_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_30p_231128-1655_99.pt"
         NUM_PAVEMENT_NEURONS = 30
-        PAVEMENT_SENSOR_SIZE = 2 * COL_LENGTH * ObsVec.NUM_COLUMNS #number of data elements
+        PAVEMENT_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
         VEHICLES_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_150v_231128-0921_139.pt"
         NUM_VEHICLES_NEURONS = 150
-        VEHICLES_SENSOR_SIZE = 2 * COL_LENGTH * ObsVec.NUM_COLUMNS
+        VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
         NUM_MACRO_NEURONS = 40
         NUM_FC2_NEURONS =   600
@@ -45,9 +44,9 @@ class BridgitNN(TorchModelV2, nn.Module):
         self.macro_encoder = nn.Linear(self.macro_data_len, NUM_MACRO_NEURONS)
 
         # Define the structure for the early processing of pavement sensor data - not to be trained
-        self.pavement_encoder = nn.Linear(PAVEMENT_SENSOR_SIZE, NUM_PAVEMENT_NEURONS)
+        self.pavement_encoder = nn.Linear(PAVEMENT_DATA_SIZE, NUM_PAVEMENT_NEURONS)
 
-        # Load the pavement encoder and load its first layer weights
+        # Load the pavement encoder and get its first layer weights
         temp_pe = Autoencoder(encoding_size = NUM_PAVEMENT_NEURONS)
         temp_pe.load_state_dict(torch.load(PAVEMENT_SENSOR_MODEL))
         with torch.no_grad:
@@ -55,9 +54,9 @@ class BridgitNN(TorchModelV2, nn.Module):
             self.pavement_encoder.bias.copy_(temp_pe.state_dict["encoder.bias"])
 
         # Define the structure for the early processing of vehicle sensor data - not to be trained
-        self.vehicles_encoder = nn.Linear(VEHICLES_SENSOR_SIZE, NUM_VEHICLES_NEURONS)
+        self.vehicles_encoder = nn.Linear(VEHICLES_DATA_SIZE, NUM_VEHICLES_NEURONS)
 
-        # Load the vehicle encoder and load its first layer weights
+        # Load the vehicle encoder and get its first layer weights
         temp_ve = Autoencoder(encoding_size = NUM_VEHICLES_NEURONS)
         temp_ve.load_state_dict(torch.load(VEHICLES_SENSOR_MODEL))
         with torch.no_grad:
@@ -82,7 +81,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         # Pull out the macro observations, according to the ObsVec descriptions
         macro = torch.Tensor(x.shape[0], self.macro_data_len)
         macro[:, 0 : ObsVec.NUM_COMMON_ELEMENTS] = x[:, 0 : ObsVec.NUM_COMMON_ELEMENTS]
-        macro[:, ObsVec.NUM_COMMON_ELEMENTS : self.macro_data_len]
+        macro[:, ObsVec.NUM_COMMON_ELEMENTS : self.macro_data_len] =
 
         # Pull out the pavement sensor data
 

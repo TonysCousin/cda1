@@ -55,33 +55,31 @@ def main(argv):
     model.load_state_dict(torch.load(weights_filename))
     loss_fn = nn.MSELoss()
 
-    # Define the correct layers to look at
-    layer_min = 0
-    layer_max = 1
+    # Define the correct layers to look at and extract them into a layer record
+    two_layer_size = ObsVec.SENSOR_DATA_SIZE // 2
+    layer_id = ObsVec.BASE_PVMT_TYPE
     if model_vehicles:
-        layer_min = 2
-        layer_max = 3
+        layer_id = ObsVec.BASE_OCCUPANCY
 
-    # Pull the desired layer data out of the data row
-    reshaped_batch = reshape_batch(data_record, 1, layer_min, layer_max)
+    layer_record = data_record[:, layer_id : layer_id + two_layer_size + 1]
+    assert layer_record.shape[1] == two_layer_size, "///// ERROR: layer_record length is {}".format(len(layer_record))
 
     # Evaluate performance against the test dataset
     model.eval()
-    output = model(reshaped_batch)
-    eval_loss = loss_fn(output, reshaped_batch).item()
+    output = model(layer_record)
+    eval_loss = loss_fn(output, layer_record).item()
 
     # Display the comparison
     label = "Model: {}, on record {} of {}. Loss = {:.6f}".format(weights_filename, data_index, data_filename, eval_loss)
-    print_obs(reshaped_batch[0], output[0], layer_min, layer_max, label)
+    print_obs(layer_record[0], output[0], layer_id, label)
 
 
 def print_obs(input     : torch.Tensor, #the input observation record
               output    : torch.Tensor, #the output observation record
-              layer_min : int,          #first layer index to be displayed
-              layer_max : int,          #final layer index to be displayed
+              layer_id  : int,          #base index of the first layer to be displayed
               label     : str,          #description of what is being displayed
              ) -> None:
-    """Prints a character map of each layer of the observation grid, showing embedding input next to its output
+    """Prints a character map of 2 layers of the observation grid, showing embedding input next to its output
         for visual comparison.
     """
 
@@ -92,46 +90,38 @@ def print_obs(input     : torch.Tensor, #the input observation record
     print("                Input                               Output")
     print("                -----                               ------\n")
 
-    if 0 in [layer_min, layer_max]:
+    if layer_id == ObsVec.BASE_PVMT_TYPE:
         print("Pavement type (-1 = no pavement, 0 = exit ramp, 1 = through lane):\n")
-        display_layer(input, output, 0, True, -1.0)
+        display_layer(input, output, ObsVec.BASE_PVMT_TYPE, True, -1.0)
 
-    if 1 in [layer_min, layer_max]:
         print("\n\nSpeed limit (normalized by max_speed):\n")
-        display_layer(input, output, 1, True, 0.0)
+        display_layer(input, output, ObsVec.BASE_SPD_LIMIT, True, 0.0)
 
-    if 2 in [layer_min, layer_max]:
+    else: #print vehicles data
         print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
-        display_layer(input, output, 0, True, 0.0)
+        display_layer(input, output, ObsVec.BASE_OCCUPANCY, True, 0.0)
 
-    if 3 in [layer_min, layer_max]:
         print("\n\nRelative speed ((neighbor speed - host speed)/max_speed):\n")
-        display_layer(input, output, 1)
+        display_layer(input, output, ObsVec.BASE_REL_SPEED)
 
 
-def display_layer(input:    torch.Tensor,   #input data record
-                  output:   torch.Tensor,   #output data record
-                  layer:    int,            #index of the layer to display
-                  use_empty:bool = True,    #should the empty_val be used to indicate an empty cell?
-                  empty_val:float = 0.0,    #if value < empty_val, the cell will show as empty rather than the numeric value
+def display_layer(input:        torch.Tensor,   #input data record
+                  output:       torch.Tensor,   #output data record
+                  layer_base:   int,            #base index of the layer to display
+                  use_empty:    bool = True,    #should the empty_val be used to indicate an empty cell?
+                  empty_val:    float = 0.0,    #if value < empty_val, the cell will show as empty rather than the numeric value
                  ) -> None:
     """Prints the content of a single pair of layers to compare the specified layer of the input record to that of the output record."""
 
-    # Since the incoming tensors only represent half of the full data record (every other data element), we cannot use the
-    # indexing constants from ObsVec here. The LL column starts at index 0, and each column is half as long as it is in ObsVec.
-    # Also, the reshaping has reordered things so that each layer is clustered together.
-    COL_LEN = (ObsVec.ZONES_BEHIND + 1 + ObsVec.ZONES_FORWARD) #a single layer represented in each column
-    BASE_LL = layer * 5*COL_LEN
-
     # Build each row in the layer for both input and output
     EMPTY_THRESH = 0.03
-    for row in range(25):
-        z = 24 - row
-        c0 = BASE_LL + z
-        c1 = BASE_LL +   COL_LEN + z
-        c2 = BASE_LL + 2*COL_LEN + z
-        c3 = BASE_LL + 3*COL_LEN + z
-        c4 = BASE_LL + 4*COL_LEN + z
+    for row in range(ObsVec.NUM_ROWS):
+        z = ObsVec.NUM_ROWS - 1 - row
+        c0 = layer_base + z
+        c1 = layer_base +   ObsVec.NUM_ROWS + z
+        c2 = layer_base + 2*ObsVec.NUM_ROWS + z
+        c3 = layer_base + 3*ObsVec.NUM_ROWS + z
+        c4 = layer_base + 4*ObsVec.NUM_ROWS + z
 
         # Initialize the row display with all empties
         in_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]

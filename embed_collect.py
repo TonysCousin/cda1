@@ -45,7 +45,7 @@ def main(argv):
         oi = "WITH"
     print("\n***** inputs: scenario = {}, max_episodes = {}, max_time_steps = {} to file {} {} overwrite"
           .format(scenario, max_episodes, max_time_steps, filename, oi))
-    print("      Each obs entry will be {} elements long.".format(ObsVec.FINAL_ELEMENT + 1 - ObsVec.BASE_SENSOR_DATA))
+    print("      Each obs record will be {} elements long.".format(ObsVec.FINAL_ELEMENT + 1 - ObsVec.BASE_SENSOR_DATA))
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,

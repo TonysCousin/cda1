@@ -125,18 +125,16 @@ class EmbedModel(VehicleModel):
         #..........Determine pavement observations in each zone
         #
 
-        # Loop through each of the columns of zones; start with the far left (LL), proceeding to the right
-        zones_per_column = ObsVec.ZONES_BEHIND + 1 + ObsVec.ZONES_FORWARD
-        elements_per_column = ObsVec.NORM_ELEMENTS*zones_per_column
+        # Loop through each of the columns of zones; start with the far left, proceeding to the right
         half_zone = 0.5*ObsVec.OBS_ZONE_LENGTH #half the lenght of a zone, m
         grid_rear_edge = -ObsVec.OBS_ZONE_LENGTH*(ObsVec.ZONES_BEHIND + 0.5) #fwd dist from center of host vehicle to rear of rear-most zone
-        for col in range(5):
+        for col in range(ObsVec.NUM_COLUMNS):
             col_lane = host_lane_id + col - 2 #lane ID represented by this column
-            col_base = ObsVec.BASE_LL + col*elements_per_column
+            col_base_pvmt = ObsVec.BASE_PVMT_TYPE + col*ObsVec.NUM_ROWS
 
             # Initialize all zones as not driveable
-            for z in range(zones_per_column):
-                obs[col_base + z*ObsVec.NORM_ELEMENTS + ObsVec.OFFSET_DRIVABLE] = -1.0
+            for z in range(ObsVec.NUM_ROWS):
+                obs[col_base_pvmt + z] = -1.0
 
             # If the lane that coincides with this column does not exist then skip to next lane
             if col_lane < 0  or  col_lane >= self.roadway.NUM_LANES:
@@ -147,19 +145,22 @@ class EmbedModel(VehicleModel):
             lane_end_p = self.roadway.get_total_lane_length(col_lane) + lane_begin_p
 
             # Loop through each zone in this column, rear to front
-            for zone_id in range(zones_per_column):
-                z_idx = col_base + zone_id*ObsVec.NORM_ELEMENTS #index of the first data element for this zone
+            for zone_id in range(ObsVec.NUM_ROWS):
 
-                # Determine the zone's boundaries & center - P coordinate
+                # Determine the zone's boundaries & center (P coordinate)
                 zone_rear_p = grid_rear_edge + zone_id*ObsVec.OBS_ZONE_LENGTH + host_p
                 zone_ctr_p = zone_rear_p + half_zone
 
                 # Indicate lane existence in this zone, and if it exists, its pavement type & speed limit
                 if lane_begin_p <= zone_ctr_p <= lane_end_p:
-                    obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 1.0
+                    pvmt_idx = col_base_pvmt + zone_id #index of the pavement type data element for this zone
+                    obs[pvmt_idx] = 1.0
                     if self.roadway.get_pavement_type(col_lane, zone_ctr_p) == PavementType.EXIT_RAMP:
-                        obs[z_idx + ObsVec.OFFSET_DRIVABLE] = 0.0
-                    obs[z_idx + ObsVec.OFFSET_SPD_LMT] = self.roadway.get_speed_limit(col_lane, zone_ctr_p) / Constants.MAX_SPEED
+                        obs[pvmt_idx] = 0.0
+
+                    col_base_sl = ObsVec.BASE_SPD_LIMIT + col*ObsVec.NUM_ROWS
+                    sl_idx = col_base_sl + zone_id
+                    obs[sl_idx] = self.roadway.get_speed_limit(col_lane, zone_ctr_p) / Constants.MAX_SPEED
 
         # Get lane connectivity details for the center lane (all distances are downtrack from the host location)
         try:
@@ -243,31 +244,18 @@ class EmbedModel(VehicleModel):
             # At this point we have a vehicle that is somewhere on the grid. Now to figure out which zone(s) it occupies.
             z_num_rear = None #num zones in front of the base zone where the rear of the neighbor exists
             z_num_front = None #num zones in front of the base zone where the front of the neighbor exists
-            base_idx = None #index of the first element of the first zone in the given column
 
-            # Find the column and set its base index
+            # Find the column and set its base indices
             lane_diff = nv.lane_id - host_lane_id
-            if lane_diff == -2:
-                base_idx = ObsVec.BASE_LL
-            elif lane_diff == -1:
-                base_idx = ObsVec.BASE_L
-            elif lane_diff == 0:
-                base_idx = ObsVec.BASE_CTR
-            elif lane_diff == 1:
-                base_idx = ObsVec.BASE_R
-            elif lane_diff == 2:
-                base_idx = ObsVec.BASE_RR
-            else:
-                raise ValueError("///// EmbedModel.get_obs_vector: lane_diff = {} is not valid for vehicle {} in lane {}."
-                                .format(lane_diff, v_idx, nv.lane_id))
+            base_occ_idx = ObsVec.BASE_OCCUPANCY + (lane_diff + 2)*ObsVec.NUM_ROWS
+            base_rs_idx = ObsVec.BASE_REL_SPEED + (lane_diff + 2)*ObsVec.NUM_ROWS
 
             # Get the zone numbers for both ends of the vehicle, limited to the valid range of zones in a column
-            total_zones = ObsVec.ZONES_BEHIND + ObsVec.ZONES_FORWARD + 1
-            z_num_rear = min(max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), total_zones - 1)
-            z_num_front = min(max(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), total_zones - 1)
+            z_num_rear = min(max(math.floor((n_rear - grid_rear_edge + 0.001)/ObsVec.OBS_ZONE_LENGTH), 0), ObsVec.NUM_ROWS - 1)
+            z_num_front = min(max(math.floor((n_front - grid_rear_edge - 0.001)/ObsVec.OBS_ZONE_LENGTH), z_num_rear), ObsVec.NUM_ROWS - 1)
 
             assert z_num_rear <= z_num_front, \
-                    "///// EmbedModel.get_obs_vector: host lane = {}, host_p = {:.2f}; vehicle {} in lane {}, p = {:.2f} has has z_num_rear = {}, " \
+                    "///// BridgitModel.get_obs_vector: host lane = {}, host_p = {:.2f}; vehicle {} in lane {}, p = {:.2f} has has z_num_rear = {}, " \
                     .format(host_lane_id, host_p, v_idx, nv.lane_id, nv.p, z_num_rear) + \
                     "z_num_front = {}. n_rear = {:.2f}, n_front = {:.2f}".format(z_num_front, n_rear, n_front)
 
@@ -279,8 +267,7 @@ class EmbedModel(VehicleModel):
             for z in range(z_num_rear, z_num_front+1):
 
                 # Compute the zone index in the obs vector, and set the occupied flag and relative speed for that zone
-                z_idx = base_idx + z*ObsVec.NORM_ELEMENTS
-                obs[z_idx + ObsVec.OFFSET_OCCUPIED] = 1.0 #occupied
-                obs[z_idx + ObsVec.OFFSET_SPEED] = rel_speed
+                obs[base_occ_idx + z] = 1.0 #occupied
+                obs[base_rs_idx] = rel_speed
 
         return obs

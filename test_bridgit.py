@@ -147,37 +147,37 @@ def print_obs(obs, label):
 
     # Visual layers
     print("            Pavement (SL)                       Vehicles (spd)\n")
-    for row in range(25):
-        z = 24 - row
-        c0 = ObsVec.BASE_LL + z*ObsVec.NORM_ELEMENTS
-        c1 = ObsVec.BASE_L + z*ObsVec.NORM_ELEMENTS
-        c2 = ObsVec.BASE_CTR + z*ObsVec.NORM_ELEMENTS
-        c3 = ObsVec.BASE_R + z*ObsVec.NORM_ELEMENTS
-        c4 = ObsVec.BASE_RR + z*ObsVec.NORM_ELEMENTS
+    for row in range(ObsVec.NUM_ROWS):
+        z = ObsVec.NUM_ROWS - 1 - row
+        c0 = z
+        c1 = z +   ObsVec.NUM_ROWS
+        c2 = z + 2*ObsVec.NUM_ROWS
+        c3 = z + 3*ObsVec.NUM_ROWS
+        c4 = z + 4*ObsVec.NUM_ROWS
 
         p_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
         v_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
-        if obs[c0+0] >= 0:
-            p_row[0] = "{:5.2f}".format(obs[c0+1])
-        if obs[c1+0] >= 0:
-            p_row[1] = "{:5.2f}".format(obs[c1+1])
-        if obs[c2+0] >= 0:
-            p_row[2] = "{:5.2f}".format(obs[c2+1])
-        if obs[c3+0] >= 0:
-            p_row[3] = "{:5.2f}".format(obs[c3+1])
-        if obs[c4+0] >= 0:
-            p_row[4] = "{:5.2f}".format(obs[c4+1])
+        if obs[ObsVec.BASE_PVMT_TYPE + c0] >= 0:
+            p_row[0] = "{:5.2f}".format(obs[ObsVec.BASE_SPD_LIMIT + c0])
+        if obs[ObsVec.BASE_PVMT_TYPE + c1] >= 0:
+            p_row[1] = "{:5.2f}".format(obs[ObsVec.BASE_SPD_LIMIT + c1])
+        if obs[ObsVec.BASE_PVMT_TYPE + c2] >= 0:
+            p_row[2] = "{:5.2f}".format(obs[ObsVec.BASE_SPD_LIMIT + c2])
+        if obs[ObsVec.BASE_PVMT_TYPE + c3] >= 0:
+            p_row[3] = "{:5.2f}".format(obs[ObsVec.BASE_SPD_LIMIT + c3])
+        if obs[ObsVec.BASE_PVMT_TYPE + c4] >= 0:
+            p_row[4] = "{:5.2f}".format(obs[ObsVec.BASE_SPD_LIMIT + c4])
 
-        if obs[c0+2] > 0:
-            v_row[0] = "{:5.2f}".format(obs[c0+3])
-        if obs[c1+2] > 0:
-            v_row[1] = "{:5.2f}".format(obs[c1+3])
-        if obs[c2+2] > 0:
-            v_row[2] = "{:5.2f}".format(obs[c2+3])
-        if obs[c3+2] > 0:
-            v_row[3] = "{:5.2f}".format(obs[c3+3])
-        if obs[c4+2] > 0:
-            v_row[4] = "{:5.2f}".format(obs[c4+3])
+        if obs[ObsVec.BASE_OCCUPANCY + c0] > 0:
+            v_row[0] = "{:5.2f}".format(obs[ObsVec.BASE_REL_SPEED + c0])
+        if obs[ObsVec.BASE_OCCUPANCY + c1] > 0:
+            v_row[1] = "{:5.2f}".format(obs[ObsVec.BASE_REL_SPEED + c1])
+        if obs[ObsVec.BASE_OCCUPANCY + c2] > 0:
+            v_row[2] = "{:5.2f}".format(obs[ObsVec.BASE_REL_SPEED + c2])
+        if obs[ObsVec.BASE_OCCUPANCY + c3] > 0:
+            v_row[3] = "{:5.2f}".format(obs[ObsVec.BASE_REL_SPEED + c3])
+        if obs[ObsVec.BASE_OCCUPANCY + c4] > 0:
+            v_row[4] = "{:5.2f}".format(obs[ObsVec.BASE_REL_SPEED + c4])
 
         if row == 20:
             p_row[2] = "*Ego*"
@@ -188,13 +188,18 @@ def print_obs(obs, label):
 
     # Numerical details
     print("\n\n")
-    for row in range(25):
-        z = 24 - row
-        c0 = ObsVec.BASE_LL + z*ObsVec.NORM_ELEMENTS
-        c1 = ObsVec.BASE_L + z*ObsVec.NORM_ELEMENTS
-        c2 = ObsVec.BASE_CTR + z*ObsVec.NORM_ELEMENTS
-        c3 = ObsVec.BASE_R + z*ObsVec.NORM_ELEMENTS
-        c4 = ObsVec.BASE_RR + z*ObsVec.NORM_ELEMENTS
+    for row in range(ObsVec.NUM_ROWS):
+        z = ObsVec.NUM_ROWS - 1 - row
+        c0 = z
+        c1 = z +   ObsVec.NUM_ROWS
+        c2 = z + 2*ObsVec.NUM_ROWS
+        c3 = z + 3*ObsVec.NUM_ROWS
+        c4 = z + 4*ObsVec.NUM_ROWS
+        bp = ObsVec.BASE_PVMT_TYPE
+        bl = ObsVec.BASE_SPD_LIMIT
+        bo = ObsVec.BASE_OCCUPANCY
+        bs = ObsVec.BASE_REL_SPEED
+
         br = 0
         zm5 = z - 5
         if 2 < zm5 < 10:
@@ -205,26 +210,26 @@ def print_obs(obs, label):
         r_bdry = ObsVec.BASE_RIGHT_CTR_BDRY + br
 
         if row < 20:
-            print("{:2d} Type: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(z, obs[c0+0], obs[c1+0], obs[c2+0], obs[c3+0], obs[c4+0]))
-            print("     SL: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+1], obs[c1+1], obs[c2+1], obs[c3+1], obs[c4+1]))
-            print("    Occ: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+2], obs[c1+2], obs[c2+2], obs[c3+2], obs[c4+2]))
-            print("    Spd: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+3], obs[c1+3], obs[c2+3], obs[c3+3], obs[c4+3]))
+            print("{:2d} Type: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(z, obs[c0+bp], obs[c1+bp], obs[c2+bp], obs[c3+bp], obs[c4+bp]))
+            print("     SL: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bl], obs[c1+bl], obs[c2+bl], obs[c3+bl], obs[c4+bl]))
+            print("    Occ: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bo], obs[c1+bo], obs[c2+bo], obs[c3+bo], obs[c4+bo]))
+            print("    Spd: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bs], obs[c1+bs], obs[c2+bs], obs[c3+bs], obs[c4+bs]))
             print("   LBdr:                   {:6.3f}".format(obs[l_bdry]))
             print("   RBdr:                   {:6.3f}".format(obs[r_bdry]))
 
         elif row == 20:
-            print("{:2d} Type: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(z, obs[c0+0], obs[c1+0], obs[c3+0], obs[c4+0]))
-            print("     SL: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+1], obs[c1+1], obs[c3+1], obs[c4+1]))
-            print("    Occ: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+2], obs[c1+2], obs[c3+2], obs[c4+2]))
-            print("    Spd: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+3], obs[c1+3], obs[c3+3], obs[c4+3]))
+            print("{:2d} Type: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(z, obs[c0+bp], obs[c1+bp], obs[c3+bp], obs[c4+bp]))
+            print("     SL: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+bl], obs[c1+bl], obs[c3+bl], obs[c4+bl]))
+            print("    Occ: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+bo], obs[c1+bo], obs[c3+bo], obs[c4+bo]))
+            print("    Spd: {:6.3f}   {:6.3f}   *Ego *   {:6.3f}   {:6.3f}".format(obs[c0+bs], obs[c1+bs], obs[c3+bs], obs[c4+bs]))
             print("   LBdr:                   {:6.3f}".format(obs[l_bdry]))
             print("   RBdr:                   {:6.3f}".format(obs[r_bdry]))
 
         else:
-            print("{:2d} Type: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(z, obs[c0+0], obs[c1+0], obs[c2+0], obs[c3+0], obs[c4+0]))
-            print("     SL: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+1], obs[c1+1], obs[c2+1], obs[c3+1], obs[c4+1]))
-            print("    Occ: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+2], obs[c1+2], obs[c2+2], obs[c3+2], obs[c4+2]))
-            print("    Spd: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+3], obs[c1+3], obs[c2+3], obs[c3+3], obs[c4+3]))
+            print("{:2d} Type: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(z, obs[c0+bp], obs[c1+bp], obs[c2+bp], obs[c3+bp], obs[c4+0]))
+            print("     SL: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bl], obs[c1+bl], obs[c2+bl], obs[c3+bl], obs[c4+bl]))
+            print("    Occ: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bo], obs[c1+bo], obs[c2+bo], obs[c3+bo], obs[c4+bo]))
+            print("    Spd: {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}   {:6.3f}".format(obs[c0+bs], obs[c1+bs], obs[c2+bs], obs[c3+bs], obs[c4+bs]))
 
         print(" ")
 

@@ -14,12 +14,12 @@ class ObsVec:
         model-specific elements.  It may be possible that enhancements to bot models or new bot models will
         want to use some of the ego-specific data elements, which is fine, but they won't be re-ordered for it.
 
-        The ego vehicle's "external sensor suite" provides magical way to detect details about the nearby
+        The ego vehicle's "external sensor suite" provides A magical way to detect details about the nearby
         roadway (i.e. it's physically possible but we don't want to worry about the details here). It divides
         the roadway into small zones of interest around the host vehicle, as follows.
             * Each zone is the width of a lane (assume all lanes are the same width), and 5 m long (approximately
               the length of a typical passenger car).
-            * There is an unused zone centered on the host vehicle (no data will be provided for that zone).
+            * There is a zone centered on the host vehicle.
             * A series of 20 contiguous zones stretch out in front of the host vehicle, in host's lane.
             * Two similar series of 20 zones appear contiguously to the left of the host's forward zones, and
               two appear to the right, so that there are 5 x 20 zones spread out in front of the host vehicle.
@@ -29,7 +29,7 @@ class ObsVec:
             * There are two similar series of 4 zones to the left and right of these rear zones, so that there are
               a block of 5 x 4 zones in the region behind the host vehicle.
             * The below diagram represents the full set of observation zones (each '-' is a zone) surrounding the
-              host vehicle "H".  In total there are 5x20 + 4 + 5x4 = 124 observation zones.
+              host vehicle "H".  In total there are 5 x (20 + 1 + 4) = 125 observation zones.
 
               -------------------------
               -------------------------
@@ -38,25 +38,28 @@ class ObsVec:
               -------------------------
 
         We will represent the zones in longitudinal columns (parallel to the direction of travel). The columns will
-        be stored from left to right. The center column looks exactly like the others, with a zone surrounding the
-        host vehicle. These zones move with the vehicle, and are a schematic
+        be stored from left to right (relative to host vehicle). The center column looks exactly like the others,
+        with a zone surrounding the host vehicle. The zones move with the vehicle, and are a schematic
         representation of the nearby roadway situation. That is, they don't include any lane shape geometry,
         representing every lane as straight, and physically adjacent to its next lane. This is possible because we
         ASSUME that the vehicles are operating well inside their performance limits, so that road geometry won't
         affect their ability to change lanes, accelerate or decelerate at any desired rate. This assumption allows
         use of the parametric coordinate frame, which allows this zone construction.
 
-        NOTE: this structure ignores possibley physical realities of having "adjacent" lanes separated (e.g. a ramp
+        NOTE: this structure ignores possibly physical realities of having "adjacent" lanes separated (e.g. a ramp
         coming it at an angle to the mainline lane), which could degrade observations with real world sensors.
 
-        Each zone will include the following attributes (all are floats):
+        For each zone we record the following attributes (all are floats):
             * Drivable:     1.0 if that location covers a main lane or on-ramp that leads to a trained agent target,
-                                0.0 if it covers an exit ramp, or -1.0 if it not a paved surface
+                                0.0 if it covers an exit ramp, or -1.0 if it is not a paved surface
             * Speed limit:  regulatory limit of the lane at the front of the zone, if drivable, normalized by MAX_SPEED,
                                 else 0.0 if not driveable.
             * Occupied:     1.0 if any part of a vehicle is in this zone, 0 if empty (always 1 in the host's zone)
-            * Speed:        relative to host vehicle's speed, (veh_spd - host_spd), normalized by MAX_SPEED, if the
+            * Rel speed:    relative to host vehicle's speed, (veh_spd - host_spd), normalized by MAX_SPEED, if the
                                 zone is occupied, else 0.0 (always 0 in host's zone)
+
+        NOTE that data will not be stored in this way (all 4 variables describing a single zone together). The data
+        are layered so that each data type over all zones is gathered together, then the next data type is stored.
 
         If a neighbor vehicle is observed to be changing lanes, it will indicate occupancy in two adjacent zones,
         as it will have 2 wheels in each during the maneuver. Often, a vehicle of 5 m in length will occupy two
@@ -76,9 +79,11 @@ class ObsVec:
             * +1 if a lane change is legal over the entire length represented (i.e. a dashed line)
     """
 
+    #TODO: constants beginning with D_ are now depricated. Names were changed to make them easy to find in code.
+
     ZONES_FORWARD       = 20 #num zones in front of the vehicle in a given lane
     ZONES_BEHIND        = 4  #num zones behind the vehicle in a given lane
-    NORM_ELEMENTS       = 4  #num data elements in a normal zone
+    D_NORM_ELEMENTS       = 4  #num data elements in a normal zone
     OBS_ZONE_LENGTH     = 5.0#longitudinal length of a single zone, m
 
     # Common elements for all models
@@ -94,7 +99,7 @@ class ObsVec:
     # Elements specific to bots running ACC & changing lanes to reach a target destination
     FWD_DIST            =  8 #distance to nearest downtrack vehicle in same lane, m
     FWD_SPEED           =  9 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
-    TGT_LANE_OFFSET     = 10 #target dest is this many lanes left (negative) or right (positive) from current lane
+    TGT_LANE_OFFSET     = 10 #target dest is this many lanes left (negative) or right (positive) from current lane #TODO: unused???
     LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
     RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
@@ -118,20 +123,25 @@ class ObsVec:
     BASE_RIGHT_CTR_BDRY = BASE_LEFT_CTR_BDRY + NUM_BDRY_REGIONS #right-hand boundaries of the forward center lane
 
     # More elements specific to the Bridgit vehicle:
-    # Zone columns are represented from rear to front. Each zone occupies a contiguous set of 4 or 6 vector elements,
-    # depending on its purpose. Each column has a base reference, which points to the first element of the rear-most
-    # zone in that column.
-    NUM_COLUMNS         = 5
-    BASE_LL             = BASE_RIGHT_CTR_BDRY + NUM_BDRY_REGIONS #first element in the far left column
-    BASE_L              = BASE_LL + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near left column
-    BASE_CTR            = BASE_L  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #center column
-    BASE_R              = BASE_CTR+ NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #near right column
-    BASE_RR             = BASE_R  + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) #far right column
-    FINAL_ELEMENT       = BASE_RR + NORM_ELEMENTS*(ZONES_FORWARD + ZONES_BEHIND + 1) - 1
+    # This section represents sensor zones surrounding the host vehicle. Each zone (a physical region in space)
+    # has 4 sensor values. However, for efficient processing, each sensor data type is stored in a contiguous
+    # rregion that covers all zones. This region is referred to as a layer (like layers of pixels in an image).
+    # So there are 4 layers stored end-to-end. Each layer is stored by column, left-to-right, across the sensor
+    # grid. Each column is represented from rear to front.
+
+    NUM_COLUMNS         = 5 #num columns in the sensor grid
+    NUM_ROWS            = ZONES_BEHIND + 1 + ZONES_FORWARD #num rows in the sensor grid, including host's row
+    LAYER_SIZE          = NUM_COLUMNS * NUM_ROWS
+    BASE_PVMT_TYPE      = BASE_RIGHT_CTR_BDRY + NUM_BDRY_REGIONS #first element of the first sensor layer
+    BASE_SPD_LIMIT      = BASE_PVMT_TYPE + LAYER_SIZE
+    BASE_OCCUPANCY      = BASE_SPD_LIMIT + LAYER_SIZE
+    BASE_REL_SPEED      = BASE_OCCUPANCY + LAYER_SIZE
+    FINAL_ELEMENT       = BASE_REL_SPEED + LAYER_SIZE - 1
 
     # This one is just a convenient alias to where the "sensor" data block begins
-    BASE_SENSOR_DATA    = BASE_LL
+    BASE_SENSOR_DATA    = BASE_PVMT_TYPE
     SENSOR_DATA_SIZE    = FINAL_ELEMENT - BASE_SENSOR_DATA + 1
+    assert SENSOR_DATA_SIZE % 2 == 0, "///// ObsVec: invalid SENSOR_DATA_SIZE = {}".format(SENSOR_DATA_SIZE)
 
     # Size references for the number of elements in certain groupings defined in this file.
     # CAUTION! these need to be maintained in sync with any changes to the index structures elsewhere in this file.
@@ -140,9 +150,9 @@ class ObsVec:
     NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FUTURE1
 
     # Offsets for the individual data elements in each zone
-    OFFSET_DRIVABLE     = 0
-    OFFSET_SPD_LMT      = 1
-    OFFSET_OCCUPIED     = 2
-    OFFSET_SPEED        = 3
+    D_OFFSET_DRIVABLE     = 0
+    D_OFFSET_SPD_LMT      = 1
+    D_OFFSET_OCCUPIED     = 2
+    D_OFFSET_SPEED        = 3
 
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector

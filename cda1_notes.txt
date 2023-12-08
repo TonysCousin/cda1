@@ -1215,7 +1215,18 @@ Big picture of this project's goals:
 
 * Began building code to integrate the embeddings into the Bridgit NN model.
 
+12/2/23
+
+* Created new branch "reshape" off of branch "vector-embed". This will house work to reshape the
+  ObsVec sensor data structure into layers, which is critical for performance of the new
+  algorithm.
+
+12/7/23
+19:53- , int 10
+
 NEXT: restructure ObsVec sensor data to make each layer contiguous
+	Find & reconsider all uses of reshape_batch()
+	Finish writing BridgitNN
 
 
 
