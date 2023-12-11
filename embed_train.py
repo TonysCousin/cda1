@@ -13,6 +13,8 @@ def main(argv):
     """This program trains an autoencoder to compress the host vehicle's sensor observations, then decompress them to form
         a reasonably accurate reproduction of the original sensor data. Once the training is satisfactory, the weights of
         the encoder layer are saved for future use in our CDA agent.
+
+        NOTE that the data files read in only contain sensor data, not the full observation records.
     """
 
     # Handle any args
@@ -69,7 +71,7 @@ def main(argv):
         device = torch.device("cpu")
         print("///// Beginning training, but reverting to cpu.")
 
-    # Set up the data loaders
+    # Set up the data loaders - these represent sensor data only; the data files have already had the other observation fields stripped.
     train_loader = torch.utils.data.DataLoader(train_data, batch_size = batch_size, shuffle = True, num_workers = num_workers)
     num_training_batches = len(train_loader)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size = batch_size, num_workers = num_workers)
@@ -82,12 +84,10 @@ def main(argv):
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(params = model.parameters(), lr = lr)
 
-    # Define which layers of sensor data we will be looking at
-    layer_min = 0 #pavement data
-    layer_max = 1 #roadway speed limits
+    # Define which layers of sensor data we will be looking at and the base index offset for those layers in the data record
+    base_idx = 0
     if model_vehicles:
-        layer_min = 2 #neighbor vehicle presence
-        layer_max = 3 #neighbor vehicle rel speed
+        base_idx = ObsVec.BASE_OCCUPANCY - ObsVec.BASE_PVMT_TYPE
 
     # Set up to track test loss performance for possible early stopping
     test_loss_min = inf
@@ -99,19 +99,19 @@ def main(argv):
         model.train()
 
         # Loop on batches of data records
-        for bn, batch in enumerate(train_loader):
+        for batch in train_loader:
 
             # Check the batch size, as the final one may be only a partial
             batch_size = batch.shape[0]
 
-            # Trim the batch so that we only get the desired data layers from each record
-            sensor_data_batch = batch[:, ObsVec.BASE_SENSOR_DATA : ObsVec.SENSOR_DATA_SIZE+1]
-            sensor_data_batch = sensor_data_batch.to(device)
+            # Extract the desired sensor layers (only 2 layers per training run)
+            sensor_batch = batch[:, base_idx : base_idx + 2*ObsVec.LAYER_SIZE]
+            sensor_batch = sensor_batch.to(device)
 
-             # Perform the learning step
+            # Perform the learning step
             optimizer.zero_grad()
-            output = model(sensor_data_batch)
-            loss = loss_fn(output, sensor_data_batch)    # compare to the original input data
+            output = model(sensor_batch)
+            loss = loss_fn(output, sensor_batch)    # compare to the original input data
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -128,11 +128,13 @@ def main(argv):
             # Check the batch size, as the final one may be only a partial
             batch_size = batch.shape[0]
 
+            # Extract the desired sensor layers
+            sensor_batch = batch[:, base_idx : base_idx + 2*ObsVec.LAYER_SIZE]
+            sensor_batch = sensor_batch.to(device)
+
             # Evaluate the performance on the next batch
-            sensor_data_batch = batch[:, ObsVec.BASE_SENSOR_DATA : ObsVec.SENSOR_DATA_SIZE+1]
-            sensor_data_batch = sensor_data_batch.to(device)
-            output = model(sensor_data_batch)
-            loss = loss_fn(output, sensor_data_batch)
+            output = model(sensor_batch)
+            loss = loss_fn(output, sensor_batch)
             test_loss += loss.item()
 
         # Compute the avg test loss

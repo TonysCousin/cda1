@@ -97,7 +97,7 @@ def main(argv):
             # environment will produce commands for vehicle 0 as well, so the action list passed in here is ignored.
             raw_obs, reward, done, truncated, info = env.step(action_list) #obs returned is UNSCALED
 
-            # Scale the new observattion vector, then extract only the "sensor" data from the relative location zones.
+            # Scale the new observation vector, then extract only the "sensor" data from the relative location zones.
             # Then and add that info to the output file.
             obs = copy.copy(env.scale_obs(raw_obs))
             sensor_obs = obs[ObsVec.BASE_SENSOR_DATA : ObsVec.FINAL_ELEMENT+1]

@@ -1225,7 +1225,8 @@ Big picture of this project's goals:
 
 * Completed refactoring the code for the sensor data reshaping. Passed the updated test_bridgit.
 
-* Made a new run of embed_collect for 10k episodes or 2M steps.
+* Made a new run of embed_collect for 10k episodes or 2M steps. Corresponds to reshape branch
+  commit fcf1452.
 
 NEXT: 
 	Finish writing BridgitNN
