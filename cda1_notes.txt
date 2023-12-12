@@ -1227,8 +1227,31 @@ Big picture of this project's goals:
 
 * Made a new run of embed_collect for 10k episodes or 2M steps. Corresponds to reshape branch
   commit fcf1452.
+	* Completed 10k episodes that covered 978,313 time steps.
+	* Ran the splitter script to create a training.csv with 831,557 records and test.csv
+	  with 146,757 records (15% of total).
+
+12/10/23
+
+* Fixed a defect in embed_train, where it was improperly extracting the 2 desired sensor layers
+  from the data set. 
+
+* Ran embedding training run E20 for pavement sensors using batch = 256, embedding dim = 30, 
+  LR = 1e-4 for 100 epochs. Corresponds to reshape branch commit 22805b5.
+	* It is running way faster than a couple weeks ago now that there is no field-by-field
+	  procedural reshaping in every iteration.
+
+12/11/23
+
+* Fixed a couple defects in embed_eval.
+* Evaluated run E20 results. Not bad, but I think it could do better with more training data,
+  as seen in the Nov experiments.
+
+* Initiated new embed_collect run, allowed to go 20k episodes. Creating data file
+  observations_231211.csv.
 
 NEXT: 
+	merge branch reshape into vector-embed
 	Finish writing BridgitNN
 
 

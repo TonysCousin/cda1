@@ -57,12 +57,13 @@ def main(argv):
 
     # Define the correct layers to look at and extract them into a layer record
     two_layer_size = ObsVec.SENSOR_DATA_SIZE // 2
-    layer_id = ObsVec.BASE_PVMT_TYPE
+    layer_id = ObsVec.BASE_PVMT_TYPE - ObsVec.BASE_SENSOR_DATA
     if model_vehicles:
-        layer_id = ObsVec.BASE_OCCUPANCY
+        layer_id = ObsVec.BASE_OCCUPANCY - ObsVec.BASE_SENSOR_DATA
+    print("two_layer_size = {}, data_record shape = {}, layer_id = {}".format(two_layer_size, data_record.shape, layer_id))
 
-    layer_record = data_record[:, layer_id : layer_id + two_layer_size + 1]
-    assert layer_record.shape[1] == two_layer_size, "///// ERROR: layer_record length is {}".format(len(layer_record))
+    layer_record = data_record[:, layer_id : layer_id + two_layer_size]
+    assert layer_record.shape[1] == two_layer_size, "///// ERROR: layer_record shape is {}".format(layer_record.shape)
 
     # Evaluate performance against the test dataset
     model.eval()
@@ -90,19 +91,22 @@ def print_obs(input     : torch.Tensor, #the input observation record
     print("                Input                               Output")
     print("                -----                               ------\n")
 
-    if layer_id == ObsVec.BASE_PVMT_TYPE:
+    print("print_obs: layer_id = {}".format(layer_id))
+    if layer_id == 0: #print pavement layers
+        offset = ObsVec.BASE_PVMT_TYPE #because only 2 layers of sensor data are present from the full obs vector
         print("Pavement type (-1 = no pavement, 0 = exit ramp, 1 = through lane):\n")
-        display_layer(input, output, ObsVec.BASE_PVMT_TYPE, True, -1.0)
+        display_layer(input, output, ObsVec.BASE_PVMT_TYPE - offset, True, -1.0)
 
         print("\n\nSpeed limit (normalized by max_speed):\n")
-        display_layer(input, output, ObsVec.BASE_SPD_LIMIT, True, 0.0)
+        display_layer(input, output, ObsVec.BASE_SPD_LIMIT - offset, True, 0.0)
 
     else: #print vehicles data
+        offset = ObsVec.BASE_OCCUPANCY #because only the final 2 layers appear in a data record for vehicles
         print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
-        display_layer(input, output, ObsVec.BASE_OCCUPANCY, True, 0.0)
+        display_layer(input, output, ObsVec.BASE_OCCUPANCY - offset, True, 0.0)
 
         print("\n\nRelative speed ((neighbor speed - host speed)/max_speed):\n")
-        display_layer(input, output, ObsVec.BASE_REL_SPEED)
+        display_layer(input, output, ObsVec.BASE_REL_SPEED - offset)
 
 
 def display_layer(input:        torch.Tensor,   #input data record
@@ -111,7 +115,7 @@ def display_layer(input:        torch.Tensor,   #input data record
                   use_empty:    bool = True,    #should the empty_val be used to indicate an empty cell?
                   empty_val:    float = 0.0,    #if value < empty_val, the cell will show as empty rather than the numeric value
                  ) -> None:
-    """Prints the content of a single pair of layers to compare the specified layer of the input record to that of the output record."""
+    """Prints the content of the input & output values of aa single layer for visual comparison."""
 
     # Build each row in the layer for both input and output
     EMPTY_THRESH = 0.03
@@ -122,6 +126,8 @@ def display_layer(input:        torch.Tensor,   #input data record
         c2 = layer_base + 2*ObsVec.NUM_ROWS + z
         c3 = layer_base + 3*ObsVec.NUM_ROWS + z
         c4 = layer_base + 4*ObsVec.NUM_ROWS + z
+        if row == 0:
+            print("display_layer: layer_base = {}, input shape = {}, z = {}, c0 = {}, c2 = {}, c4 = {}".format(layer_base, input.shape, z, c0, c2, c4))
 
         # Initialize the row display with all empties
         in_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]
