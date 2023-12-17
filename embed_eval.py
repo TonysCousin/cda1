@@ -70,7 +70,7 @@ def main(argv):
     output = model(layer_record)
     eval_loss = loss_fn(output, layer_record).item()
 
-    # Display the comparison
+    # Display the comparison - the input & output are 2D tensors, with the first dim representing a batch of size 1
     label = "Model: {}, on record {} of {}. Loss = {:.6f}".format(weights_filename, data_index, data_filename, eval_loss)
     print_obs(layer_record[0], output[0], layer_id, label)
 
@@ -102,6 +102,8 @@ def print_obs(input     : torch.Tensor, #the input observation record
 
     else: #print vehicles data
         offset = ObsVec.BASE_OCCUPANCY #because only the final 2 layers appear in a data record for vehicles
+        print("offset = {}. input tensor = ".format(offset))
+        print(input)
         print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
         display_layer(input, output, ObsVec.BASE_OCCUPANCY - offset, True, 0.0)
 
@@ -115,7 +117,7 @@ def display_layer(input:        torch.Tensor,   #input data record
                   use_empty:    bool = True,    #should the empty_val be used to indicate an empty cell?
                   empty_val:    float = 0.0,    #if value < empty_val, the cell will show as empty rather than the numeric value
                  ) -> None:
-    """Prints the content of the input & output values of aa single layer for visual comparison."""
+    """Prints the content of the input & output values of a single layer for visual comparison."""
 
     # Build each row in the layer for both input and output
     EMPTY_THRESH = 0.03
@@ -126,7 +128,7 @@ def display_layer(input:        torch.Tensor,   #input data record
         c2 = layer_base + 2*ObsVec.NUM_ROWS + z
         c3 = layer_base + 3*ObsVec.NUM_ROWS + z
         c4 = layer_base + 4*ObsVec.NUM_ROWS + z
-        if row == 0:
+        if row == 24:
             print("display_layer: layer_base = {}, input shape = {}, z = {}, c0 = {}, c2 = {}, c4 = {}".format(layer_base, input.shape, z, c0, c2, c4))
 
         # Initialize the row display with all empties

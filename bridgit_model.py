@@ -174,6 +174,8 @@ class BridgitModel(VehicleModel):
         #..........Map vehicles to zones for those that are within the grid
         #
 
+        grid_front_edge = (ObsVec.ZONES_FORWARD + 0.5)*ObsVec.OBS_ZONE_LENGTH #distance, not P coord
+
         # Loop through all active vehicles that are not the host
         for v_idx in range(len(vehicles)):
             if v_idx == my_id  or  not vehicles[v_idx].active:
@@ -182,10 +184,10 @@ class BridgitModel(VehicleModel):
             nv = vehicles[v_idx]
 
             # Determine if it's in the bounding box of our sensor grid. If not, contine to the next vehicle.
-            if abs(nv.lane_id - host_lane_id) > 2:
+            lane_diff = nv.lane_id - host_lane_id
+            if abs(lane_diff) > 2:
                 continue
 
-            grid_front_edge = (ObsVec.ZONES_FORWARD + 0.5)*ObsVec.OBS_ZONE_LENGTH #distance, not P coord
             ddt_ctr = nv.p - host_p
             half_length = 0.5*nv.model.veh_length
             n_rear = ddt_ctr - half_length
@@ -201,7 +203,6 @@ class BridgitModel(VehicleModel):
             z_num_front = None #num zones in front of the base zone where the front of the neighbor exists
 
             # Find the column and set its base indices
-            lane_diff = nv.lane_id - host_lane_id
             base_occ_idx = ObsVec.BASE_OCCUPANCY + (lane_diff + 2)*ObsVec.NUM_ROWS
             base_rs_idx = ObsVec.BASE_REL_SPEED + (lane_diff + 2)*ObsVec.NUM_ROWS
 

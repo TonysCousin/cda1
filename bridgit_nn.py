@@ -88,6 +88,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         # Pull out the vehicles sensor data
 
         # Compute the first "layer", which is an aggregate of the three individual segments
+        # TODO: consider using tanh on the first layer, since that's what the decoder used
 
         # Compute the remaining layers, bringing all of these parts together
 

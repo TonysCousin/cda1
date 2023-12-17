@@ -1249,9 +1249,48 @@ Big picture of this project's goals:
 
 * Initiated new embed_collect run, allowed to go 20k episodes. Creating data file
   observations_231211.csv.
+	* It finished all episodes, creating 1,852,815 records.
+
+12/14/23
+
+* Ran the splitter script on the new obs dataset, generating
+	* train.csv with 1,574,893 records
+	* test.csv with 277,922 records
+
+* Run E21 of embedding training for pavement sensors, with batch = 256, dim = 30, LR = 1e-4.
+	* Output is embedding_30p_231214-0028_99.pt
+	* All episodes finished, with final test loss of 0.000428
+	* Evaluation of ~20 random samples look like it performs well.
+
+12/15/23
+
+* Merged branch reshape back into the vector-embed branch.
+
+* Run E22 of embedding training for vehicles sensors, with batch = 256, dim = 150, LR = 1e-4
+	* Output is embedding_150v_231215-1658.pt
+	* Training completed after 9 epochs due to testing loss increase (15% above previous
+	  epoch). The test loss was still only 0.0000016, which is a great number.
+	* Unable to evaluate this one because checkpoints are only stored every 20 epochs!
+
+* Run E23 of embedding training for vehicle sensors, with batch = 256, dim = 100, LR = 1e-4
+	* Output is embedding_100v_231215-1952.pt
+	* Training completed the full 100 episodes, with ending test loss of 0.000684.
+	* Evaluation pending debugging of possible code defect on 12/17.
+
+12/17/23
+
+* Investigating apparent problems with rel speeds as they are shown in embed_eval.
+	* All indications are that the embed_eval program is displaying data as it really
+	  exists.
+	* embed_train doesn't look like it has a problem.
+	* embed_collect doesn't seem to have a problem. However, embed_eval is reading in the
+	  bogus rel speed value from the data record, so it had to come from the collection.
+	* bridgit_model doesn't look like a problem either, and its test outputs are reasonable.
+	* Found a defect in embed_model - a rel speed indexing error that was fixed in
+	  BridgitModel, but not here.
+
 
 NEXT: 
-	merge branch reshape into vector-embed
 	Finish writing BridgitNN
 
 
