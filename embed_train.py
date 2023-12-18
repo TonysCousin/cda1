@@ -91,6 +91,8 @@ def main(argv):
 
     # Set up to track test loss performance for possible early stopping
     test_loss_min = inf
+    model_min = None
+    ep_min = 0
 
     # Loop on epochs
     #tensorboard = SummaryWriter(DATA_PATH)
@@ -144,6 +146,8 @@ def main(argv):
         regression_msg = " "
         if test_loss < test_loss_min:
             test_loss_min = test_loss
+            model_min = model
+            ep_min = ep
         else:
             regression = 100.0*(test_loss - test_loss_min) / test_loss_min
             regression_msg = "{:.2f}% above min".format(regression)
@@ -157,9 +161,13 @@ def main(argv):
             print("      Model weights saved to {}".format(filename))
 
 
-        # Early stopping if the test loss has increased significantly
-        if regression >= 5.0:
+        # Early stopping if the test loss has increased significantly - save a checkpoint from the best test loss
+        if regression >= 1.0:
+            fn_root, fn_ext = splitext(weights_filename)
+            filename = fn_root + "_{}".format(ep_min) + fn_ext
+            torch.save(model_min.state_dict(), filename)
             print("///// Early stopping due to test loss increase.")
+            print("      Best model weights saved to {}".format(filename))
             break
 
     # Summarize the run and store the encoder weights

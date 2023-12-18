@@ -1280,14 +1280,24 @@ Big picture of this project's goals:
 12/17/23
 
 * Investigating apparent problems with rel speeds as they are shown in embed_eval.
-	* All indications are that the embed_eval program is displaying data as it really
-	  exists.
-	* embed_train doesn't look like it has a problem.
-	* embed_collect doesn't seem to have a problem. However, embed_eval is reading in the
-	  bogus rel speed value from the data record, so it had to come from the collection.
-	* bridgit_model doesn't look like a problem either, and its test outputs are reasonable.
 	* Found a defect in embed_model - a rel speed indexing error that was fixed in
 	  BridgitModel, but not here.
+
+* Ran new embedding data collection, generating 1,785,908 records over 20k episodes.
+	* Ran splitter script to generate train.csv with 1,518,022 records and test.csv
+	  with 267,886 records (15% of total).
+
+* Run E30 training embedding for vehicles using batch = 256, embedding dim = 100, LR = 1e-4.
+	* Output file is embedding_100v_231217-1710.pt
+	* Training completed 100 epochs with test loss ending at 0.001364.
+	* Eval shows that there is not good enough match between input & output. Some of
+	  the occupancy values are off by 0.15, and some of the rel speeds are of opposite
+	  sign, even for large values.
+
+* Run E31 training embedding for vehicles using batch 256, embedding dim = 120, LR = 1e-4.
+	* Output file is embedding_120v_231217-2004.pt
+
+* Finished coding the BridgitNN class.
 
 
 NEXT: 

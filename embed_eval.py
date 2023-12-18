@@ -60,7 +60,7 @@ def main(argv):
     layer_id = ObsVec.BASE_PVMT_TYPE - ObsVec.BASE_SENSOR_DATA
     if model_vehicles:
         layer_id = ObsVec.BASE_OCCUPANCY - ObsVec.BASE_SENSOR_DATA
-    print("two_layer_size = {}, data_record shape = {}, layer_id = {}".format(two_layer_size, data_record.shape, layer_id))
+    #print("two_layer_size = {}, data_record shape = {}, layer_id = {}".format(two_layer_size, data_record.shape, layer_id))
 
     layer_record = data_record[:, layer_id : layer_id + two_layer_size]
     assert layer_record.shape[1] == two_layer_size, "///// ERROR: layer_record shape is {}".format(layer_record.shape)
@@ -91,7 +91,6 @@ def print_obs(input     : torch.Tensor, #the input observation record
     print("                Input                               Output")
     print("                -----                               ------\n")
 
-    print("print_obs: layer_id = {}".format(layer_id))
     if layer_id == 0: #print pavement layers
         offset = ObsVec.BASE_PVMT_TYPE #because only 2 layers of sensor data are present from the full obs vector
         print("Pavement type (-1 = no pavement, 0 = exit ramp, 1 = through lane):\n")
@@ -102,7 +101,6 @@ def print_obs(input     : torch.Tensor, #the input observation record
 
     else: #print vehicles data
         offset = ObsVec.BASE_OCCUPANCY #because only the final 2 layers appear in a data record for vehicles
-        print("offset = {}. input tensor = ".format(offset))
         print(input)
         print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
         display_layer(input, output, ObsVec.BASE_OCCUPANCY - offset, True, 0.0)
@@ -128,8 +126,6 @@ def display_layer(input:        torch.Tensor,   #input data record
         c2 = layer_base + 2*ObsVec.NUM_ROWS + z
         c3 = layer_base + 3*ObsVec.NUM_ROWS + z
         c4 = layer_base + 4*ObsVec.NUM_ROWS + z
-        if row == 24:
-            print("display_layer: layer_base = {}, input shape = {}, z = {}, c0 = {}, c2 = {}, c4 = {}".format(layer_base, input.shape, z, c0, c2, c4))
 
         # Initialize the row display with all empties
         in_row = ["  .  ", "  .  ", "  .  ", "  .  ", "  .  "]

@@ -83,7 +83,6 @@ class ObsVec:
 
     ZONES_FORWARD       = 20 #num zones in front of the vehicle in a given lane
     ZONES_BEHIND        = 4  #num zones behind the vehicle in a given lane
-    D_NORM_ELEMENTS       = 4  #num data elements in a normal zone
     OBS_ZONE_LENGTH     = 5.0#longitudinal length of a single zone, m
 
     # Common elements for all models
@@ -140,7 +139,7 @@ class ObsVec:
 
     # This one is just a convenient alias to where the "sensor" data block begins
     BASE_SENSOR_DATA    = BASE_PVMT_TYPE
-    SENSOR_DATA_SIZE    = FINAL_ELEMENT - BASE_SENSOR_DATA + 1
+    SENSOR_DATA_SIZE    = FINAL_ELEMENT - BASE_SENSOR_DATA + 1 #num elements in whole sensor data block
     assert SENSOR_DATA_SIZE % 2 == 0, "///// ObsVec: invalid SENSOR_DATA_SIZE = {}".format(SENSOR_DATA_SIZE)
 
     # Size references for the number of elements in certain groupings defined in this file.
@@ -148,11 +147,5 @@ class ObsVec:
     NUM_COMMON_ELEMENTS =  8
     NUM_BOT_ELEMENTS    =  5
     NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FUTURE1
-
-    # Offsets for the individual data elements in each zone
-    D_OFFSET_DRIVABLE     = 0
-    D_OFFSET_SPD_LMT      = 1
-    D_OFFSET_OCCUPIED     = 2
-    D_OFFSET_SPEED        = 3
 
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector
