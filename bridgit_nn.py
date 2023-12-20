@@ -1,6 +1,7 @@
+from typing import Tuple, List
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 import gymnasium
 from ray.rllib.utils.typing import ModelConfigDict
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
@@ -27,20 +28,20 @@ class BridgitNN(TorchModelV2, nn.Module):
         nn.Module.__init__(self)
 
         # Define constants for this implementation (better to put these into model_config once I figure out how to do that)
-        PAVEMENT_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_30p_231128-1655_99.pt"
+        PAVEMENT_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_30p_231218-2246_99.pt"
         self.NUM_PAVEMENT_NEURONS = 30
         self.PAVEMENT_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        VEHICLES_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_150v_231128-0921_139.pt"
-        self.NUM_VEHICLES_NEURONS = 150
+        VEHICLES_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_140v_231217-2225_99.pt"
+        self.NUM_VEHICLES_NEURONS = 140
         self.VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        NUM_MACRO_NEURONS = 40
-        NUM_FC2_NEURONS =   600
+        NUM_MACRO_NEURONS = 64
+        NUM_FC2_NEURONS =   512
         NUM_FC3_NEURONS =   128
 
-        # Define the structure for early processing of the macroscopic data - this will be trainable
-        self.macro_data_len = ObsVec.NUM_COMMON_ELEMENTS + ObsVec.NUM_BRIDGIT_NON_SENSOR
+        # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
+        self.macro_data_len = ObsVec.BASE_SENSOR_DATA
         self.macro_encoder = nn.Linear(self.macro_data_len, NUM_MACRO_NEURONS)
 
         # Define the structure for the early processing of pavement sensor data - not to be trained
@@ -49,9 +50,9 @@ class BridgitNN(TorchModelV2, nn.Module):
         # Load the pavement encoder and get its first layer weights
         temp_pe = Autoencoder(encoding_size = self.NUM_PAVEMENT_NEURONS)
         temp_pe.load_state_dict(torch.load(PAVEMENT_SENSOR_MODEL))
-        with torch.no_grad:
-            self.pavement_encoder.weight.copy_(temp_pe.state_dict["encoder.weight"])
-            self.pavement_encoder.bias.copy_(temp_pe.state_dict["encoder.bias"])
+        with torch.no_grad():
+            self.pavement_encoder.weight.copy_(temp_pe.state_dict()["encoder.weight"])
+            self.pavement_encoder.bias.copy_(temp_pe.state_dict()["encoder.bias"])
 
         # Define the structure for the early processing of vehicle sensor data - not to be trained
         self.vehicles_encoder = nn.Linear(self.VEHICLES_DATA_SIZE, self.NUM_VEHICLES_NEURONS)
@@ -59,9 +60,9 @@ class BridgitNN(TorchModelV2, nn.Module):
         # Load the vehicle encoder and get its first layer weights
         temp_ve = Autoencoder(encoding_size = self.NUM_VEHICLES_NEURONS)
         temp_ve.load_state_dict(torch.load(VEHICLES_SENSOR_MODEL))
-        with torch.no_grad:
-            self.vehicles_encoder.weight.copy_(temp_ve.state_dict["encoder.weight"])
-            self.vehicles_encoder.bias.copy_(temp_ve.state_dict["encoder.bias"])
+        with torch.no_grad():
+            self.vehicles_encoder.weight.copy_(temp_ve.state_dict()["encoder.weight"])
+            self.vehicles_encoder.bias.copy_(temp_ve.state_dict()["encoder.bias"])
 
         # The structure that brings all three data streams together
         self.fc2 = nn.Linear(NUM_MACRO_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
@@ -71,36 +72,36 @@ class BridgitNN(TorchModelV2, nn.Module):
         print(self)
 
 
-    def forward(self, x):
+    def forward(self,
+                input_dict,     #holds "obs" and other elements not used here
+                state,          #not used here
+                seq_lens        #not used here
+               ) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """Computes a forward pass on a batch of data through the NN. The input x represents the full observation vector from
             the environment model.
         """
 
-        pass #TODO
+        x = input_dict["obs"]
 
         # Pull out the macro observations, according to the ObsVec descriptions and compute its first linear layer
-        macro = torch.Tensor(x.shape[0], self.macro_data_len)
-        macro[:, 0 : ObsVec.NUM_COMMON_ELEMENTS] = x[:, 0 : ObsVec.NUM_COMMON_ELEMENTS]
-        macro[:, ObsVec.NUM_COMMON_ELEMENTS : self.macro_data_len] = x[:, ObsVec.FUTURE1 : ObsVec.FUTURE1 + ObsVec.NUM_BRIDGIT_NON_SENSOR]
+        macro = x[:, 0 : ObsVec.BASE_SENSOR_DATA]
         print("*** macro size is {}, macro_data_len = {}".format(macro.shape, self.macro_data_len))
         mo = F.tanh(self.macro_encoder(macro))
         print("    Macro first layer complete: mo is {}".format(mo.shape))
 
         # Pull out the pavement sensor data and compute its embedding
-        pavement = torch.Tensor(x.shape[0], self.PAVEMENT_DATA_SIZE)
-        pavement[:, 0: self.PAVEMENT_DATA_SIZE] = x[:, ObsVec.BASE_SENSOR_DATA : ObsVec.BASE_SENSOR_DATA + self.PAVEMENT_DATA_SIZE]
+        pavement = x[:, ObsVec.BASE_SENSOR_DATA : ObsVec.BASE_SENSOR_DATA + self.PAVEMENT_DATA_SIZE]
         print("*** pavement is {}, PAVEMENT_DATA_SIZE = {}".format(pavement.shape, self.PAVEMENT_DATA_SIZE))
         po = None
-        with torch.no_grad:
+        with torch.no_grad():
             po = F.tanh(self.pavement_encoder(pavement))
-        print("    Pavement encoded: po is {}".format(po.shape))
+        print("*** Pavement encoded: po is {}".format(po.shape))
 
         # Pull out the vehicles sensor data and compute its embedding
-        vehicles = torch.Tensor(x.shape[0], self.VEHICLES_DATA_SIZE)
-        vehicles[:, 0: self.VEHICLES_DATA_SIZE] = x[:, ObsVec.BASE_OCCUPANCY : ObsVec.BASE_OCCUPANCY + self.VEHICLES_DATA_SIZE]
+        vehicles = x[:, ObsVec.BASE_OCCUPANCY : ObsVec.BASE_OCCUPANCY + self.VEHICLES_DATA_SIZE]
         print("*** vehicles is {}".format(vehicles.shape))
         vo = None
-        with torch.no_grad:
+        with torch.no_grad():
             vo = F.tanh(self.vehicles_encoder(vehicles))
         print("    Vehicles encoded: vo is {}".format(vo.shape))
 
@@ -109,7 +110,9 @@ class BridgitNN(TorchModelV2, nn.Module):
         print("*** l1_out is {}".format(l1_out.shape))
 
         # Compute the remaining layers, bringing all of these parts together
-        x = F.tanh(self.f2(l1_out))
+        x = F.tanh(self.fc2(l1_out))
+        print("*** After fc2, x is {}".format(x.shape))
         x = F.tanh(self.fc3(x))
+        print("*** After fc3, x is {}".format(x.shape))
 
-        return x
+        return x, state

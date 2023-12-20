@@ -1296,14 +1296,47 @@ Big picture of this project's goals:
 
 * Run E31 training embedding for vehicles using batch 256, embedding dim = 120, LR = 1e-4.
 	* Output file is embedding_120v_231217-2004.pt
+	* Training completed 100 epochs with test loss ending at 0.000709.
+	* Eval shows excellent reproduction of the occupancy grid, but still pretty bad
+	  for rel speed.
+
+* Run E32 training embedding for vehicles using batch 256, embedding dim 140, LR 1e-4.
+	* Output file is embedding_140v_231217-2225.pt
+	* Training completed 100 epochs with final test loss = 0.000454.
+	* Eval shows occupancy is dead on. Rel speed is better than E31, but still 
+	  misses some vehicles in big ways. 
+		* Record 176554 has actual rel speed = -0.32 in the lower-right corner,
+		  but the model shows it as +0.08. 
+		* Record 117415 has two large negative rel speeds in far right column
+		  that are modeled as small positive values.
+		* Record 170199 has two vehicles in column +1 with large negative rel
+		  speeds. The first one is modeled well, but the rear-most one is
+		  under-represented (actual = -0.34, model = -0.11).
+		* Most rel speeds with magnitude < 0.2 are modeled pretty well, but
+		  magnitudes < 0.07 sometimes get backwards signs. Sometimes there are
+		  ghost rel speeds with magnitude up to 0.1.
+		* Record 156288 has a vehicle with rel speed of +0.49 and another
+		  with +0.13. Both are modeled well.
+		* Record 156272 is the beginning of a trajectory where ego is getting
+		  doors blown off by neighbor in lane -1 with rel speed = +0.83.
+		  Modeling is not bad, but rel speeds are smeared a lot, and don't
+		  reach the large magnitudes very well (0.83 is modeled as 0.65).
+		* Overall, the modeling doesn't look aggregious, so I'm willing to
+		  try it.
 
 * Finished coding the BridgitNN class.
 
+12/18/23
 
-NEXT: 
-	Finish writing BridgitNN
+* Run E33 training embedding for pavement with batch 256, embedding dim 30, LR = 1e-4
+	* Output file is embedding_30p_231218-2246.pt
+	* Training completed 100 epochs with test loss ending at 0.000434.
+	* Evaluation shows good model reproduction, as before. This model is good for
+	  use in Bridgit.
 
+12/19/23
 
+* 
 
 
 

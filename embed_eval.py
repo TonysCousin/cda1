@@ -101,7 +101,6 @@ def print_obs(input     : torch.Tensor, #the input observation record
 
     else: #print vehicles data
         offset = ObsVec.BASE_OCCUPANCY #because only the final 2 layers appear in a data record for vehicles
-        print(input)
         print("\n\nOccupied (1 = at least partially occupied, 0 = empty):\n")
         display_layer(input, output, ObsVec.BASE_OCCUPANCY - offset, True, 0.0)
 

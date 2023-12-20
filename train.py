@@ -134,8 +134,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print("\n///// {} training params are:\n".format(algo))
+    #print(pretty_print(cfg.to_dict()))
 
     # Set up starting counters to handle possible checkpoint start
     starting_step_count = 0
