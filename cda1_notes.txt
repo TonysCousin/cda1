@@ -1336,8 +1336,25 @@ Big picture of this project's goals:
 
 12/19/23
 
-* 
+* Worked through some test & debugging of incorporating the new embeddings into the
+  BridgitNN model. Some problems still outstanding.
 
+12/21/23
+
+* Figured out the nature of a major problem. Ray is now complaining of a matmul exception
+  that can't multiply a 32x589 matrix with a 527x1024 matrix without referencing any of
+  my own code.
+	* The second matrix represents the first layer of the Q network, which has 1024
+	  neurons.  Its input is the raw 525-element observation vector + 2-element action
+	  space vector.
+	* The first matrix represents the perceived input to the policy network, which has
+	  a batch size of 32. The 589 neurons expected seems to be the sum of the obs space
+	  (525) plus the 64 elements being output from the macro "encoder" layer.
+	* Removing the mo calculation and inserting macro directly into l1, then l1 length
+	  goes from 234 to 195. This allows forward() to complete, but we still get the
+	  error about 32x589 by 527x1024.
+
+Next: write a minimal program that just invokes the custom model and try to run it. If it doesn't work, submit it to the forum.
 
 
 TODO:

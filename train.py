@@ -23,7 +23,7 @@ def main(argv):
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
     # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
     DATA_PATH = "/home/starkj/ray_results/cda1"
-    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
+    ray.init(num_cpus = 1, storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"
@@ -73,15 +73,15 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 0.2, #for the local worker, which does the learning & evaluation runs
+    cfg.resources(  num_gpus                    = 0, #0.2, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 4,
                     num_cpus_per_worker         = 2,  #also applies to the evaluation workers
                     num_gpus_per_worker         = 0.2,  #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   num_rollout_workers         = 0, #4, #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
-                    num_envs_per_worker         = 8,
+                    num_envs_per_worker         = 1, #8,
                     rollout_fragment_length     = 80, #timesteps pulled from a sampler
                     batch_mode                  = "complete_episodes",
     )
@@ -121,7 +121,7 @@ def main(argv):
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1280, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    train_batch_size            = 80, #1280, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
                     initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
@@ -134,8 +134,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    #print("\n///// {} training params are:\n".format(algo))
-    #print(pretty_print(cfg.to_dict()))
+    print("\n///// {} training params are:\n".format(algo))
+    print(pretty_print(cfg.to_dict()))
 
     # Set up starting counters to handle possible checkpoint start
     starting_step_count = 0

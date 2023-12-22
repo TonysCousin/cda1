@@ -36,13 +36,13 @@ class BridgitNN(TorchModelV2, nn.Module):
         self.NUM_VEHICLES_NEURONS = 140
         self.VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        NUM_MACRO_NEURONS = 64
+        NUM_MACRO_NEURONS = 25
         NUM_FC2_NEURONS =   512
         NUM_FC3_NEURONS =   128
 
         # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
         self.macro_data_len = ObsVec.BASE_SENSOR_DATA
-        self.macro_encoder = nn.Linear(self.macro_data_len, NUM_MACRO_NEURONS)
+        #self.macro_encoder = nn.Linear(self.macro_data_len, NUM_MACRO_NEURONS)
 
         # Define the structure for the early processing of pavement sensor data - not to be trained
         self.pavement_encoder = nn.Linear(self.PAVEMENT_DATA_SIZE, self.NUM_PAVEMENT_NEURONS)
@@ -86,8 +86,8 @@ class BridgitNN(TorchModelV2, nn.Module):
         # Pull out the macro observations, according to the ObsVec descriptions and compute its first linear layer
         macro = x[:, 0 : ObsVec.BASE_SENSOR_DATA]
         print("*** macro size is {}, macro_data_len = {}".format(macro.shape, self.macro_data_len))
-        mo = F.tanh(self.macro_encoder(macro))
-        print("    Macro first layer complete: mo is {}".format(mo.shape))
+        #mo = F.tanh(self.macro_encoder(macro))
+        #print("    Macro first layer complete: mo is {}, x is {}".format(mo.shape, x.shape))
 
         # Pull out the pavement sensor data and compute its embedding
         pavement = x[:, ObsVec.BASE_SENSOR_DATA : ObsVec.BASE_SENSOR_DATA + self.PAVEMENT_DATA_SIZE]
@@ -106,7 +106,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         print("    Vehicles encoded: vo is {}".format(vo.shape))
 
         # Assemble the first full layer input, which is an aggregate of the macro plus the two sensor embeddings outputs
-        l1_out = torch.cat((mo, po, vo), dim = 1)
+        l1_out = torch.cat((macro, po, vo), dim = 1)
         print("*** l1_out is {}".format(l1_out.shape))
 
         # Compute the remaining layers, bringing all of these parts together
