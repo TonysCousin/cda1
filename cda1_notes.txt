@@ -1354,7 +1354,39 @@ Big picture of this project's goals:
 	  goes from 234 to 195. This allows forward() to complete, but we still get the
 	  error about 32x589 by 527x1024.
 
-Next: write a minimal program that just invokes the custom model and try to run it. If it doesn't work, submit it to the forum.
+12/22/23
+
+* Wrote simple_train.py that provides the most basic essence of a training program using the
+  custom BridgitNN model with the traffic environment.
+	* Removed lots of config params and changed a few more (e.g. train_batch_size) to
+	  make things more visible.
+	* Also commented out all the "controversial" parts of the BridgitNN model, that
+	  manipulates portions of the input obs with various encoders. Not it just does a
+	  straight, 3 layer FC net.
+	* The run still barfs, saying "shapes cannot be multiplied (6x545 and 527x1024)"
+	* The only way I can conceive of the origin of 545 is the sum of input size (525)
+	  and 20. The only place I can see a 20 coming from is in the config dict it shows
+	  model.max_seq_len = 20. No idea what that is for or if it could possibly be used
+	  to extend the size of the tensors. Experiment shows that this param does not affect
+	  the problem.
+	* Further experiments show that the first matrix width (545 in above message) is
+	  obs size (525) plus 1/2 of the size of fc3 output, while that layer must be a
+	  multiple of 2 or we get a different error.
+	* Tracing execution through the call stack with print statements (using NUM_FC3_NEURONS
+	  = 2)...
+
+12/24/23
+20:59-
+
+* Resolved the root of problems with the new model. Needed to build it just like an example
+  found in https://griddly.readthedocs.io/en/latest/rllib/intro/index.html, which the Ray docs
+  never talk about. Cleaned up all the debugging mods for the simple_train case.
+
+***
+* Restored the train program and now ready to use it with the full BridgitNN integrated!
+
+* Run ??? <look up convention of naming & recording details>
+
 
 
 TODO:
