@@ -695,8 +695,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Exercise the tactical guidance algo to generate the next action commands for vehicles that aren't in training.
             if i > 0  or  20 <= self.effective_scenario <= 29:
-                #print("***   step: guiding vehicle {:2d} at lane {}, p {:.1f}, speed {:.1f}, LC count {}"
-                #      .format(i, self.vehicles[i].lane_id, self.vehicles[i].p, self.vehicles[i].cur_speed, self.vehicles[i].lane_change_count))
+                #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
+                #      .format(i, self.vehicles[i].lane_id, self.effective_scenario, self.vehicles[i].p, self.vehicles[i].cur_speed,
+                #                self.vehicles[i].lane_change_count))
                 action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #unscaled
                 if self.debug > 0:
                     print("///// step: returned from vehicle guidance step for vehicle {}. Action = ".format(i), action)

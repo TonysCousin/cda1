@@ -1376,7 +1376,6 @@ Big picture of this project's goals:
 	  = 2)...
 
 12/24/23
-20:59-
 
 * Resolved the root of problems with the new model. Needed to build it just like an example
   found in https://griddly.readthedocs.io/en/latest/rllib/intro/index.html, which the Ray docs
@@ -1384,8 +1383,30 @@ Big picture of this project's goals:
 
 ***
 * Restored the train program and now ready to use it with the full BridgitNN integrated!
+* Merged the git branch vector-embed into develop to signal the close of this embedding work.
 
-* Run ??? <look up convention of naming & recording details>
+* Run B1 training full Bridgit with SAC for 30k iterations from scratch (single agent), with
+  10 bots, all BotType1bGuidance. This run is on code in the develop branch, commit af53b668.
+	* Training took 10.2 hr (6700 steps/hr), and ended with rmin = -2.4, rmean = 0.54,
+	  rmax = 1.7. These numbers were fairly steady since ~23k iters.
+	* Inference runs on checkpoint 30000 in scenarios 10-15 showed
+		* When a lane change is essential, it is done early; no unnecessary LCs happen.
+		* Speed control is normally quite good at matching the speed limit when bots
+		  are not in the way. When they are, agent is patient and stays behind them.
+		* Agent never changes lanes to pass a forward bot going slower than desired.
+		* Whenever in lane2, it routinely slows way down to ~16 m/s near x = 1600 and
+		  stays there until x = 2150, then changes lanes to 1 and speeds up to the limit.
+		  Traveling through this region in lane 1 doesn't generate this behavior, but
+		  when in lane 2 it refuses to change lanes also.
+		* Starts in all lanes work very well, except for the one issue above.
+	* Saved this checkpoint as training/cda1.1_231225
+
+12/25/23
+
+* Run B2 training full Bridgit with SAC for 30k iters, starting from checkpoint cda1.1_231225
+  (single agent) with 10 bots.
+	* No changes to anything, just want additional training to try to iron out the annoying
+	  slowdown in lane 2.
 
 
 

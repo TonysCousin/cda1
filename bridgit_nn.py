@@ -14,6 +14,8 @@ class BridgitNN(TorchModelV2, nn.Module):
     """Custom neural network definition that will learn desired behaviors for the Bridget tactical guidance
         agent. It uses two pre-trained networks for encoding pavement and neighbor vehicles sensory data.
         Therefore, these two will not be subjected to learning here.
+
+        Built according to example at https://griddly.readthedocs.io/en/latest/rllib/intro/index.html
     """
 
     def __init__(self,

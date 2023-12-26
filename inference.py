@@ -9,10 +9,12 @@ import ray
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
 from ray.tune.logger import pretty_print
+from ray.rllib.models import ModelCatalog
 
 from obs_vec import ObsVec
 from highway_env_wrapper import HighwayEnvWrapper
 from roadway_b import Roadway
+from bridgit_nn import BridgitNN
 from graphics import Graphics
 
 """This program runs the selected policy checkpoint for one episode and captures key state variables throughout."""
@@ -45,7 +47,7 @@ def main(argv):
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
-                    "debug":                    1,
+                    "debug":                    0,
                     "verify_obs":               True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
@@ -67,14 +69,14 @@ def main(argv):
     if checkpoint is not None:
 
         # Set up the Ray framework
+        ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
         ray.init()
         print("///// inference: ray init complete.")
         cfg = sac.SACConfig()
         cfg.framework("torch").exploration(explore = False)
         cfg_dict = cfg.to_dict()
         policy_config = cfg_dict["policy_model_config"]
-        policy_config["fcnet_hiddens"]              = [1024, 256, 128]
-        policy_config["fcnet_activation"]           = "relu"
+        policy_config["custom_model"]               = "bridgit_policy_model"
         q_config = cfg_dict["q_model_config"]
         q_config["fcnet_hiddens"]                   = [1024, 256, 128]
         q_config["fcnet_activation"]                = "relu"
