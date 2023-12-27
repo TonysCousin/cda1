@@ -479,7 +479,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
             # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
-            # ego targets are 100 m from the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
+            # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
             # vehicle's starting lane.
             ego_lane_id = 1
             if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
@@ -909,13 +909,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             favored band to the highest level.
         """
 
-        MANY_EPISODES = 5000
+        MANY_EPISODES = 20000
+        if self.episode_count == MANY_EPISODES:
+            print("//    Running episode {}".format(self.episode_count))
+
         nv = self.num_vehicles
         assert nv > 1, "///// NEED AT LEAST 2 VEHICLES DEFINED."
         nv23 = max(2*nv//3, 1)
         nv3 = max(nv//3, 1)
         fav_low = float(nv23) #max out the range for inference runs
         fav_high = float(nv)
+
         if self.training:
             fraction = min(self.episode_count/MANY_EPISODES, 1.0)
             fav_low = min(float(nv23 - 1.0)*fraction + 1.0, float(nv23)) #lower bound for the favorite number range

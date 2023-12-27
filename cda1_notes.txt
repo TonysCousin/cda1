@@ -1387,7 +1387,7 @@ Big picture of this project's goals:
 
 * Run B1 training full Bridgit with SAC for 30k iterations from scratch (single agent), with
   10 bots, all BotType1bGuidance. This run is on code in the develop branch, commit af53b668.
-	* Training took 10.2 hr (6700 steps/hr), and ended with rmin = -2.4, rmean = 0.54,
+	* Training took 10.2 hr (6700k steps/hr), and ended with rmin = -2.4, rmean = 0.54,
 	  rmax = 1.7. These numbers were fairly steady since ~23k iters.
 	* Inference runs on checkpoint 30000 in scenarios 10-15 showed
 		* When a lane change is essential, it is done early; no unnecessary LCs happen.
@@ -1399,19 +1399,65 @@ Big picture of this project's goals:
 		  Traveling through this region in lane 1 doesn't generate this behavior, but
 		  when in lane 2 it refuses to change lanes also.
 		* Starts in all lanes work very well, except for the one issue above.
-	* Saved this checkpoint as training/cda1.1_231225
+	* Saved this checkpoint as training/cda1.1-B1-30000
 
 12/25/23
 
-* Run B2 training full Bridgit with SAC for 30k iters, starting from checkpoint cda1.1_231225
+* Run B2 training full Bridgit with SAC for 30k iters, starting from checkpoint cda1.1-B1-30000
   (single agent) with 10 bots.
 	* No changes to anything, just want additional training to try to iron out the annoying
 	  slowdown in lane 2.
+	* First 200 iters showed rewards that were somewhat worse than those at the end of run
+	  B1, and episode lengths ~73 steps (perfect is 100).
+	* Training completed 30k iters at 6800k steps/hr. Rewards never reached what was seen on
+	  run B1, however. rmean reached a noisy ~0.05 and rmax reached ~1.4, while mean episode
+	  length only was in upper 70s. It seems both rmean and episode length was continuing to
+	  increase slowly at the end.
+	* Stdout logging showed iterations going from 0 to 30k, but checkpoints were numbered
+	  30500 to 60000.
+	* Inference on checkpoint 60000 is weird. In lane 1 it has now adopted the severe slow-
+	  down behavior from run B1 in lane 2, but just for a short distance near the last half
+	  of the lane 0 merge zone; then it picks up to the full speed limit at the end. Lane 2
+	  slows down severely after x ~ 1500 m (end of lane 4 merge), then makes 2 quick LC to
+	  the right and runs off-road, regardless of how far back it starts. Lane 3 starts, it
+	  does illegal right LC immediately. Lane 4 start, it changes over to lane 2, then goes
+	  2 lanes right again.
+
+12/26/23
+
+* Run B3 training full BridgitNN model with SAC from scratch for 40k iterations (single agent)
+  using 15 bots.
+	* Hoping that maybe B1 found a poor local minimum & couldn't get out (in lane 2), so
+	  starting over will give it a new opportunity. Apparently continued learning (B2) only
+	  made problems worse.
+	* Training aborted afte 30800 iterations due to a segfault. At that time eyeball avg
+	  performance was rmin ~-2.3, rmean ~+0.4, rmax ~1.7, and episode length > 98.
+	* Inference on checkpoint 30000: starts in lanes 0 & 1 performed well. Other lanes led
+	  to travel in lane 2, which still shows a big slowdown in the area of x = [1700, 2400],
+	  followed by a LC to lane 1. On one run, agent changed to lane 1 behind a bot and
+	  rear-ended it after 25 time steps following it. Saw another rear-end: agent was going
+	  fast in lane 5 and change to lane 4 immediately, even though a slow bot was close in
+	  front; crash occurred before LC mvr was complete, and agent was slowing as rapidly as
+	  it could; but it shouldn't have initiated the mvr.
+	* Given the nature of both crashes witnessed (in ~12-14 runs), it seems additional
+	  training would be advantageous, esp with more bots, to give more exposure to dangerous
+	  situations.
+		* It may even be worth using coreographed scenarios that will force these situations
+		  frequently.
+		* This run's apparent tendency for rewards to continue growing (slowly) when it
+		  died is reason to consider training for more iterations.
+
+* Run B4 training single agent BridgetNN with SAC from scratch for 40k iters using 20 bots.
+	* Changed decide_num_vehicles() to slow the addition of neighbors, increasing MANY_EPISODES
+	  from 5k to 20k. Added print stmt that flags when this threshold is crossed.
+	* Added 5 bot vehicless, bringing the total neighbors up to 20.
 
 
 
 TODO:
+- gradually ramp up the number of neighbor vehicles so that agent first learns to drive without interference.
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
+- consider adding coreographed scenarios to routine training that force certain close call situations.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Make bot ACC more aggressive.
