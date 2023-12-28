@@ -165,8 +165,9 @@ class Graphics:
         """Paints all updates on the display screen, including the new motion of every vehicle and any data plots."""
 
         #TODO experimenta
-        focus = pygame.key.get_focused()
-        print("***   graphics: focus = ", focus)
+        if pygame.key.get_focused():
+            kp = pygame.key.get_pressed()
+            print("***   graphics: kp = ", kp)
 
         # Loop through each vehicle in the scenario
         for v_idx in range(len(vehicles)):

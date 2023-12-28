@@ -1475,6 +1475,9 @@ Big picture of this project's goals:
 	  always value 0). This gives the agent a more concrete sense of where its closest neighbors
 	  are, rather than depending on the often fuzzy interpretation of the sensor vector embedding.
 
+NEXT:  working branches "graphics2" and "part1" in parallel!
+- Test inference after reboot (segfault) to see if addition of key.get_focused() works. Yes it does!
+- Use pygame.event, looking for pygame.KEYDOWN and their key codes from pygame.locals (K_*)
 
 
 TODO:
