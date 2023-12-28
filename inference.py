@@ -23,7 +23,6 @@ from graphics import Graphics
 def main(argv):
 
     # Handle any args
-
     program_desc = "Runs a single episode of the cda1 vehicle ML agent in inference mode in its roadway environment with other vehicles."
     scenario_desc = " 0:  (default) everything randomized.\n" \
                     + " 1:  all neighbor vehicles in same lane.\n" \
@@ -102,8 +101,11 @@ def main(argv):
         print("***** Handling model weights is not yet implemented!  Exiting now, until code exists.")
         sys.exit(3) #TODO: remove when implemented.
 
-    # Set up the graphic display
+    # Set up the graphic display & user interaction
     graphics = Graphics(env)
+    PAUSE_KEY = pygame.locals.K_SPACE
+    RESUME_KEY = pygame.locals.K_SPACE
+    END_KEY = pygame.locals.K_ESCAPE
 
     # Prepare for a complete episode
     episode_reward = 0
@@ -121,24 +123,16 @@ def main(argv):
     step = 0
 
     # Wait for user to indicate okay to begin animation
-    #time.sleep(2)
-    if pygame.key.get_focused(): #THIS WORKS! TODO: Refactor it into a function: wait_for_key(), which looks ofr a specific key if given & returns the key code
-        print("///// Press Down arrow key to begin...")
-        go = False
-        while not go:
-            for event in pygame.event.get():
-                print("***** key event detected. event = {}".format(event))
-                if event.type == pygame.KEYDOWN:
-                    print("      Key pressed: ", event.key, ", K_DOWN = ", pygame.locals.K_DOWN)
-                    if event.key == pygame.locals.K_DOWN:
-                        print("     K_DOWN was detected")
-                        go = True
-                        break
-    else:
-        print("///// NO KEYBOARD FOCUS!")
-
+    key = None
+    while key != RESUME_KEY:
+        if key == END_KEY:
+            print("///// User aborted.")
+            graphics.close()
+            sys.exit()
+        key = graphics.wait_for_key_press()
     print("      Beginning...")
-    #time.sleep(8) #allow viewer to orient and time to turn on video capture
+
+    # Loop on time steps until episode is complete
     while not done  and  step < episode_len:
         step += 1
 
@@ -163,19 +157,6 @@ def main(argv):
         vehicles = env.get_vehicle_data()
         graphics.update(action, raw_obs, vehicles)
 
-        """
-        # Wait for user to indicate okay to begin animation
-        import pygame
-        if step == 1:
-            print("///// Press Down key to begin...")
-            go = False
-            while not go:
-                keys = pygame.key.get_pressed() #this doesn't work
-                if keys[pygame.K_DOWN]:
-                    go = True
-                    break;
-        """
-
         # Scale the observations to be ready for NN ingest next time step
         obs = env.scale_obs(raw_obs)
 
@@ -199,6 +180,18 @@ def main(argv):
                         row_res[2], row_res[3], row_res[4]))
         """
 
+        # Look for key press to indicate pausing the activity
+        if graphics.key_press_event() == PAUSE_KEY:
+
+            # Wait for the resume signal (another key press)
+            key = None
+            while key != RESUME_KEY:
+                if key == END_KEY:
+                    print("///// User aborted.")
+                    graphics.close()
+                    sys.exit()
+                key = graphics.wait_for_key_press()
+
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
         # based on when that vehicle exits its assigned lane.
         if scenario >= 90:
@@ -208,19 +201,16 @@ def main(argv):
         # Summarize the episode
         if done:
             print("///// Episode complete: {}. Total reward = {:.2f}".format(info["reason"], episode_reward))
-            input("///// Press Enter to close...")
+            while graphics.wait_for_key_press() != END_KEY:
+                pass
             graphics.close()
             sys.exit()
 
-            # Get user input before closing the window
-            for event in pygame.event.get(): #this isn't working
-                if event.type == pygame.QUIT:
-                    graphics.close()
-                    sys.exit()
-
+    # If the episode is complete then get user approval to shut down
     if step >= episode_len:
         print("///// Terminated - reached desired episode length. Total reward = {:.2f}".format(episode_reward))
-        input("///// Press Enter to close...")
+        while graphics.wait_for_key_press() != END_KEY:
+            pass
         graphics.close()
         sys.exit()
 

@@ -13,16 +13,19 @@ from roadway_b import Roadway
 class Graphics:
 
     # set up the colors & fonts
-    BLACK           = (  0,   0,   0)
-    WHITE           = (255, 255, 255)
-    LANE_EDGE_COLOR = WHITE
-    NEIGHBOR_COLOR  = ( 64, 128, 255)
-    EGO_COLOR       = (168, 168, 0) #yellow
-    PLOT_AXES_COLOR = (200, 200,  50)
-    DATA_COLOR      = WHITE
-    REFERENCE_COLOR = (120,  90,   0)
-    BASIC_FONT_SIZE = 14
-    LARGE_FONT_SIZE = 18
+    BLACK                   = (  0,   0,   0)
+    WHITE                   = (255, 255, 255)
+    LEGEND_COLOR            = WHITE
+    LANE_EDGE_COLOR         = WHITE
+    NEIGHBOR_COLOR          = ( 64, 128, 255)
+    EGO_COLOR               = (168, 168, 0) #yellow
+    PLOT_AXES_COLOR         = (200, 200,  50)
+    DATA_COLOR              = WHITE
+    REFERENCE_COLOR         = (120,  90,   0)
+    BASIC_FONT_SIZE         = 14    #vertical pixels
+    LARGE_FONT_SIZE         = 18    #vertical pixels
+    AVG_PIX_PER_CHAR_BASIC  = 5.0 #TODO need to experiment with this
+    AVG_PIX_PER_CHAR_LARGE  = 7.5
 
     # Other graphics constants
     LANE_WIDTH = Roadway.WIDTH
@@ -102,9 +105,9 @@ class Graphics:
         self.roadway_center_x = x_min + 0.5*roadway_width
         self.roadway_center_y = y_min + 0.5*roadway_height
         self.display_center_r = Graphics.WINDOW_SIZE_R // 2
-        self.display_center_s = Graphics.WINDOW_SIZE_S // 2
-        #print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
-        #        .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
+        self.display_center_s = int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - 2*buffer #set the roadway as high in the window as possible
+        print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
+                .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
 
         # Loop through the lane segments and draw the left and right edge lines of each
         for lane in env.roadway.lanes:
@@ -135,6 +138,9 @@ class Graphics:
         #TODO: draw rectangles instead of circles, with length = vehicle length & width = 0.5*lane width
         self.veh_radius = int(0.25 * Graphics.LANE_WIDTH * self.scale) #radius of icon in pixels
 
+        # Display the window legend
+        self._write_legend(0, Graphics.WINDOW_SIZE_S)
+
         #
         #..........Add live data plots to the display
         #
@@ -163,10 +169,6 @@ class Graphics:
                vehicles: list,      #list of Vehicle objects, with item [0] as the ego vehicle
               ):
         """Paints all updates on the display screen, including the new motion of every vehicle and any data plots."""
-
-        #TODO experimenta
-        if pygame.key.get_focused():
-            kp = pygame.key.get_pressed()
 
         # Loop through each vehicle in the scenario
         for v_idx in range(len(vehicles)):
@@ -230,6 +232,34 @@ class Graphics:
 
     def close(self):
         pygame.quit()
+
+
+    def key_press_event(self) -> int:
+        """Determines if a keyboard key has been pressed since system event buffer was last flushed.
+            Flushes the event buffer up to the point of the first detected key press, or until buffer is empty.
+            Ignores key release events.
+            Returns the value of the key if one was detected, or None if no key presses in the event buffer.
+                Key value is expressed in pygame.locals keycodes (beginning with K_).
+        """
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                #print("      Key pressed: ", event.key)
+                return event.key
+
+        return None
+
+
+    def wait_for_key_press(self) -> int:
+        """Suspends processing until a keyboard key is pressed. Flushes the event buffer up to the point of the
+            first detected key press. Ignores key release events.
+            Returns the value of the key pressed, as expressed in pygame.locals keycodes (beginning with K_).
+        """
+
+        while True:
+            key = self.key_press_event()
+            if key is not None:
+                return key
 
 
     def _draw_segment(self,
@@ -316,6 +346,21 @@ class Graphics:
         r = int(self.scale*(x - self.roadway_center_x) + 0.5) + self.display_center_r
         s = Graphics.WINDOW_SIZE_S - int(self.scale*(y - self.roadway_center_y) + 0.5) - self.display_center_s
         return r, s
+
+
+    def _write_legend(self,
+                      r     : int,          #R coordinate of upper-left corner of the legend
+                      s     : int,          #S coordinate of the upper-left corner of the legend
+                     ):
+        """Creates the legend display for all the info in the window."""
+
+        # Create the text on a separate surface and copy it to the display surface
+        title = "SPACE = Start/Pause/Resume,  ESC = Exit"
+        width = len(title) * Graphics.AVG_PIX_PER_CHAR_LARGE
+        text = self.basic_font.render(title, True, Graphics.LEGEND_COLOR, Graphics.BLACK)
+        text_rect = text.get_rect()
+        text_rect.center = (r + width//2, s - Graphics.LARGE_FONT_SIZE)
+        self.window_surface.blit(text, text_rect)
 
 
 ######################################################################################################

@@ -1477,7 +1477,10 @@ Big picture of this project's goals:
 
 12/28/23
 
-* Experimented with graphics - got keyboard capture to work. Need to make it real code.
+* Added some graphics capability
+	* Got keyboard interaction to work, and added ESC and SPACE controls to start/pause/end the
+	  simulation.
+	* Added a legend to the graphics to provide keyboard reminders.
 
 
 NEXT:  working branches "graphics2" and "part1" in parallel!
