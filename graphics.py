@@ -35,11 +35,15 @@ class Graphics:
     IMAGE_PATH = "docs/images"
 
     # Geometry of data plots
-    PLOT_H          = 150       #height of each plot, pixels
+    PLOT_H          = 80       #height of each plot, pixels
     PLOT_W          = 300       #width of each plot, pixels
-    PLOT1_R         = WINDOW_SIZE_R/8 #upper-left corner of plot #1
-    PLOT1_S         = 0.7*WINDOW_SIZE_S
+    PLOT1_R         = 0.7*WINDOW_SIZE_R #upper-left corner of plot #1
+    PLOT1_S         = 0.5*WINDOW_SIZE_S
+    PLOT2_R         = PLOT1_R #upper-left corner of plot #2
+    PLOT2_S         = PLOT1_S + PLOT_H + BASIC_FONT_SIZE + 30
+    LOW_SPEED       = 20.1      #m/s
     NOMINAL_SPEED   = 29.1      #m/s
+    HIGH_SPEED      = 33.5      #m/s
     PLOT_STEPS      = 600       #max num time steps that can be plotted
 
     # Visual controls
@@ -138,7 +142,7 @@ class Graphics:
         #TODO: draw rectangles instead of circles, with length = vehicle length & width = 0.5*lane width
         self.veh_radius = int(0.25 * Graphics.LANE_WIDTH * self.scale) #radius of icon in pixels
 
-        # Display the window legend
+        # Display the window legend & other footer text
         self._write_legend(0, Graphics.WINDOW_SIZE_S)
 
         #
@@ -149,9 +153,21 @@ class Graphics:
         title = "Ego speed, m/s"
         if self.env.scenario >= 90:
             title = "Speed, m/s"
-        self.plot = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
+        self.plot_speed = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
                                    Constants.MAX_SPEED, max_steps = Graphics.PLOT_STEPS, title = title)
-        self.plot.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
+        self.plot_speed.add_reference_line(Graphics.LOW_SPEED, Graphics.REFERENCE_COLOR)
+        self.plot_speed.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
+        self.plot_speed.add_reference_line(Graphics.HIGH_SPEED, Graphics.REFERENCE_COLOR)
+
+        # Plot the lane ID of the ego vehicle
+        if self.env.scenario < 90:
+            self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, 5, \
+                                    max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
+        self.plot_lane.add_reference_line(1, Graphics.REFERENCE_COLOR)
+        self.plot_lane.add_reference_line(2, Graphics.REFERENCE_COLOR)
+        self.plot_lane.add_reference_line(3, Graphics.REFERENCE_COLOR)
+        self.plot_lane.add_reference_line(4, Graphics.REFERENCE_COLOR)
+        self.plot_lane.add_reference_line(5, Graphics.REFERENCE_COLOR)
 
         #TODO: sample the vehicle images to see how they fit
         """
@@ -215,16 +231,17 @@ class Graphics:
             self.prev_veh_r[v_idx] = new_r
             self.prev_veh_s[v_idx] = new_s
 
-        # Repaint the surface
-        pygame.display.update()
-        #print("   // Graphics: moving vehicle {} from r,s = ({:4d}, {:4d}) to ({:4d}, {:4d}) and new x,y = ({:5.0f}, {:5.0f})"
-        #        .format(v_idx, self.prev_veh_r[v_idx], self.prev_veh_s[v_idx], new_r, new_s, new_x, new_y))
-
         # Update data plots
         pv = 0
         if self.env.scenario >= 90:
             pv = 1
-        self.plot.update(vehicles[pv].cur_speed)
+        self.plot_speed.update(vehicles[pv].cur_speed)
+        self.plot_lane.update(5 - vehicles[pv].lane_id)
+
+        # Repaint the surface
+        pygame.display.update()
+        #print("   // Graphics: moving vehicle {} from r,s = ({:4d}, {:4d}) to ({:4d}, {:4d}) and new x,y = ({:5.0f}, {:5.0f})"
+        #        .format(v_idx, self.prev_veh_r[v_idx], self.prev_veh_s[v_idx], new_r, new_s, new_x, new_y))
 
         # Pause until the next time step
         self.pgclock.tick(self.display_freq)
@@ -381,7 +398,8 @@ class Plot:
                  max_steps  : int       = 180,  #max num time steps that will be plotted along X axis
                  axis_color : tuple     = Graphics.PLOT_AXES_COLOR, #color of the axes
                  data_color : tuple     = Graphics.DATA_COLOR, #color of the data curve being plotted
-                 title      : str       = None  #Title above the plot
+                 title      : str       = None,  #Title above the plot
+                 show_vert_axis_scale: bool = True, #should the numerical scale on the vertical axis be displayed?
                 ):
         """Defines and draws the empty plot on the screen, with axes and title."""
 
@@ -411,13 +429,15 @@ class Plot:
         self.prev_r = None
         self.prev_s = None
 
+        self.basic_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
+
         # Draw the axes - for numbering, assume that the given min & max are "nice" numbers, so don't need to search
         # for nearest nice numbers.
-        self.basic_font = pygame.font.Font(Graphics.IMAGE_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
         pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r+width, corner_s+height))
         pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r, corner_s))
-        self._make_y_label(min_y, corner_s + height)
-        self._make_y_label(max_y, corner_s)
+        if show_vert_axis_scale:
+            self._make_y_label(min_y, corner_s + height)
+            self._make_y_label(max_y, corner_s)
 
         # Create the plot's text on a separate surface and copy it to the display surface
         if title is not None:
@@ -459,7 +479,7 @@ class Plot:
                 pygame.draw.line(self.surface, self.data_color, (self.prev_r, self.prev_s), (new_r, new_s))
                 self.prev_r = new_r
                 self.prev_s = new_s
-                pygame.display.update()
+                #pygame.display.update()
 
 
     def _make_y_label(self,

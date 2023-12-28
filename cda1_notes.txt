@@ -1481,9 +1481,12 @@ Big picture of this project's goals:
 	* Got keyboard interaction to work, and added ESC and SPACE controls to start/pause/end the
 	  simulation.
 	* Added a legend to the graphics to provide keyboard reminders.
+	* Added plot for lane ID.
 
 
-NEXT:  working branches "graphics2" and "part1" in parallel!
+NEXT:  
+- Evaluate run B5
+- working branches "graphics2" and "part1" in parallel!
 
 
 TODO:
