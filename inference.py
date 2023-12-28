@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List
 import numpy as np
 import argparse
+import pygame
 import ray
 import ray.rllib.algorithms.ppo as ppo
 import ray.rllib.algorithms.sac as sac
@@ -104,7 +105,7 @@ def main(argv):
     # Set up the graphic display
     graphics = Graphics(env)
 
-    # Run a complete episode
+    # Prepare for a complete episode
     episode_reward = 0
     done = False
     action_list = [0, 0]
@@ -118,7 +119,26 @@ def main(argv):
     graphics.update(action_list, raw_obs, vehicles)
     obs = env.scale_obs(raw_obs)
     step = 0
-    time.sleep(8) #allow viewer to orient and time to turn on video capture
+
+    # Wait for user to indicate okay to begin animation
+    #time.sleep(2)
+    if pygame.key.get_focused(): #THIS WORKS! TODO: Refactor it into a function: wait_for_key(), which looks ofr a specific key if given & returns the key code
+        print("///// Press Down arrow key to begin...")
+        go = False
+        while not go:
+            for event in pygame.event.get():
+                print("***** key event detected. event = {}".format(event))
+                if event.type == pygame.KEYDOWN:
+                    print("      Key pressed: ", event.key, ", K_DOWN = ", pygame.locals.K_DOWN)
+                    if event.key == pygame.locals.K_DOWN:
+                        print("     K_DOWN was detected")
+                        go = True
+                        break
+    else:
+        print("///// NO KEYBOARD FOCUS!")
+
+    print("      Beginning...")
+    #time.sleep(8) #allow viewer to orient and time to turn on video capture
     while not done  and  step < episode_len:
         step += 1
 
@@ -143,8 +163,9 @@ def main(argv):
         vehicles = env.get_vehicle_data()
         graphics.update(action, raw_obs, vehicles)
 
-        # Wait for user to indicate okay to begin animation
         """
+        # Wait for user to indicate okay to begin animation
+        import pygame
         if step == 1:
             print("///// Press Down key to begin...")
             go = False

@@ -58,7 +58,7 @@ class Graphics:
         self.display_freq = Graphics.REAL_TIME_RATIO / env.time_step_size
 
         # set up the window
-        self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), 0, 32)
+        self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), flags = 0)
         pygame.display.set_caption('cda1')
 
         # set up fonts
@@ -167,7 +167,6 @@ class Graphics:
         #TODO experimenta
         if pygame.key.get_focused():
             kp = pygame.key.get_pressed()
-            print("***   graphics: kp = ", kp)
 
         # Loop through each vehicle in the scenario
         for v_idx in range(len(vehicles)):
