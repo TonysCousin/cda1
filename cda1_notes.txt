@@ -1451,16 +1451,38 @@ Big picture of this project's goals:
 	* Changed decide_num_vehicles() to slow the addition of neighbors, increasing MANY_EPISODES
 	  from 5k to 20k. Added print stmt that flags when this threshold is crossed.
 	* Added 5 bot vehicless, bringing the total neighbors up to 20.
+	* Training completed all 40k iters. Performance was similar to B3; didn't seem to improve
+	  since ~25k iters. From then on roughly rmin ~-1.3, rmean ~0.3, rmax ~1.6, ep len ~99.
+	* Inference on checkpoint 40000 is not impressive. Lane 0 starts refuse to change lanes. A
+	  lane 3 start rear-ended a bot. Speed ctrl is a little erratic, and goes ~29 m/s on end of
+	  lane 1, where it should be 33. Lane 5 start didn't change lanes.
+	* Inference on checkpoint 27000: speed control still a little erratic, but it is a more
+	  cautious follower. A slight slowdown in lane 2 approaching x = 2000, but minor & doesn't
+	  last long. Sticks to 29 m/s at end of lane 1, though (should be 34). Lane 0 starts refuse
+	  to change lanes! Otherwise, this is a decent agent.
+	* Saved #27000 in the training dir for future use.
+
+12/27/23
+
+* Run B5 training single agent BridgitNN with SAC from scratch for 30k iterations using 16 bots.
+	* Reduced MANY_EPISODES from 20k to 10k, since it seemed to contribute to fear of leaving
+	  lane 0.
+	* Modified _verify_safe_location() to halve the safe distance from 113 to 56.5 m to pack the
+	  bots closer together and make a more realistic heavy traffic situation.
+	* Removed 4 vehicles from the vehicle config (now 16 neighbors).
+	* Modified BridgitModel (and standard observation definitions in ObsVec) to include the 4
+	  formerly bot-only obs into the Bridgit obs vector as well (they were there, but left as
+	  always value 0). This gives the agent a more concrete sense of where its closest neighbors
+	  are, rather than depending on the often fuzzy interpretation of the sensor vector embedding.
 
 
 
 TODO:
-- gradually ramp up the number of neighbor vehicles so that agent first learns to drive without interference.
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - consider adding coreographed scenarios to routine training that force certain close call situations.
+- make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
-- Make bot ACC more aggressive.
 - Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.

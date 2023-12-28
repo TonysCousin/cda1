@@ -137,35 +137,3 @@ vehicles:
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
     lc_duration:  2.4     #sec
-
-  - id:           17 ##########################
-    model:        BotType1Model
-    guidance:     BotType1bGuidance
-    max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
-    lc_duration:  2.4     #sec
-
-  - id:           18 ##########################
-    model:        BotType1Model
-    guidance:     BotType1bGuidance
-    max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
-    lc_duration:  2.4     #sec
-
-  - id:           19 ##########################
-    model:        BotType1Model
-    guidance:     BotType1bGuidance
-    max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
-    lc_duration:  2.4     #sec
-
-  - id:           20 ##########################
-    model:        BotType1Model
-    guidance:     BotType1bGuidance
-    max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
-    lc_duration:  2.4     #sec

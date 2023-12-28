@@ -909,7 +909,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             favored band to the highest level.
         """
 
-        MANY_EPISODES = 20000
+        MANY_EPISODES = 10000
         if self.episode_count == MANY_EPISODES:
             print("//    Running episode {}".format(self.episode_count))
 
@@ -979,11 +979,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         assert start <= p < start + self.roadway.get_total_lane_length(lane_id), \
                 "///// Attempting to place neighbor {} in lane {} at invalid p = {:.1f}".format(n, lane_id, p)
 
-        # This is the safe longitudinal distance between a slow vehicle in front, going 4 m/s, and a fast vehicle behind, going 30 m/s,
-        # with a -3 m/s^2 decel capability and assuming the front vehicle holds a steady speed. It will take this distance plus the
+        # The very safe longitudinal distance between a slow vehicle in front, going 4 m/s, and a fast vehicle behind, going 30 m/s,
+        # with a -3 m/s^2 decel capability and assuming the front vehicle holds a steady speed is 113 m. It will take this distance plus the
         # distance covered by the front vehicle during that time for the rear vehicle to decelerate to 4 m/s. There could be worse
-        # conditions, but they should be quite rare.
-        SAFE_SEPARATION = 113.0
+        # conditions, but they should be quite rare. Use a fraction of this distance to better simulate heavy traffic conditions, and
+        # accept the occasional crash during training.
+        SAFE_SEPARATION = 113.0 / 2.0
         safe = True
 
         # Loop through all active vehicles

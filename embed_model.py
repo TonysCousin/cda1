@@ -57,6 +57,10 @@ class EmbedModel(VehicleModel):
         # If this vehicle is inactive, keep collecting data; doing so may mean an extra time step of work, but it prevents the storage
         # of an all-zero obs vector for a key vehicle in its final time step.
 
+        #
+        #..........Observations common to all types of vehicle models
+        #
+
         # Build the common parts of the obs vector
         obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
         obs[ObsVec.SPEED_CMD] = actions[0]
@@ -81,7 +85,7 @@ class EmbedModel(VehicleModel):
         host_p = me.p
 
         #
-        #..........Get observations from the bot perspective
+        #..........Common observations that require non-trivial computation
         #
 
         # Identify the closest neighbor downtrack of this vehicle in the same lane
@@ -95,8 +99,8 @@ class EmbedModel(VehicleModel):
             if not v.active:
                 continue
 
-            if v.lane_id == me.lane_id:
-                fwd_dist = v.p - me.p
+            if v.lane_id == host_lane_id:
+                fwd_dist = v.p - host_p
                 if fwd_dist > 0.0  and  fwd_dist < closest_dist:
                     closest_dist = fwd_dist
                     closest_id = i
@@ -113,12 +117,12 @@ class EmbedModel(VehicleModel):
         obs[ObsVec.RIGHT_OCCUPIED] = 0.0
         for i in range(len(vehicles)):
             v = vehicles[i]
-            if v.lane_id == me.lane_id - 1: #it is to our left
-                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+            if v.lane_id == host_lane_id - 1: #it is to our left
+                if abs(v.p - host_p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
                     obs[ObsVec.LEFT_OCCUPIED] = 1.0
 
-            elif v.lane_id == me.lane_id + 1: #it is to our right
-                if abs(v.p - me.p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+            elif v.lane_id == host_lane_id + 1: #it is to our right
+                if abs(v.p - host_p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
                     obs[ObsVec.RIGHT_OCCUPIED] = 1.0
 
         #

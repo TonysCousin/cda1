@@ -51,6 +51,10 @@ class BridgitModel(VehicleModel):
         # If this vehicle is inactive, keep collecting data; doing so may mean an extra time step of work, but it prevents the storage
         # of an all-zero obs vector for a key vehicle in its final time step.
 
+        #
+        #..........Observations common to all types of vehicle models
+        #
+
         # Build the common parts of the obs vector
         obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
         obs[ObsVec.SPEED_CMD] = actions[0]
@@ -69,12 +73,53 @@ class BridgitModel(VehicleModel):
         # Put the lane change desired values back into place, since that planning doesn't happen every time step
         obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1] = lane_change_des
 
-        # Skip a few here that are used for bots or reserved for future
+        # Skip any here that are only used for bots or reserved for future
 
         # Find the host vehicle in the roadway (parametric frame)
         # NOTE: allow the case where the host is not on any pavement - it could be sitting in the grass with sensors on watching the world go by
         host_lane_id = me.lane_id
         host_p = me.p
+
+        #
+        #..........Common observations that require non-trivial computation
+        #
+
+        # Identify the closest neighbor downtrack of this vehicle in the same lane
+        closest_id = None
+        closest_dist = Constants.REFERENCE_DIST #we don't need to worry about anything farther than this
+        for i in range(len(vehicles)):
+            if i == my_id:
+                continue
+
+            v = vehicles[i]
+            if not v.active:
+                continue
+
+            if v.lane_id == host_lane_id:
+                fwd_dist = v.p - host_p
+                if fwd_dist > 0.0  and  fwd_dist < closest_dist:
+                    closest_dist = fwd_dist
+                    closest_id = i
+        #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
+
+        # Build the downtrack portions of the obs vector
+        obs[ObsVec.FWD_DIST] = closest_dist
+        obs[ObsVec.FWD_SPEED] = Constants.MAX_SPEED - me.cur_speed
+        if closest_id is not None:
+            obs[ObsVec.FWD_SPEED] = vehicles[closest_id].cur_speed - me.cur_speed
+
+        # Check for neighboring vehicles in the 9 zones immediately to the left or right
+        obs[ObsVec.LEFT_OCCUPIED] = 0.0
+        obs[ObsVec.RIGHT_OCCUPIED] = 0.0
+        for i in range(len(vehicles)):
+            v = vehicles[i]
+            if v.lane_id == host_lane_id - 1: #it is to our left
+                if abs(v.p - host_p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.LEFT_OCCUPIED] = 1.0
+
+            elif v.lane_id == host_lane_id + 1: #it is to our right
+                if abs(v.p - host_p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
+                    obs[ObsVec.RIGHT_OCCUPIED] = 1.0
 
         #
         #..........Determine pavement observations in each zone

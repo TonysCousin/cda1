@@ -34,7 +34,7 @@ def main(argv):
     # Define the stopper object that decides when to terminate training.
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 40000
+    max_iterations      = 30000
 
     # Define the custom environment for Ray
     env_config = {}
