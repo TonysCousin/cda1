@@ -158,8 +158,8 @@ def main(argv):
         # Scale the observations to be ready for NN ingest next time step
         obs = env.scale_obs(raw_obs)
 
-        print("///// step {:3d}: sc action = [{:5.2f} {:5.2f}], lane = {}, LC # = {}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, \
+        print("///// step {:3d}: sc act = [{:5.2f} {:5.2f}], lane = {}, LC#{}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
                         raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 

@@ -1474,7 +1474,32 @@ Big picture of this project's goals:
 	  formerly bot-only obs into the Bridgit obs vector as well (they were there, but left as
 	  always value 0). This gives the agent a more concrete sense of where its closest neighbors
 	  are, rather than depending on the often fuzzy interpretation of the sensor vector embedding.
+	* Run died after 8000 iters, so I rebooted & restarted from checkpoint 8000, thus the 30k
+	  total on the run ended with checkpoint 38000. Training performance looked similar to recent
+	  runs until iter 20000, at which point rmean dropped a bit to around 0.2, and episode length
+	  dropped a lot more down to ~80 steps and never recovered.
+	* Inference on checkpoint 38000: performed quite well in lanes 0-4, better than any of the
+	  other B runs. Lane 5 start is worrisome; one run it stayed in lane 5 the whole way, with
+	  very erratic speed commands, but mostly in the single digits. 3 other lane 5 runs it
+	  quickly moved to lane 4 and got up near speed limit, but commands were still rather
+	  erratic until it got into the main lanes.
+	* Inference on checkpoint 20000: speed control was more erratic than checkpoint 38000, but
+	  lane change performance was better, and no slowing on lane 5. One lane 0 start did a dumb
+	  side crash into a faster moving bot in lane 1, but 2 other episodes it slowed to wait for
+	  multiple passing bots in lane 1 before initiating the LC. This is the keeper.
 
+12/28/23
+
+* Added some graphics capability
+	* Got keyboard interaction to work, and added ESC and SPACE controls to start/pause/end the
+	  simulation.
+	* Added a legend to the graphics to provide keyboard reminders.
+	* Added plot for lane ID.
+
+
+NEXT:  
+- Evaluate run B5
+- working branches "graphics2" and "part1" in parallel!
 
 
 TODO:
