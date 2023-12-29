@@ -10,6 +10,8 @@ Again, as in CDA0, there is no communication between vehicles, and all sensors a
 
 This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu.
 
+![Lane 0 start](docs/images/cda1.1-L0.gif)
+
 
 ## Project Description
 A statement of the detailed software requirements [can be found here](docs/cda1_rqmts.txt).
@@ -113,3 +115,9 @@ This project was begun on 8/21/23, and is proceeding in the following direction:
 - Part 2:  Expand the training to include several instances of the agent (replacing some bots) as pseudo-multi-agent training (iterative).
 - Part 3:  True multi-agent training, with several untrained agents (same policy) learning simultaneously using Ray multi-agent facilities.
 - Part 4:  Multi-agent training for two policies in a single vehicle, one for planning and one for control.
+
+## More videos of Bridgit, Part 1, in action
+
+![Lane 3 start](docs/images/cda1.1-L3.gif)
+
+![Lane 5 start](docs/images/cda1.1-L5.gif)

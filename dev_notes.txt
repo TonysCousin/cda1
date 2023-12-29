@@ -1483,7 +1483,7 @@ Big picture of this project's goals:
 	  very erratic speed commands, but mostly in the single digits. 3 other lane 5 runs it
 	  quickly moved to lane 4 and got up near speed limit, but commands were still rather
 	  erratic until it got into the main lanes.
-	* Inference on checkpoint 20000: speed control was more erratic than checkpoint 38000, but
+***	* Inference on checkpoint 20000: speed control was more erratic than checkpoint 38000, but
 	  lane change performance was better, and no slowing on lane 5. One lane 0 start did a dumb
 	  side crash into a faster moving bot in lane 1, but 2 other episodes it slowed to wait for
 	  multiple passing bots in lane 1 before initiating the LC. This is the keeper.
@@ -1496,9 +1496,13 @@ Big picture of this project's goals:
 	* Added a legend to the graphics to provide keyboard reminders.
 	* Added plot for lane ID.
 
+12/29/23
+
+* Updated README to reflect all work done to date, and merged in the graphics2 branch with yesterday's
+  work.
+
 
 NEXT:  
-- Evaluate run B5
 - working branches "graphics2" and "part1" in parallel!
 
 
