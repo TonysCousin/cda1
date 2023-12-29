@@ -8,7 +8,7 @@ This new environment could be used to duplicate the CDA0 project by using that A
 However, the goal here is to train an AI agent to drive all of the vehicles at once, and have it learn something about safe driving and anticipating others' actions in the process.
 Again, as in CDA0, there is no communication between vehicles, and all sensors are treated as perfect.
 
-This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu Linux.
+This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu.
 
 
 ## Project Description
@@ -26,6 +26,7 @@ Training and testing is currently being performed with the _Roadway B_ test trac
 1. Clone this repo (e.g. `git clone https://github.com/TonysCousin/cda1 .`), then cd into the directory where it is located
 2. `pip install -r requirements1.txt`
 3. `pip install -r requirements2.txt`
+
 My apologies for the two requirements files, but the global option used in the first prevents the Ray installation (in the second file), and I'm not enough of a pip expert to resolve that conflict in a single requirements file.
 
 #### Training the Agent
