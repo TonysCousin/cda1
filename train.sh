@@ -2,7 +2,7 @@
 
 echo "Copying code..."
 cd ~/projects/cda1
-cp *.py staging
+cp src/*.py staging
 cp -r docs staging
 
 echo "Starting..."

@@ -1,0 +1,32 @@
+John's notes on development of the CDA1 project for the Part 2 goal: multiple agents using the same policy
+----------------------------------------------------------------------------------------------------------
+
+12/30/23
+
+* Rearranged the project directory to make it more navigable.
+
+
+
+TODO:
+- consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
+  either:
+	a) Pre-train the agent with supervised learning. Requires episode capture (like embed_collect) to capture a db
+	   with full obs vector, actions and rewards. Then run training (like embedding) on this db comparing either full
+	   episodes, short trajectory segments or single time steps.
+	b) Intersperse imitation episodes with normal episodes in SAC RL training. ~10% of episodes would use the 1c bot
+	   to produce the expert actions for a given time step, then adjust the full ego state to that result and repeat.
+- consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
+- consider adding coreographed scenarios to routine training that force certain close call situations.
+- make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
+- Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
+- Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
+- Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
+- find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
+  only with torch, no ray involved.
+- Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
+
+- Investigate speed overshoot when speed limit changes (with bot1a controller)
+- Add lane IDs to graphics
+- Add vehicle icons to graphics
+- Review all TODOs
+- Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds

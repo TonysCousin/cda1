@@ -131,9 +131,9 @@ dmypy.json
 # vi swap file
 .*.swp
 
-# training checkpoint storage & execution areas
-training/
+# experimental checkpoint storage & execution areas
+exp/
 staging/
 
 # training data for the embedding program
-observations.csv
+.csv
