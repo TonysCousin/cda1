@@ -32,8 +32,8 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    status_int          = 200    #num iters between status logs
-    chkpt_int           = 1000    #num iters between storing new checkpoints
+    status_int          = 1 #200    #num iters between status logs
+    chkpt_int           = 2 #1000    #num iters between storing new checkpoints
     max_iterations      = 30000
 
     # Define the custom environment for Ray
@@ -42,7 +42,7 @@ def main(argv):
     env_config["episode_length"]                = 100 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["crash_report"]                  = False
-    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config_ego_training.yaml"
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_ego_training.yaml"
     env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
@@ -134,8 +134,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print("\n///// {} training params are:\n".format(algo))
+    #print(pretty_print(cfg.to_dict()))
 
     # Set up starting counters to handle possible checkpoint start
     starting_step_count = 0
@@ -158,6 +158,8 @@ def main(argv):
     start_time = pc()
     for iter in range(1, max_iterations+1):
         result = algo.train()
+        print("///// train step result object is:")
+        print(pretty_print(result))
         #if iter == 1:
         #    print("Sample of results from train() call:\n", pretty_print(result))
 
@@ -165,13 +167,18 @@ def main(argv):
         rmin = result["episode_reward_min"]
         rmean = result["episode_reward_mean"]
         rmax = result["episode_reward_max"]
+        tensorboard.add_scalar("num_agent_steps_trained", result["num_agent_steps_trained"])
+        tensorboard.add_scalar("timesteps_total", result["timesteps_total"])
         tensorboard.add_scalar("episode_reward_mean", rmean)
         tensorboard.add_scalar("episode_reward_min", rmin)
         tensorboard.add_scalar("episode_reward_max", rmax)
 
         # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
         if iter % chkpt_int == 0:
-            algo.save(checkpoint_dir = DATA_PATH)
+            ckpt_res = algo.save(checkpoint_dir = DATA_PATH)
+            print("///// Checkpoint saved in {}. Full results are {}".format(ckpt_res.checkpoint.path, type(ckpt_res)))
+            #print(result)
+            print(pretty_print(ckpt_res.metrics))
 
         if iter % status_int == 0:
             elapsed_sec = pc() - start_time
@@ -191,6 +198,7 @@ def main(argv):
     print("\n///// Training completed.  Final iteration results:\n")
     print(pretty_print(result))
     tensorboard.flush()
+    algo.stop()
     ray.shutdown()
 
 

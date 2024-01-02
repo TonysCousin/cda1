@@ -34,11 +34,11 @@ class BridgitNN(TorchModelV2, nn.Module):
                 "///// ERROR in BridgitNN construction: num_outputs = {} but action_space is {}".format(num_outputs, action_space.shape)
 
         # Define constants for this implementation (better to put these into model_config once I figure out how to do that)
-        PAVEMENT_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_30p_231218-2246_99.pt"
+        PAVEMENT_SENSOR_MODEL = "/home/starkj/projects/cda1/models/embedding_30p_231218-2246_99.pt"
         self.NUM_PAVEMENT_NEURONS = 30
         self.PAVEMENT_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        VEHICLES_SENSOR_MODEL = "/home/starkj/projects/cda1/training/embedding_140v_231217-2225_99.pt"
+        VEHICLES_SENSOR_MODEL = "/home/starkj/projects/cda1/models/embedding_140v_231217-2225_99.pt"
         self.NUM_VEHICLES_NEURONS = 140
         self.VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 

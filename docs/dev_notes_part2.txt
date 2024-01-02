@@ -5,6 +5,17 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 * Rearranged the project directory to make it more navigable.
 
+1/1/24
+14:39-14:57 = 18 fighting Ray
+15:27-17:30 = 57 fighting ray
+17:39-17:53 = 14
+18:02-18:11 = 9
+19:11-
+
+* Performed routine system upgrade, including patches to the OS and an update of Ray from 2.5.1 to 2.9.0.
+	* Ray changed their checkpoint API in v2.7, so now my saved checkpoints cannot be restored for
+	  inference. Also, training doesn't save new checkpoints the same way, so I had to investigate
+	  the new approach.
 
 
 TODO:
