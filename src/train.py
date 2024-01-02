@@ -1,5 +1,7 @@
 import sys
+import os
 from time import perf_counter as pc
+import tempfile
 import ray
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -7,8 +9,11 @@ from ray.tune.logger import pretty_print
 import ray.rllib.algorithms.sac as sac
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED
 from ray.rllib.models import ModelCatalog
+import ray.train.torch
+from ray import train
+from ray.train import RunConfig, CheckpointConfig, Checkpoint, ScalingConfig
+from ray.train.torch import TorchTrainer
 
-from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
 from cda_callbacks import CdaCallbacks
 from bridgit_nn import BridgitNN
@@ -32,9 +37,11 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    status_int          = 200    #num iters between status logs
-    chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 30000
+    training_loop_config = {}
+    training_loop_config["chkpt_dir"]           = DATA_PATH
+    training_loop_config["status_int"]          = 200     #num iters between status logs
+    training_loop_config["chkpt_int"]           = 1000    #num iters between storing new checkpoints
+    training_loop_config["max_iterations"]      = 30000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -42,7 +49,7 @@ def main(argv):
     env_config["episode_length"]                = 100 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
     env_config["crash_report"]                  = False
-    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/vehicle_config_ego_training.yaml"
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_ego_training.yaml"
     env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
@@ -134,8 +141,8 @@ def main(argv):
 
     # ===== Final setup =========================================================================
 
-    print("\n///// {} training params are:\n".format(algo))
-    print(pretty_print(cfg.to_dict()))
+    #print("\n///// {} training params are:\n".format(algo))
+    #print(pretty_print(cfg.to_dict()))
 
     # Set up starting counters to handle possible checkpoint start
     starting_step_count = 0
@@ -151,58 +158,77 @@ def main(argv):
             print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(argv[1], e))
             sys.exit(1)
 
+    # Set up the run configuration
+    run_config = train.RunConfig(storage_path = DATA_PATH,
+                                 checkpoint_config = CheckpointConfig(checkpoint_score_attribute    = "episode_reward_mean",
+                                                                      checkpoint_frequency          = training_loop_config["chkpt_int"],
+                                                                      num_to_keep                   = 5
+                                 )
+    )
+
+    # Build the trainer object
+    trainer = TorchTrainer(train_fn, train_loop_config = training_loop_config, run_config = run_config)
+
     # Run the training loop
-    print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(chkpt_int, DATA_PATH))
-    tensorboard = SummaryWriter(DATA_PATH)
-    result = None
-    start_time = pc()
-    for iter in range(1, max_iterations+1):
-        result = algo.train()
-        #if iter == 1:
-        #    print("Sample of results from train() call:\n", pretty_print(result))
-
-        # Write data to Tensorboard
-        rmin = result["episode_reward_min"]
-        rmean = result["episode_reward_mean"]
-        rmax = result["episode_reward_max"]
-        tensorboard.add_scalar("episode_reward_mean", rmean)
-        tensorboard.add_scalar("episode_reward_min", rmin)
-        tensorboard.add_scalar("episode_reward_max", rmax)
-
-        # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
-        if iter % chkpt_int == 0:
-            algo.save(checkpoint_dir = DATA_PATH)
-
-        if iter % status_int == 0:
-            elapsed_sec = pc() - start_time
-            elapsed_hr = elapsed_sec / 3600.0
-            perf = int(iter/elapsed_hr)
-            steps = result["num_env_steps_sampled"] - starting_step_count
-            ksteps_per_hr = 0
-            if elapsed_hr > 0.01:
-                ksteps_per_hr = int(0.001*steps/elapsed_hr)
-            remaining_hrs = 0.0
-            if iter > 1:
-                remaining_hrs = (max_iterations - iter) / perf
-            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
-                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
-                  "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+    print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(training_loop_config["chkpt_int"], DATA_PATH))
 
     print("\n///// Training completed.  Final iteration results:\n")
-    print(pretty_print(result))
-    tensorboard.flush()
+    #print(pretty_print(result))
+    #tensorboard.flush()
     ray.shutdown()
 
 
-    """ for reference:
-    # Execute the HP tuning job, beginning with a previous checkpoint, if one was specified in the CdaCallbacks.
-    if len(argv) > 1:
-        tuner = Tuner.restore(path = argv[1], trainable = algo, resume_errored = True, param_space = cfg.to_dict())
-        print("\n///// Tuner created to continue checkpoint ", argv[1])
-    else:
-        tuner = Tuner(algo, param_space = cfg.to_dict(), tune_config = tune_config, run_config = run_config)
-        print("\n///// New tuner created.\n")
-    """
+    def train_fn(config):
+        """Executes the training loop & collects performance metrics."""
+
+        #tensorboard = SummaryWriter(DATA_PATH)
+        result = None
+        start_time = pc()
+        for iter in range(1, config["max_iterations"]+1):
+            result = algo.train()
+            #if iter == 1:
+            #    print("Sample of results from train() call:\n", pretty_print(result))
+
+            # Write data to Tensorboard
+            rmin = result["episode_reward_min"]
+            rmean = result["episode_reward_mean"]
+            rmax = result["episode_reward_max"]
+            #tensorboard.add_scalar("episode_reward_mean", rmean)
+            #tensorboard.add_scalar("episode_reward_min", rmin)
+            #tensorboard.add_scalar("episode_reward_max", rmax)
+            metrics = {"episode_reward_min":    rmin,
+                       "episode_reward_mean":   rmean,
+                       "episode_reward_max":    rmax,
+                      }
+
+            #TODO not sure this whole thing is needed, if RunConfig is controlling checkpoint generation
+            with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
+                checkpoint = None
+
+                # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
+                if iter % config["chkpt_int"] == 0:
+                    #algo.save(checkpoint_dir = DATA_PATH)
+                    policy = algo.get_policy()
+                    model = policy.get_weights()
+                    torch.save(model, os.path.join(temp_checkpoint_dir, "model-{:05d}.pt".format(iter)))
+                    checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
+                    train.report(metrics, checkpoint = checkpoint)
+
+                if iter % config["status_int"] == 0:
+                    elapsed_sec = pc() - start_time
+                    elapsed_hr = elapsed_sec / 3600.0
+                    perf = int(iter/elapsed_hr)
+                    steps = result["num_env_steps_sampled"] - starting_step_count
+                    ksteps_per_hr = 0
+                    if elapsed_hr > 0.01:
+                        ksteps_per_hr = int(0.001*steps/elapsed_hr)
+                    remaining_hrs = 0.0
+                    if iter > 1:
+                        remaining_hrs = (config["max_iterations"] - iter) / perf
+                    print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
+                        .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
+                        "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+
 
 
 ######################################################################################################
