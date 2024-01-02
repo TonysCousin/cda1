@@ -14,7 +14,6 @@ from ray.rllib.models import ModelCatalog
 
 from obs_vec import ObsVec
 from highway_env_wrapper import HighwayEnvWrapper
-from roadway_b import Roadway
 from bridgit_nn import BridgitNN
 from graphics import Graphics
 
@@ -50,7 +49,7 @@ def main(argv):
                     "debug":                    0,
                     "verify_obs":               True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
-                    "vehicle_file":             "vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
+                    "vehicle_file":             "config/vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
                     "crash_report":             True,
                 }
