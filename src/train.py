@@ -203,13 +203,12 @@ def main(argv):
     # Define the basic training loop control stuff
     num_workers                                 = 1
     training_loop_config = {}
-    training_loop_config["base_checkpoint"]     = argv[1] if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0  else  None
+    #training_loop_config["base_checkpoint"]     = argv[1] if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0  else  None
     training_loop_config["chkpt_dir"]           = DATA_PATH
-    training_loop_config["status_int"]          = 200     #num iters between status logs
-    training_loop_config["chkpt_int"]           = 100     #num iters between storing new checkpoints
-    training_loop_config["max_iterations"]      = 30000
+    training_loop_config["status_int"]          = 1 #200     #num iters between status logs
+    training_loop_config["chkpt_int"]           = 2 #1000    #num iters between storing new checkpoints
+    training_loop_config["max_iterations"]      = 6 #30000
     training_loop_config["num_workers"]         = num_workers
-    print("///// training_loop_config done")
 
     # Set up the run configuration
     run_config = train.RunConfig(storage_path = DATA_PATH,
@@ -218,11 +217,15 @@ def main(argv):
                                                                       num_to_keep                   = 5
                                  ),
     )
-    print("///// run_config done.")
+
+    if argv[1] is not None  and  len(argv[1]) > 1:
+        trainer = TorchTrainer.restore(argv[1])
+        print("///// Restored checkpoint {}".format(argv[1]))
 
     # Build the trainer object
-    trainer = TorchTrainer(train_fn, train_loop_config = training_loop_config, run_config = run_config,
-                           scaling_config = train.ScalingConfig(num_workers = num_workers, use_gpu = True))
+    else:
+        trainer = TorchTrainer(train_fn, train_loop_config = training_loop_config, run_config = run_config,
+                               scaling_config = train.ScalingConfig(num_workers = num_workers, use_gpu = True))
 
     # Run the training loop
     print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(training_loop_config["chkpt_int"], DATA_PATH))

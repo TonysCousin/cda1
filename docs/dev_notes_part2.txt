@@ -29,10 +29,27 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* The training still uses Algorithm checkpoints (although they seem a bit altered, as nowhere is
 	  the checkpoint version ID stored), so hopefully restarting training from one of these will pick
 	  up the optimizer state, etc, and allow smooth continuation of training.
-
-	* Training avg performance was ? steps/hr
+	* Training avg performance was ~2070 steps/hr, utilizing 1 cpu and ~5% of the GPU. Final rewards
+	  were rmin ~-2, rmean ~-0.4, rmax ~1.6.
+	* Unable to run inference due to missing checkpoint content. It is looking for a file named
+	  algorithm_state.pkl or checkpoint-[0-9]+, and none exists. The only file in the checkpoint dir
+	  is the model*.pt. So it appears I am unable to work with Algorithm checkpoints from here on out.
 
 * While C1 was running I cleaned up a bunch of TODOs in the source code, all except the graphics.py.
+
+1/5/24
+
+* Testing reading of the new checkpoints
+	* Inference cannot read them.
+	* Training program also cannot read them for the same reason: key files are missing. Tried the
+	  .pt file itself as well as the two levels of directories above that.
+	* Tried using the structure suggested in the error message: `trainer = TorchTrainer.restore(ckpt).
+	  It loaded the checkpoint okay (top level dir), but assumed that the job had errored out, and
+	  tried to pick it up from where it started. Since it had completed its specified number of iters,
+	  it would not go any further.
+
+NEXT: test continuing from a checkpoint and inference
+	try to improve resource usage
 
 
 
