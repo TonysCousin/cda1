@@ -9,7 +9,9 @@ from highway_env import HighwayEnv
 
 
 #TODO - remove inheritance from the main env so that this class can specify its own obs space with proper boundaries
-#       without constraining the boundaries in the env class (it can have its own or none at all).
+#       without constraining the boundaries in the env class (it can have its own or none at all). This should only
+#       require instantiating a HighwayEnv object directly and call its methods instead of super().*, and it will
+#       need a new method HighwayEnv.is_training().
 
 class HighwayEnvWrapper(HighwayEnv):
     """Wraps the custom environment in order to properly convert observations and actions into usable structures for

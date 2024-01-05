@@ -69,7 +69,6 @@ class BridgitNN(TorchModelV2, nn.Module):
         with torch.no_grad():
             self.vehicles_encoder.weight.copy_(temp_ve.state_dict()["encoder.weight"])
             self.vehicles_encoder.bias.copy_(temp_ve.state_dict()["encoder.bias"])
-        #self.fc1 = nn.Linear(525, NUM_MACRO_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS) #TODO debug only
 
         # The structure that brings all three data streams together
         self.fc2 = nn.Linear(NUM_MACRO_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
@@ -114,7 +113,6 @@ class BridgitNN(TorchModelV2, nn.Module):
 
         # Assemble the first full layer input, which is an aggregate of the macro plus the two sensor embeddings outputs
         l1_out = torch.cat((mo, po, vo), dim = 1)
-        #x = F.tanh(self.fc1(x)) #TODO debug only
 
         # Compute the remaining layers of the common network, bringing all of these parts together
         x = F.tanh(self.fc2(l1_out))

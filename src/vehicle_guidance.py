@@ -17,7 +17,6 @@ class VehicleGuidance(ABC):
         self.prng = prng
         self.roadway = roadway
         self.targets = targets
-        self.vehicles = None #TODO: remove this?
         self.my_vehicle = None
 
 
@@ -36,7 +35,7 @@ class VehicleGuidance(ABC):
 
         """Makes vehicle's initial location info available in case the instantiated guidance wants to use it."""
 
-        pass
+        pass #don't force the inherited class to implement this method
 
 
     @abstractmethod

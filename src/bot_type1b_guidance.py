@@ -77,7 +77,6 @@ class BotType1bGuidance(VehicleGuidance):
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)
         tgt = min(speed_limit + self.speed_offset, Constants.MAX_SPEED)
-        self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
         # Define the speed command action using ACC; note that obs FWD_SPEED is relative to host speed
         action = [None]*2
@@ -99,8 +98,7 @@ class BotType1bGuidance(VehicleGuidance):
         if cur_lane != tgt_lane  and  self.prev_lc_cmd == LaneChange.STAY_IN_LANE:
 
             # Get the roadway geometry at our current location
-            #TODO: ideally, this method should only look at sensor data; change to use center lane border obs
-            _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(cur_lane, cur_p)
+            lid, la, lb, rid, ra, rb = self.roadway.get_current_lane_geom(cur_lane, cur_p)
 
             #TODO: consider slowing the vehicle to get behind neighbors if they continue to obstruct the LC maneuver (see cda0 logic)
 

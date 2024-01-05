@@ -6,19 +6,39 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Rearranged the project directory to make it more navigable.
 
 1/1/24
-14:39-14:57 = 18 fighting Ray
-15:27-17:30 = 57 fighting ray
-17:39-17:53 = 14
-18:02-18:11 = 9
-19:11-
 
 * Performed routine system upgrade, including patches to the OS and an update of Ray from 2.5.1 to 2.9.0.
 	* Ray changed their checkpoint API in v2.7, so now my saved checkpoints cannot be restored for
 	  inference. Also, training doesn't save new checkpoints the same way, so I had to investigate
 	  the new approach.
 
+1/4/24
+
+* Continued searching for a workaround to problems using the new checkpoint API. It seems to force me to
+  use Ray's TorchTrainer, and its .fit() method, similar to Tune. This then requires resource allocation
+  (num workers cannot be left to a default).
+	* Specifying num_workers > 1 forces it to request more hardware than is available. It seems to 
+	  want to assume 1 CPU and 1 GPU for each worker, but it's not clear where that is being
+	  specified. My legacy resource specs in the AlgorithmConfig seem to be partially recognized.
+
+* Run C1 training single agent BridgetNN with SAC from scratch for 30k iterations using 16 bots.
+	* This should be identical config to run B5, which was run on 12/27/23 in part 1 of the project,
+	  and resulted in the publication of the part 1 resulting model (however, that model cannot
+	  currently be run because of Ray's problems reading the checkpoint). So this run should provide
+	  a substitute model in case recovery is not possible.
+	* The training still uses Algorithm checkpoints (although they seem a bit altered, as nowhere is
+	  the checkpoint version ID stored), so hopefully restarting training from one of these will pick
+	  up the optimizer state, etc, and allow smooth continuation of training.
+
+	* Training avg performance was ? steps/hr
+
+* While C1 was running I cleaned up a bunch of TODOs in the source code, all except the graphics.py.
+
+
 
 TODO:
+- Review TODOs in graphics.py
+- consider adding dropouts to BridgitNN
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
 	a) Pre-train the agent with supervised learning. Requires episode capture (like embed_collect) to capture a db
@@ -28,6 +48,7 @@ TODO:
 	   to produce the expert actions for a given time step, then adjust the full ego state to that result and repeat.
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - consider adding coreographed scenarios to routine training that force certain close call situations.
+- reduce prob of lane change in bots so that they don't jump across so quickly
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.

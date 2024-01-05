@@ -79,8 +79,6 @@ class ObsVec:
             * +1 if a lane change is legal over the entire length represented (i.e. a dashed line)
     """
 
-    #TODO: constants beginning with D_ are now depricated. Names were changed to make them easy to find in code.
-
     ZONES_FORWARD       = 20 #num zones in front of the vehicle in a given lane
     ZONES_BEHIND        = 4  #num zones behind the vehicle in a given lane
     OBS_ZONE_LENGTH     = 5.0#longitudinal length of a single zone, m

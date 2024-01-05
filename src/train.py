@@ -24,59 +24,8 @@ from bridgit_nn import BridgitNN
 def train_fn(config):
     """Executes the training loop & collects performance metrics."""
 
-    algo = config["algo"]
-    result = None
-    start_time = pc()
-    for iter in range(1, config["max_iterations"]+1):
-        result = algo.train()
-
-        # Prep data for Tensorboard
-        rmin = result["episode_reward_min"]
-        rmean = result["episode_reward_mean"]
-        rmax = result["episode_reward_max"]
-        metrics = {"episode_reward_min":    rmin,
-                   "episode_reward_mean":   rmean,
-                   "episode_reward_max":    rmax,
-                  }
-
-        # Handle periodic checkpoints & status reporting
-        with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
-            checkpoint = None
-
-            # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
-            if iter % config["chkpt_int"] == 0:
-                #algo.save(checkpoint_dir = DATA_PATH)
-                policy = algo.get_policy()
-                model = policy.get_weights()
-                torch.save(model, os.path.join(temp_checkpoint_dir, "model-{:05d}.pt".format(iter)))
-                checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
-                train.report(metrics, checkpoint = checkpoint)
-
-            if iter % config["status_int"] == 0:
-                elapsed_sec = pc() - start_time
-                elapsed_hr = elapsed_sec / 3600.0
-                perf = int(iter/elapsed_hr)
-                steps = result["num_env_steps_sampled"] - starting_step_count
-                ksteps_per_hr = 0
-                if elapsed_hr > 0.01:
-                    ksteps_per_hr = int(0.001*steps/elapsed_hr)
-                remaining_hrs = 0.0
-                if iter > 1:
-                    remaining_hrs = (config["max_iterations"] - iter) / perf
-                print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
-                    .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
-                    "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
-
-
-def main(argv):
-
     # Identify our custom NN model
     ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
-
-    # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
-    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
-    DATA_PATH = "/home/starkj/ray_results/cda1"
-    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"
@@ -126,8 +75,7 @@ def main(argv):
                     num_gpus_per_worker         = 0.2, #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    num_workers                                 = 4
-    cfg.rollouts(   num_rollout_workers         = num_workers, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   #num_rollout_workers         = config["num_workers"], #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 8,
                     rollout_fragment_length     = 32, #timesteps pulled from a sampler
@@ -189,22 +137,79 @@ def main(argv):
 
     # Build the algorithm object, and load the starting checkpoint if one was specified
     algo = cfg.build()
-    if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0:
+    bc = config["base_checkpoint"]
+    if bc is not None:
         try:
-            algo.restore(argv[1])
+            algo.restore(bc)
             starting_step_count = algo._counters[NUM_ENV_STEPS_SAMPLED]
-            print("///// Successfully restored baseline checkpoint {} with {} steps already trained".format(argv[1], starting_step_count))
+            print("///// Successfully restored baseline checkpoint {} with {} steps already trained".format(bc, starting_step_count))
         except Exception as e:
-            print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(argv[1], e))
+            print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(bc, e))
             sys.exit(1)
 
+    # Training iterations
+    result = None
+    start_time = pc()
+    for iter in range(1, config["max_iterations"]+1):
+        result = algo.train()
+
+        # Prep data for Tensorboard
+        #TODO: add mean episode length
+        rmin = result["episode_reward_min"]
+        rmean = result["episode_reward_mean"]
+        rmax = result["episode_reward_max"]
+        metrics = {"episode_reward_min":    rmin,
+                   "episode_reward_mean":   rmean,
+                   "episode_reward_max":    rmax,
+                  }
+
+        # Handle periodic checkpoints & status reporting
+        with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
+            checkpoint = None
+
+            # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
+            if iter % config["chkpt_int"] == 0:
+                #algo.save(checkpoint_dir = DATA_PATH)
+                policy = algo.get_policy()
+                model = policy.get_weights()
+                torch.save(model, os.path.join(temp_checkpoint_dir, "model-{:05d}.pt".format(iter)))
+                checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
+                train.report(metrics, checkpoint = checkpoint)
+
+            if iter % config["status_int"] == 0:
+                elapsed_sec = pc() - start_time
+                elapsed_hr = elapsed_sec / 3600.0
+                perf = int(iter/elapsed_hr)
+                steps = result["num_env_steps_sampled"] - starting_step_count
+                ksteps_per_hr = 0
+                if elapsed_hr > 0.01:
+                    ksteps_per_hr = int(0.001*steps/elapsed_hr)
+                remaining_hrs = 0.0
+                if iter > 1:
+                    remaining_hrs = (config["max_iterations"] - iter) / perf
+                print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
+                    .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
+                    "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+
+
+def main(argv):
+
+    # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
+    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
+    DATA_PATH = "/home/starkj/ray_results/cda1"
+    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
+    print("///// Ray initialized.")
+
     # Define the basic training loop control stuff
+    num_workers                                 = 1
     training_loop_config = {}
+    training_loop_config["base_checkpoint"]     = argv[1] if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0  else  None
     training_loop_config["chkpt_dir"]           = DATA_PATH
-    training_loop_config["status_int"]          = 1 #200     #num iters between status logs
-    training_loop_config["chkpt_int"]           = 2 #1000    #num iters between storing new checkpoints
+    training_loop_config["status_int"]          = 200     #num iters between status logs
+    training_loop_config["chkpt_int"]           = 100     #num iters between storing new checkpoints
     training_loop_config["max_iterations"]      = 30000
-    training_loop_config["algo"]                = algo
+    training_loop_config["num_workers"]         = num_workers
+    print("///// training_loop_config done")
 
     # Set up the run configuration
     run_config = train.RunConfig(storage_path = DATA_PATH,
@@ -213,6 +218,7 @@ def main(argv):
                                                                       num_to_keep                   = 5
                                  ),
     )
+    print("///// run_config done.")
 
     # Build the trainer object
     trainer = TorchTrainer(train_fn, train_loop_config = training_loop_config, run_config = run_config,

@@ -111,15 +111,11 @@ class Vehicle:
     def advance_vehicle_accel(self,
                               new_accel_cmd : float,        #newest fwd accel command, m/s^2
                               new_lc_cmd    : LaneChange,   #newest lane change command (enum)
-                             ) -> Tuple[float, float, int, str]:
+                             ) -> str:
 
         """Advances a vehicle's motion for one time step according to the vehicle dynamics model.
 
-            Returns: tuple of
-                - new speed (float, m/s)
-                - new P location (float, m)
-                - new lane ID (int)
-                - reason for running off-road (str)
+            Returns: reason for flagging this episode as failed, if any (str)
             Note that it also updates state member variables for the vehicle.
 
             CAUTION: should not be overridden!
@@ -147,7 +143,6 @@ class Vehicle:
         if new_speed < 0.5:
             self.stopped_count += 1
             if self.stopped_count > 3:
-                done = True
                 self.stopped = True
                 reason = "Vehicle is crawling to a stop"
                 #print("/////+ step: {} step {}, vehicle stopped".format(self.rollout_id, self.total_steps))
@@ -242,14 +237,14 @@ class Vehicle:
         """
         # for debugging only, this whole section:
         if not self.training:
-            new_rem, lid, la, lb, l_rem, rid, ra, rb, r_rem = self.roadway.get_current_lane_geom(new_lane, new_p)
+            lid, la, lb, rid, ra, rb = self.roadway.get_current_lane_geom(new_lane, new_p)
             if self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS - 1:
-                print("   ** LC next step: ego_p = {:.1f}, ego_rem = {:.1f}, lid = {}, la = {:.1f}, lb = {:.1f}, l_rem = {:.1f}".format(new_ego_p, new_rem, lid, la, lb, l_rem))
+                print("   ** LC next step: ego_p = {:.1f}, lid = {}, la = {:.1f}, lb = {:.1f}".format(new_ego_p, lid, la, lb))
             elif self.lane_change_count == Constants.HALF_LANE_CHANGE_STEPS:
-                print("   ** LC now: ego_p = {:.1f}, ego_rem = {:.1f}, rid = {}, ra = {:.1f}, rb = {:.1f}, r_rem = {:.1f}".format(new_ego_p, new_rem, rid, ra, rb, r_rem))
+                print("   ** LC now: ego_p = {:.1f}, rid = {}, ra = {:.1f}, rb = {:.1f}".format(new_ego_p, rid, ra, rb))
         """
 
-        return new_speed, new_p, new_lane, reason
+        return reason
 
 
     def print(self,

@@ -145,8 +145,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         """Initialize an object of this class.  Config options are documented in _set_initial_conditions()."""
 
         # Store the arguments
-        #self.seed = seed #Ray 2.0.0 chokes on the seed() method if this is defined (it checks for this attribute also)
-        #TODO: try calling self.seed() without storing it as an instance attribute
+        #   self.seed = seed #Ray 2.0.0 chokes on the seed() method if this is defined (it checks for this attribute also)
+        #   consider calling self.seed() without storing it as an instance attribute
         if seed is None:
             seed = datetime.now().microsecond
             print("///// init seed = {}".format(seed))
@@ -300,20 +300,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #print("///// In environment seed - incoming seed value = ", seed)
         #self.seed = seed
         #super().seed(seed)
-
-
-    def set_task(self,
-                 task:      int         #ID of the task (lesson difficulty) to simulate, in [0, n)
-                ) -> None:
-        """Defines the difficulty level of the environment, which can be used for curriculum learning."""
-        pass
-        #raise NotImplementedError("HighwayB.set_task() has been deprecated.") #TODO - get rid of this & getter when sure no longer needed
-
-
-    def get_task(self) -> int:
-        """Returns the environment difficulty level currently in use."""
-
-        return 0
 
 
     def reset(self, *,
@@ -707,15 +693,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             vehicle_actions[i] = action
 
             # Apply the appropriate dynamics model to each vehicle in the scenario to get its new state.
-            new_speed, new_p, new_lane, reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1]) #TODO: do we need these return values?
+            reason = self.vehicles[i].advance_vehicle_spd(action[0], action[1])
             if self.debug > 1:
                 print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}, new_lane = {}"
-                        .format(i, action[0], new_speed, new_p, new_lane))
+                        .format(i, action[0], self.vehicles[i].cur_speed, self.vehicles[i].p, self.vehicles[i].lane_id))
 
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
                 for t in self.t_targets:
-                    if self.vehicles[0].lane_id == t.lane_id  and  new_p >= t.p:
+                    if self.vehicles[0].lane_id == t.lane_id  and  self.vehicles[0].p >= t.p:
                         reached_tgt = True
                         break
 
@@ -772,7 +758,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped, reached_tgt)
         return_info["reward_detail"] = expl
-        #print("***** step: {} step {}, returning reward of {:.4f}, {}".format(self.rollout_id, self.steps_since_reset, reward, expl)) #TODO debug
+        #print("***** step: {} step {}, returning reward of {:.4f}, {}".format(self.rollout_id, self.steps_since_reset, reward, expl))
         #print("      partial obs = ", self.all_obs[0, 0:20])
 
         if self.debug > 0:
@@ -790,11 +776,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
     def get_stopper(self):
         """Returns the stopper object."""
         return self.stopper
-
-
-    def get_burn_in_iters(self):
-        """Returns the number of burn-in iterations configured."""
-        return self.burn_in_iters
 
 
     def get_total_steps(self):
@@ -820,14 +801,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 config:     EnvContext
                                ):
         """Sets the initial conditions of the ego vehicle in member variables."""
-
-        self.burn_in_iters = 0  #TODO: still needed?
-        try:
-            bi = config["burn_in_iters"]
-            if bi > 0:
-                self.burn_in_iters = int(bi)
-        except KeyError as e:
-            pass
 
         self.time_step_size = 0.1 #duration of a time step, seconds
         try:
@@ -938,7 +911,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.effective_scenario == 1:
             episode_vehicles = min(episode_vehicles, 6)
 
-        #print("      draw1 = {:.2f}, draw2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles)) #TODO debug
+        #print("      draw1 = {:.2f}, draw2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles))
         #print("*     episode {}, episode_vehicles = {}".format(self.episode_count, episode_vehicles))
         return episode_vehicles
 
@@ -1242,7 +1215,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             penalty = 0.002 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
-                #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV])) #TODO debug
+                #print("///// get_reward: LC_CMD = {:.4f}, LC_CMD_PREV = {:.4f}".format(self.all_obs[0, ObsVec.LC_CMD], self.all_obs[0, ObsVec.LC_CMD_PREV]))
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
             """
 
@@ -1289,7 +1262,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if occupied > 0.5:
                 fwd_speed = self.all_obs[0, ObsVec.BASE_REL_SPEED + z_idx]*Constants.MAX_SPEED + self.all_obs[0, ObsVec.SPEED_CUR]
                 #print("*     get_fwd_vehicle_speed: z = {}, z_idx = {}, obs = {:.4f}, ego cur = {:.1f}, fwd_speed = {:.1f}"
-                #      .format(z, z_idx, self.all_obs[0, z_idx+ObsVec.OFFSET_SPEED], self.all_obs[0, ObsVec.SPEED_CUR], fwd_speed)) #TODO debug
+                #      .format(z, z_idx, self.all_obs[0, z_idx+ObsVec.OFFSET_SPEED], self.all_obs[0, ObsVec.SPEED_CUR], fwd_speed))
                 break
 
         return fwd_speed

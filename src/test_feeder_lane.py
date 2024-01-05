@@ -16,7 +16,6 @@ def main(argv):
     b_targets.append(TargetDestination(roadway, 0, 2500.0))
     b_targets.append(TargetDestination(roadway, 4, 1600.0))
 
-    #TODO testing only
     assert      t_targets[0].is_reachable_from(0, 1733.0), "***** Case 1 failed."
     assert      t_targets[0].is_reachable_from(1, 602.3),  "***** Case 2 failed."
     assert not  t_targets[0].is_reachable_from(4, 1555.5), "***** Case 3 failed."

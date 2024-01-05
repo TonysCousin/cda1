@@ -251,18 +251,16 @@ class Roadway:
     def get_current_lane_geom(self,
                                 lane_id         : int   = 0,    #ID of the lane in question
                                 p_loc           : float = 0.0   #P coordinate of the point in question, in the parametric frame, m
-                             ) -> Tuple[float, int, float, float, float, int, float, float, float]:
+                             ) -> Tuple[int, float, float, int, float, float]:
+
         """Determines all of the variable roadway geometry relative to the given point.
-            Returns a tuple of (remaining dist in this lane, m,
-                                ID of left neighbor ln (or -1 if none),
+            Returns a tuple of (ID of left neighbor ln (or -1 if none),
                                 dist to left adjoin point A, m,
                                 dist to left adjoin point B, m,
-                                remaining dist in left ajoining lane, m,
                                 ID of right neighbor lane (or -1 if none),
                                 dist to right adjoin point A, m,
                                 dist to right adjoin point B, m,
-                                remaining dist in right adjoining lane, m).
-            If either adjoining lane doesn't exist, its return values will be 0, 0, inf, inf.  All distances are in m.
+            If either adjoining lane doesn't exist, its return values will be 0, 0, inf.  All distances are in m.
         """
 
         # Ensure that the given location is not prior to beginning of the lane
@@ -271,33 +269,26 @@ class Roadway:
 
         if self.debug > 0:
             print("///// Entering Roadway.get_current_lane_geom for lane_id = ", lane_id, ", p_loc = ", p_loc)
-        rem_this_lane = self.lanes[lane_id].length - (p_loc - self.map_to_param_frame(self.lanes[lane_id].start_x, lane_id))
-
-        #TODO: will we still need rem_this_lane, l_rem & r_rem if agent doesn't know how long the lane is (and it is non-episodic)?
 
         la = 0.0
         lb = math.inf
-        l_rem = math.inf
         left_id = self.lanes[lane_id].left_id
         if left_id >= 0:
             la = self.lanes[lane_id].left_join - p_loc
             lb = self.lanes[lane_id].left_sep - p_loc
-            l_rem = self.lanes[left_id].length - (p_loc - self.map_to_param_frame(self.lanes[left_id].start_x, left_id))
 
         ra = 0.0
         rb = math.inf
-        r_rem = math.inf
         right_id = self.lanes[lane_id].right_id
         if right_id >= 0:
             ra = self.lanes[lane_id].right_join - p_loc
             rb = self.lanes[lane_id].right_sep - p_loc
-            r_rem = self.lanes[right_id].length - (p_loc - self.map_to_param_frame(self.lanes[right_id].start_x, right_id))
 
         if self.debug > 1:
-            print("///// get_current_lane_geom complete. Returning rem = ", rem_this_lane)
-            print("      lid = {}, la = {:.2f}, lb = {:.2f}, l_rem = {:.2f}".format(left_id, la, lb, l_rem))
-            print("      rid = {}, ra = {:.2f}, rb = {:.2f}, r_rem = {:.2f}".format(right_id, ra, rb, r_rem))
-        return rem_this_lane, left_id, la, lb, l_rem, right_id, ra, rb, r_rem
+            print("///// get_current_lane_geom complete. Returning")
+            print("      lid = {}, la = {:.2f}, lb = {:.2f}".format(left_id, la, lb))
+            print("      rid = {}, ra = {:.2f}, rb = {:.2f}".format(right_id, ra, rb))
+        return left_id, la, lb, right_id, ra, rb
 
 
     def get_target_lane(self,
