@@ -1,5 +1,6 @@
 import sys
 from time import perf_counter as pc
+from datetime import datetime
 import ray
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -22,7 +23,8 @@ def main(argv):
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
     # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
-    DATA_PATH = "/home/starkj/ray_results/cda1"
+    t = datetime.now()
+    DATA_PATH = "/home/starkj/ray_results/cda1/{:4d}{:02d}{:02d}-{:02d}{:02d}".format(t.year, t.month, t.day, t.hour, t.minute)
     ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
 
     # Define which learning algorithm we will use and set up is default config params
@@ -32,8 +34,8 @@ def main(argv):
     cfg_dict = cfg.to_dict()
 
     # Define the stopper object that decides when to terminate training.
-    status_int          = 1 #200    #num iters between status logs
-    chkpt_int           = 2 #1000    #num iters between storing new checkpoints
+    status_int          = 200    #num iters between status logs
+    chkpt_int           = 1000    #num iters between storing new checkpoints
     max_iterations      = 30000
 
     # Define the custom environment for Ray
@@ -158,8 +160,8 @@ def main(argv):
     start_time = pc()
     for iter in range(1, max_iterations+1):
         result = algo.train()
-        print("///// train step result object is:")
-        print(pretty_print(result))
+        #print("///// train step result object is:")
+        #print(pretty_print(result))
         #if iter == 1:
         #    print("Sample of results from train() call:\n", pretty_print(result))
 
@@ -175,10 +177,11 @@ def main(argv):
 
         # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
         if iter % chkpt_int == 0:
-            ckpt_res = algo.save(checkpoint_dir = DATA_PATH)
-            print("///// Checkpoint saved in {}. Full results are {}".format(ckpt_res.checkpoint.path, type(ckpt_res)))
+            path = "{}/{:05d}".format(DATA_PATH, iter)
+            ckpt_res = algo.save(checkpoint_dir = path)
+            #print("///// Checkpoint saved in {}".format(ckpt_res.checkpoint.path))
             #print(result)
-            print(pretty_print(ckpt_res.metrics))
+            #print(pretty_print(ckpt_res.metrics))
 
         if iter % status_int == 0:
             elapsed_sec = pc() - start_time
@@ -200,17 +203,6 @@ def main(argv):
     tensorboard.flush()
     algo.stop()
     ray.shutdown()
-
-
-    """ for reference:
-    # Execute the HP tuning job, beginning with a previous checkpoint, if one was specified in the CdaCallbacks.
-    if len(argv) > 1:
-        tuner = Tuner.restore(path = argv[1], trainable = algo, resume_errored = True, param_space = cfg.to_dict())
-        print("\n///// Tuner created to continue checkpoint ", argv[1])
-    else:
-        tuner = Tuner(algo, param_space = cfg.to_dict(), tune_config = tune_config, run_config = run_config)
-        print("\n///// New tuner created.\n")
-    """
 
 
 ######################################################################################################
