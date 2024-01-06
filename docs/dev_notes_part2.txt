@@ -62,9 +62,27 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		  some content in one of the .pkl files.
 		* Still waiting on someone to respond to my post on Ray Discuss about this problem, so I'll
 		  leave it alone for now and try to regenerate the model with a new run.
+	* Applied a single-commit patch from the ray_train branch, that incorporated all the TODO cleanups,
+	  to the algo_checkpoints branch. This is the one that works and can be carried forward.
 
-NEXT: 	merge in TODO cleanups from the other branch, then start a training run.
-	try to improve resource usage
+* Run C2 training single agent BridgitNN with SAC for 30k iters from scratch using 16 bots.
+	* Recent TODO cleanups have been applied.
+	* New checkpointing with the old Algorithm approach (from pre-2.7 Ray).
+	* Training completed with promising ending rmin ~-0.7, rmean ~0.5, rmax ~1.6 and mean ep len > 98.
+	  Performance was 6200 ksteps/hr.
+	* Inference on checkpoint 30000: Lane 0 starts won't change lanes. Others show pretty good speed
+	  control, esp near the lane 0 merge. One start rear-ended a bot, not after a LC. It continues to
+	  drive at 29 m/s on tail of lane 1 where limit is 33.5.
+	* Inference on checkpoint 20000: Lane 0 starts don't change lanes. General tendency to drive a lot
+	  slower than speed limits. This is definitely worse.
+
+1/6/24
+
+* Run C3 training single agent BridgitNN with SAC for additional 10k iters from C2 checkpoint 30000 using
+  16 bots. Hoping that the previous model may overcome its single flaw of not changing lanes from lane 0.
+
+NEXT:
+after confirming training checkpoints work merge the algo_checkpoints branch back into part2.
 
 
 
