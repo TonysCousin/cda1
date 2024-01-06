@@ -124,7 +124,6 @@ class EmbedGuidance(VehicleGuidance):
         # Update the target speed based on the local speed limit in this lane segment
         speed_limit = self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p)
         tgt = max(min(speed_limit + self.speed_offset, Constants.MAX_SPEED), 8.0)
-        self.my_vehicle.tgt_speed = tgt         #TODO: does this need to be stored in Vehicle?
 
         action = [None]*2
         action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED] + obs[ObsVec.SPEED_CUR])
@@ -146,7 +145,7 @@ class EmbedGuidance(VehicleGuidance):
         if cur_lane != tgt_lane  and  self.prev_lc_cmd == LaneChange.STAY_IN_LANE:
 
             # Get the roadway geometry at our current location
-            _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(cur_lane, cur_p)
+            lid, la, lb, rid, ra, rb = self.roadway.get_current_lane_geom(cur_lane, cur_p)
 
             # If the target is to our left (lower ID) then
             if tgt_lane < cur_lane:
@@ -359,7 +358,7 @@ class EmbedGuidance(VehicleGuidance):
                 f = (fwd_dist - CRITICAL_DISTANCE) / (DISTANCE_OF_CONCERN - CRITICAL_DISTANCE)
                 speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, fwd_speed), tgt_speed)
                 if speed_cmd < 0.0:
-                    print("///// Embed ACC: speed_cmd = {:.1f}, f = {:.3f}, tgt_speed = {:.1f}, fwd_speed = {:.1f}, fwd_dist = {:.1f}"
-                          .format(speed_cmd, f, tgt_speed, fwd_speed, fwd_dist)) #TODO debug
+                    print("///// WARNING: Embed ACC: speed_cmd = {:.1f}, f = {:.3f}, tgt_speed = {:.1f}, fwd_speed = {:.1f}, fwd_dist = {:.1f}"
+                          .format(speed_cmd, f, tgt_speed, fwd_speed, fwd_dist))
 
         return speed_cmd

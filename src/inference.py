@@ -165,7 +165,7 @@ def main(argv):
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
         """
-        #TODO - this section for debugging only
+        # --- this section for debugging only ---
         # Display the speed limits observed in each sensor zone - loop through longitudinal rows, front to back, then columns, left to right
         print("      Sensed speed limits forward of ego:")
         for row in range(ObsVec.ZONES_FORWARD-1, -1, -1):

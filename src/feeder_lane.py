@@ -25,7 +25,7 @@ class FeederLane:
 
         # Build the tree of children feeders - start by getting the geometry of the current lane and it's adjacent ones
         self.feeders = []           #list of all lanes that can reach this lane (children); currently limited to no more than 2 (1 on each side)
-        _, lid, la, lb, _, rid, ra, rb, _ = roadway.get_current_lane_geom(lane_id, max_p)
+        lid, la, lb, rid, ra, rb = roadway.get_current_lane_geom(lane_id, max_p)
         #print("***** FeederLane: lane_id = {}, max_p = {:.1f}, lid = {}, lb = {:.1f}, rid = {}, rb = {:.1f}"
         #      .format(lane_id, max_p, lid, lb, rid, rb))
 

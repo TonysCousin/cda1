@@ -164,7 +164,7 @@ class BridgitModel(VehicleModel):
 
         # Get lane connectivity details for the center lane (all distances are downtrack from the host location)
         try:
-            _, lid, la, lb, _, rid, ra, rb, _ = self.roadway.get_current_lane_geom(host_lane_id, host_p)
+            lid, la, lb, rid, ra, rb = self.roadway.get_current_lane_geom(host_lane_id, host_p)
         except AssertionError as e:
             print("///// Trapped AssertionError in BridgitModel.get_obs_vector: ", e)
             raise e
