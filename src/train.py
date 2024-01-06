@@ -1,6 +1,7 @@
 import sys
+import os
 from time import perf_counter as pc
-from datetime import datetime
+import tempfile
 import ray
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -8,35 +9,29 @@ from ray.tune.logger import pretty_print
 import ray.rllib.algorithms.sac as sac
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED
 from ray.rllib.models import ModelCatalog
+import ray.train.torch
+from ray import train
+from ray.train import RunConfig, CheckpointConfig, Checkpoint, ScalingConfig
+from ray.train.torch import TorchTrainer
 
-from stop_simple import StopSimple
 from highway_env_wrapper import HighwayEnvWrapper
 from cda_callbacks import CdaCallbacks
 from bridgit_nn import BridgitNN
 
 """This program trains the agent with the given environment, using the specified hyperparameters."""
 
-def main(argv):
+
+def train_fn(config):
+    """Executes the training loop & collects performance metrics."""
 
     # Identify our custom NN model
     ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
-
-    # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
-    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
-    t = datetime.now()
-    DATA_PATH = "/home/starkj/ray_results/cda1/{:4d}{:02d}{:02d}-{:02d}{:02d}".format(t.year, t.month, t.day, t.hour, t.minute)
-    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"
     cfg = sac.SACConfig()
     cfg.framework("torch")
     cfg_dict = cfg.to_dict()
-
-    # Define the stopper object that decides when to terminate training.
-    status_int          = 200    #num iters between status logs
-    chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 30000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -56,7 +51,6 @@ def main(argv):
     #cfg.rl_module(_enable_rl_module_api = False) #disables the RL module API, which allows exploration config to be defined for ray 2.6
 
     explore_config = cfg_dict["exploration_config"]
-    #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
     explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 1000000
@@ -81,11 +75,10 @@ def main(argv):
                     num_gpus_per_worker         = 0.2, #this has to allow gpu left over for local worker & evaluation workers also
     )
 
-    cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
+    cfg.rollouts(   #num_rollout_workers         = config["num_workers"], #num remote workers _per trial_ (remember that there is a local worker also)
                                                      # 0 forces rollouts to be done by local worker
                     num_envs_per_worker         = 8,
                     rollout_fragment_length     = 32, #timesteps pulled from a sampler
-                    #batch_mode                  = "complete_episodes",
     )
 
     cfg.fault_tolerance(
@@ -144,64 +137,103 @@ def main(argv):
 
     # Build the algorithm object, and load the starting checkpoint if one was specified
     algo = cfg.build()
-    if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0:
+    bc = config["base_checkpoint"]
+    if bc is not None:
         try:
-            algo.restore(argv[1])
+            algo.restore(bc)
             starting_step_count = algo._counters[NUM_ENV_STEPS_SAMPLED]
-            print("///// Successfully restored baseline checkpoint {} with {} steps already trained".format(argv[1], starting_step_count))
+            print("///// Successfully restored baseline checkpoint {} with {} steps already trained".format(bc, starting_step_count))
         except Exception as e:
-            print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(argv[1], e))
+            print("\n///// ERROR restoring checkpoint {}.\n{}\n".format(bc, e))
             sys.exit(1)
 
-    # Run the training loop
-    print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(chkpt_int, DATA_PATH))
-    tensorboard = SummaryWriter(DATA_PATH)
+    # Training iterations
     result = None
     start_time = pc()
-    for iter in range(1, max_iterations+1):
+    for iter in range(1, config["max_iterations"]+1):
         result = algo.train()
-        #print("///// train step result object is:")
-        #print(pretty_print(result))
-        #if iter == 1:
-        #    print("Sample of results from train() call:\n", pretty_print(result))
 
-        # Write data to Tensorboard
+        # Prep data for Tensorboard
+        #TODO: add mean episode length
         rmin = result["episode_reward_min"]
         rmean = result["episode_reward_mean"]
         rmax = result["episode_reward_max"]
-        tensorboard.add_scalar("num_agent_steps_trained", result["num_agent_steps_trained"])
-        tensorboard.add_scalar("timesteps_total", result["timesteps_total"])
-        tensorboard.add_scalar("episode_reward_mean", rmean)
-        tensorboard.add_scalar("episode_reward_min", rmin)
-        tensorboard.add_scalar("episode_reward_max", rmax)
+        metrics = {"episode_reward_min":    rmin,
+                   "episode_reward_mean":   rmean,
+                   "episode_reward_max":    rmax,
+                  }
 
-        # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
-        if iter % chkpt_int == 0:
-            path = "{}/{:05d}".format(DATA_PATH, iter)
-            ckpt_res = algo.save(checkpoint_dir = path)
-            #print("///// Checkpoint saved in {}".format(ckpt_res.checkpoint.path))
-            #print(result)
-            #print(pretty_print(ckpt_res.metrics))
+        # Handle periodic checkpoints & status reporting
+        with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
+            checkpoint = None
 
-        if iter % status_int == 0:
-            elapsed_sec = pc() - start_time
-            elapsed_hr = elapsed_sec / 3600.0
-            perf = int(iter/elapsed_hr)
-            steps = result["num_env_steps_sampled"] - starting_step_count
-            ksteps_per_hr = 0
-            if elapsed_hr > 0.01:
-                ksteps_per_hr = int(0.001*steps/elapsed_hr)
-            remaining_hrs = 0.0
-            if iter > 1:
-                remaining_hrs = (max_iterations - iter) / perf
-            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
-                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
-                  "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+            # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
+            if iter % config["chkpt_int"] == 0:
+                #algo.save(checkpoint_dir = DATA_PATH)
+                policy = algo.get_policy()
+                model = policy.get_weights()
+                torch.save(model, os.path.join(temp_checkpoint_dir, "model-{:05d}.pt".format(iter)))
+                checkpoint = Checkpoint.from_directory(temp_checkpoint_dir)
+                train.report(metrics, checkpoint = checkpoint)
+
+            if iter % config["status_int"] == 0:
+                elapsed_sec = pc() - start_time
+                elapsed_hr = elapsed_sec / 3600.0
+                perf = int(iter/elapsed_hr)
+                steps = result["num_env_steps_sampled"] - starting_step_count
+                ksteps_per_hr = 0
+                if elapsed_hr > 0.01:
+                    ksteps_per_hr = int(0.001*steps/elapsed_hr)
+                remaining_hrs = 0.0
+                if iter > 1:
+                    remaining_hrs = (config["max_iterations"] - iter) / perf
+                print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
+                    .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
+                    "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+
+
+def main(argv):
+
+    # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
+    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
+    DATA_PATH = "/home/starkj/ray_results/cda1"
+    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
+    print("///// Ray initialized.")
+
+    # Define the basic training loop control stuff
+    num_workers                                 = 1
+    training_loop_config = {}
+    #training_loop_config["base_checkpoint"]     = argv[1] if len(argv) > 1  and  argv[1] is not None  and  len(argv[1]) > 0  else  None
+    training_loop_config["chkpt_dir"]           = DATA_PATH
+    training_loop_config["status_int"]          = 1 #200     #num iters between status logs
+    training_loop_config["chkpt_int"]           = 2 #1000    #num iters between storing new checkpoints
+    training_loop_config["max_iterations"]      = 6 #30000
+    training_loop_config["num_workers"]         = num_workers
+
+    # Set up the run configuration
+    run_config = train.RunConfig(storage_path = DATA_PATH,
+                                 checkpoint_config = CheckpointConfig(checkpoint_score_attribute    = "episode_reward_mean",
+                                                                      #checkpoint_frequency          = training_loop_config["chkpt_int"],
+                                                                      num_to_keep                   = 5
+                                 ),
+    )
+
+    if argv[1] is not None  and  len(argv[1]) > 1:
+        trainer = TorchTrainer.restore(argv[1])
+        print("///// Restored checkpoint {}".format(argv[1]))
+
+    # Build the trainer object
+    else:
+        trainer = TorchTrainer(train_fn, train_loop_config = training_loop_config, run_config = run_config,
+                               scaling_config = train.ScalingConfig(num_workers = num_workers, use_gpu = True))
+
+    # Run the training loop
+    print("///// Training loop beginning.  Checkpoints stored every {} iters in {}".format(training_loop_config["chkpt_int"], DATA_PATH))
+    result = trainer.fit()
 
     print("\n///// Training completed.  Final iteration results:\n")
-    print(pretty_print(result))
-    tensorboard.flush()
-    algo.stop()
+    print(result)
+    #tensorboard.flush()
     ray.shutdown()
 
 

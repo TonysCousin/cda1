@@ -48,22 +48,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  tried to pick it up from where it started. Since it had completed its specified number of iters,
 	  it would not go any further.
 
-	* Reverted back to the baseline (part2) method, not using the Train API.
-		* All checkpoints are getting written on top of each other (same name).
-		* Added logic to train.py to name the top level dir according to timestamp and put
-		  multiple checkpoints underneath, all named according to iteration #.
-		* This works for writing new checkpoints, for starting a new training session from one,
-		  and for running inference.
-	* Verified that inference on the saved part 1 checkpoint still doesn't work. It complains about
-	  'is-atari' property in SACConfig.
-		* The easily visible diff between these checkpoints is that the part 1 dir includes two
-		  hidden files, .is_checkpoint (0 length) and .tune_metadata in the top level dir.
-		* I removed these two files, but the error still occurs. Therefore, it is probably due to
-		  some content in one of the .pkl files.
-		* Still waiting on someone to respond to my post on Ray Discuss about this problem, so I'll
-		  leave it alone for now and try to regenerate the model with a new run.
-
-NEXT: 	merge in TODO cleanups from the other branch, then start a training run.
+NEXT: test continuing from a checkpoint and inference
 	try to improve resource usage
 
 
