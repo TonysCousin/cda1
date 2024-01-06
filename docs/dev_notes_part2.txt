@@ -63,7 +63,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		* Still waiting on someone to respond to my post on Ray Discuss about this problem, so I'll
 		  leave it alone for now and try to regenerate the model with a new run.
 
-NEXT: test continuing from a checkpoint and inference
+NEXT: 	merge in TODO cleanups from the other branch, then start a training run.
 	try to improve resource usage
 
 
