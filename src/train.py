@@ -20,6 +20,7 @@ def main(argv):
 
     # Identify our custom NN model
     ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
+    print("///// ModelCatalog registered.")
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
     # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
@@ -33,7 +34,7 @@ def main(argv):
     cfg.framework("torch")
     cfg_dict = cfg.to_dict()
 
-    # Define the stopper object that decides when to terminate training.
+    # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
     max_iterations      = 10000

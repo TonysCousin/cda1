@@ -42,13 +42,13 @@ class BridgitNN(TorchModelV2, nn.Module):
         self.NUM_VEHICLES_NEURONS = 140
         self.VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        NUM_MACRO_NEURONS = 64
-        NUM_FC2_NEURONS =   512
-        NUM_FC3_NEURONS =   128
+        NUM_FC1_NEURONS = 64
+        NUM_FC2_NEURONS = 512
+        NUM_FC3_NEURONS = 128
+        BRIDGIT_MODEL = "/home/starkj/ray_results/cda1/20240105-2054/30000/policies/default_policy/model/model.pt"
 
         # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
-        self.macro_data_len = ObsVec.BASE_SENSOR_DATA
-        self.macro_encoder = nn.Linear(self.macro_data_len, NUM_MACRO_NEURONS)
+        self.fc1 = nn.Linear(ObsVec.BASE_SENSOR_DATA, NUM_FC1_NEURONS)
 
         # Define the structure for the early processing of pavement sensor data - not to be trained
         self.pavement_encoder = nn.Linear(self.PAVEMENT_DATA_SIZE, self.NUM_PAVEMENT_NEURONS)
@@ -71,7 +71,7 @@ class BridgitNN(TorchModelV2, nn.Module):
             self.vehicles_encoder.bias.copy_(temp_ve.state_dict()["encoder.bias"])
 
         # The structure that brings all three data streams together
-        self.fc2 = nn.Linear(NUM_MACRO_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
+        self.fc2 = nn.Linear(NUM_FC1_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
         self.fc3 = nn.Linear(NUM_FC2_NEURONS, NUM_FC3_NEURONS)
 
         self._actor_head = nn.Sequential(
@@ -81,6 +81,42 @@ class BridgitNN(TorchModelV2, nn.Module):
         self._critic_head = nn.Sequential(
             nn.Linear(NUM_FC3_NEURONS, 1)
         )
+
+        inference_only = False
+        try:
+            io = model_config["inference_only"]
+            if io:
+                inference_only = True
+        except KeyError:
+            pass
+
+        # If this model will be run in inference-only mode, then we need to load the model params. If not, then
+        # we will let the training apparatus manage them.
+        print("///// BridgitNN model prepared to load weights. inference_only = {}.".format(inference_only))
+        if inference_only:
+
+            # Load the weights for the main Bridgit model's actor network (since this will be used for inference only)
+            sd = torch.load(BRIDGIT_MODEL).state_dict()
+            print("***** Bridgit state dict is:")
+            print(sd.keys())
+            with torch.no_grad():
+                try: #TODO: remove the old naming convention once checkpoints from 1/5/24 and earlier are no longer used
+                    self.fc1.weight.copy_(sd["action_model.fc1.weight"])
+                    self.fc1.bias.copy_(sd["action_model.fc1.bias"])
+                except KeyError:
+                    # Try the old naming convention
+                    print("      Handling KeyError using old names...")
+                    self.fc1.weight.copy_(sd["action_model.macro_encoder.weight"])
+                    self.fc1.bias.copy_(sd["action_model.macro_encoder.bias"])
+
+                self.fc2.weight.copy_(sd["action_model.fc2.weight"])
+                self.fc2.bias.copy_(sd["action_model.fc2.bias"])
+
+                self.fc3.weight.copy_(sd["action_model.fc3.weight"])
+                self.fc3.bias.copy_(sd["action_model.fc3.bias"])
+
+                self._actor_head[0].weight.copy_(sd["action_model._actor_head.0.weight"])
+                self._actor_head[0].bias.copy_(sd["action_model._actor_head.0.bias"])
 
 
     def forward(self,
@@ -93,10 +129,11 @@ class BridgitNN(TorchModelV2, nn.Module):
         """
 
         x = input_dict["obs"]
+        print("***** BridgitNN.forward: incoming x shape = ", x.shape)
 
         # Pull out the macro observations, according to the ObsVec descriptions and compute its first linear layer
         macro = x[:, 0 : ObsVec.BASE_SENSOR_DATA]
-        mo = F.tanh(self.macro_encoder(macro))
+        mo = F.tanh(self.fc1(macro))
         #print("    Macro first layer complete: mo is {}, x is {}".format(mo.shape, x.shape))
 
         # Pull out the pavement sensor data and compute its embedding

@@ -1,6 +1,7 @@
 from typing import List, Dict
 import copy
 import numpy as np
+from gymnasium.spaces import Box
 
 from constants import Constants
 from obs_vec import ObsVec
@@ -8,6 +9,7 @@ from hp_prng import HpPrng
 from roadway_b import Roadway
 from lane_change import LaneChange
 from vehicle_guidance import VehicleGuidance
+from bridgit_nn import BridgitNN
 
 
 class BridgitGuidance(VehicleGuidance):
@@ -40,9 +42,11 @@ class BridgitGuidance(VehicleGuidance):
                  prng       : HpPrng,
                  roadway    : Roadway,
                  targets    : List,
+                 is_learning: bool = True,
+                 obs_space  : Box = None,
+                 act_space  : Box = None,
                 ):
-
-        super().__init__(prng, roadway, targets)
+        super().__init__(prng, roadway, targets, is_learning, obs_space, act_space)
 
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
         self.positions = [self.PosInfo() for each in range(3)]
@@ -55,6 +59,14 @@ class BridgitGuidance(VehicleGuidance):
             self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
             self.starting_points = self._dict_union(self.starting_points, starts)
+
+        # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
+        # model here so that it can be executed.
+        print("***** BridgitGuidance constructor: is_learning = ", is_learning)
+        self.tactical_model = None
+        if not is_learning:
+            config = {"inference_only": True}
+            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 output for mean, stddev for each of the 2 actions
 
 
     def reset(self,
@@ -83,7 +95,11 @@ class BridgitGuidance(VehicleGuidance):
 
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
-        raise NotImplementedError("///// BridgitCtrl.step has yet to get a checkpoint running capability.")
+        #raise NotImplementedError("///// BridgitGuidance.step has yet to get a checkpoint running capability.")
+
+        actions = self.tactical_model({"obs": obs})
+        print("***** BridgitGuidance.step: returning ", actions)
+        return actions
 
 
     def plan_route(self,
@@ -185,6 +201,9 @@ class BridgitGuidance(VehicleGuidance):
         self.steps_since_plan = 0
 
         return obs
+
+
+    ##### Internal methods #####
 
 
     def _set_relative_lane_pos(self):

@@ -18,7 +18,7 @@ class Vehicle:
                     guidance    : VehicleGuidance, #provides the guidance algos that determines actions for this vehicle
                     prng        : HpPrng,       #the pseudo-random number generator to be used
                     roadway     : Roadway,      #the roadway geometry object for this scenario
-                    learning    : bool = False, #is this vehicle going to be learning from the experience?
+                    learning    : bool = False, #is this vehicle going to be learning from the experience? #TODO remove this if not used in part 2
                     step_size   : float = 0.1,  #duration of a time step, s
                     debug       : int   = 0     #debug printing level
                 ):

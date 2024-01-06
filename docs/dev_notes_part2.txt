@@ -80,9 +80,29 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 * Run C3 training single agent BridgitNN with SAC for additional 10k iters from C2 checkpoint 30000 using
   16 bots. Hoping that the previous model may overcome its single flaw of not changing lanes from lane 0.
+	* Training completed, checkpoints are numbered for iterations in this run, not continuing on.
+	* With mods to code for loading BridgitNN model, this becomes an old-style model, with the first
+	  layer named "macro_encoder", whereas I prefer to name it "fc1" going forward. However, the code
+	  cannot load models with different layer names embedded in them. 
+	* Inference on checkpoint 10000: lane 0 start still doesn't change lanes! However,
+	* A Lane 4 start chose to stay in lane 2 once achieved, rather than moving to lane 1, as all
+	  previous models have done. In doing this, it sped up to 33.5 m/s on the tail, as I would have
+	  wanted it to in lane 1. Log confirms the macro obs believes its SL here is 29.1, but it acts as
+	  if these two lanes are reversed. Otherwise, its speed control is the best I've seen.
 
-NEXT:
-after confirming training checkpoints work merge the algo_checkpoints branch back into part2.
+* Modified code to allow the Bridgit tactical guidance model (BridgitNN) to load pre-trained weights and
+  run in inference mode to provide functionality for the BridgitGuidance.step() method. This will allow
+  BridgitGuidance to be loaded into any of the non-ego vehicles.
+
+* Confirmed that the accepted part 1 model (stored as cda1.1-B5-20000) still throws the "is_atari" error,
+  and no word yet from the Ray team, so I may need to recreate it anyway.
+
+* Debugged the problem noted above, where lane tail-end speed limits seem to be incorrect.
+	* In addition to seeing the correct SL values in the inference logs for each time step, I re-ran
+	  the embed_eval program over several snapshots from that region (none with ego in lane 2, as they
+	  are apparently rare), and they all look correct - both the raw observation values and the
+	  interpreted values coming out of the autoencoder.
+
 
 
 

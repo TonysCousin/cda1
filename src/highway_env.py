@@ -174,49 +174,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.b_targets.append(TargetDestination(self.roadway, 4, 1600.0))
 
         #
-        #..........Vehicles
-        #
-
-        # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0.
-        # Normally, this would be wrapped in a try-except block, but Ray makes it very difficult to see the exception
-        # in that case. So we let it fail ugly and the problem is much easier to spot.
-        vc = self.vehicle_config
-        v_data = vc["vehicles"]
-        self.num_vehicles = len(v_data)
-
-        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
-        self.vehicles = []
-        for i in range(self.num_vehicles):
-            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
-            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
-            v = None
-            spec = v_data[i]
-            targets = self.t_targets if is_learning  else  self.b_targets #list of possible targets to navigate to
-            try:
-                model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
-                                    max_jerk      = spec["max_jerk"],
-                                    max_accel     = spec["max_accel"],
-                                    length        = spec["length"],
-                                    lc_duration   = spec["lc_duration"],
-                                    time_step     = self.time_step_size)
-                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets)
-                v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
-            except AttributeError as e:
-                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
-                raise e
-            except Exception as e:
-                print("///// HighwayEnv.__init__: problem creating vehicle model, guidance, or the vehicle itself: ", e)
-                print("Exception type is ", type(e))
-                raise e
-
-            self.vehicles.append(v)
-            guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
-            print("///// Vehicle {} model: {}, guidance: {}".format(i, spec["model"], spec["guidance"]))
-
-        if self.debug > 1:
-            print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
-
-        #
         #..........Define the observation space
         #
 
@@ -254,9 +211,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.debug > 1:
             print("///// observation_space = ", self.observation_space)
 
-        self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
-        self._verify_obs_limits("init after space defined")
-
         #
         #..........Define the action space
         #
@@ -269,8 +223,57 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("///// action_space = ", self.action_space)
 
         #
+        #..........Vehicles
+        #
+
+        # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0.
+        # Normally, this would be wrapped in a try-except block, but Ray makes it very difficult to see the exception
+        # in that case. So we let it fail ugly and the problem is much easier to spot.
+        vc = self.vehicle_config
+        v_data = vc["vehicles"]
+        self.num_vehicles = len(v_data)
+
+        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
+        self.vehicles = []
+        for i in range(self.num_vehicles):
+            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
+            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
+            v = None
+            spec = v_data[i]
+            targets = self.t_targets if is_learning  else  self.b_targets #list of possible targets to navigate to
+            print("***** HighwayEnv._init: creating vehicle {}. is_learning = {}".format(i, is_learning))
+            try:
+                model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
+                                    max_jerk      = spec["max_jerk"],
+                                    max_accel     = spec["max_accel"],
+                                    length        = spec["length"],
+                                    lc_duration   = spec["lc_duration"],
+                                    time_step     = self.time_step_size)
+                #guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets, is_learning)
+                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets, is_learning, \
+                                                                            self.observation_space, self.action_space)
+                v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
+            except AttributeError as e:
+                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
+                raise e
+            except Exception as e:
+                print("///// HighwayEnv.__init__: problem creating vehicle model, guidance, or the vehicle itself: ", e)
+                raise e
+
+            self.vehicles.append(v)
+            guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
+            print("///// Vehicle {} model: {}, guidance: {}".format(i, spec["model"], spec["guidance"]))
+
+        if self.debug > 1:
+            print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
+
+        #
         #..........Remaining initializations
         #
+
+        # Build the full observation matrix and verify that all observations have been initialized properly
+        self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
+        self._verify_obs_limits("init after space defined")
 
         # Other persistent data
         self.total_steps = 0        #num time steps for this trial (worker), across all episodes; NOTE that this is different from the

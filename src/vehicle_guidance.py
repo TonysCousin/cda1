@@ -1,6 +1,8 @@
 from typing import List
 from abc import ABC, abstractmethod
 import numpy as np
+from gymnasium.spaces import Box
+
 from hp_prng import HpPrng
 from roadway_b import Roadway
 from target_destination import TargetDestination
@@ -9,15 +11,23 @@ class VehicleGuidance(ABC):
     """Abstract base class for vehicle guidance algorithms that map observations to action commands for a vehicle."""
 
     def __init__(self,
-                 prng       : HpPrng,   #pseudo-random number generator
-                 roadway    : Roadway,  #the roadway geometry
-                 targets    : List,     #a list of the possible targets that the host vehicle may choose as its destination
+                 prng       : HpPrng,       #pseudo-random number generator
+                 roadway    : Roadway,      #the roadway geometry
+                 targets    : List,         #a list of the possible targets that the host vehicle may choose as its destination
+                 is_learning: bool = True,  #is the guidance algorithm an RL agent under training?
+                 obs_space  : Box = None,   #the observation space used by the environment model
+                 act_space  : Box = None,   #the action space used by the environment model
                 ):
 
         self.prng = prng
         self.roadway = roadway
         self.targets = targets
         self.my_vehicle = None
+        self.is_learning = is_learning
+
+        # Environment obs/action spaces that are needed by objects used for inference only
+        self.obs_space = obs_space
+        self.action_space = act_space
 
 
     def set_vehicle(self,
