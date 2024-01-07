@@ -124,10 +124,12 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Inference on one of the late iterations showed consistent desire to make immediate lane changes,
 	  despite the situation. Inference on iter 12000 worked fairly well, but it had some speed control
 	  problems and would change lanes out of lane 0.
+	* I killed the run a little early.
 
 1/7/24
 
-* Run C6...
+* Run C6 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Checkpoints stored in 20240107-0534
 	* Changed BotType1bGuidance so that its probability of lane change is reduced from 0.2 to 0.06,
 	  in order to make it more lazy about the maneuver.
 	* Made the bot guidance (both 1a & 1b) a little more conservative in their ACC logic.
@@ -135,6 +137,14 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  They were previously 150 and 250, skewing the neighbor vehicles in front of ego. As ego often
 	  starts at a low speed, most of the vehicles have passed it by by the time it reaches cruising
 	  speed, so they are useless for the sensor training.
+	* Training again failed to produce, so killed it after 19k iters. Progress was good through
+	  ~14k iters, then the episode lengths dropped dramatically, and rmax went to ~-0.3.
+	* Inference on checkpoint 13000 looks pretty decent, but still doesn't change lanes out of 0.
+
+* Run C7 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Rolled back all the reward changes made for runs C4 and C5 above. Keeping the bot changes
+	  made for run C6.
+	* Checkpoints stored in 20240107-1231.
 
 
 

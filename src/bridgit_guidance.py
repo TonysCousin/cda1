@@ -95,6 +95,7 @@ class BridgitGuidance(VehicleGuidance):
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
         actions = self.tactical_model({"obs": obs})
+        print("***** BridgitNN.step returning actions ", actions)
         return actions
 
 
