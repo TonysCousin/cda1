@@ -241,7 +241,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             v = None
             spec = v_data[i]
             targets = self.t_targets if is_learning  else  self.b_targets #list of possible targets to navigate to
-            print("***** HighwayEnv._init: creating vehicle {}. is_learning = {}".format(i, is_learning))
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
@@ -1126,8 +1125,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     stopped : bool,         #has the vehicle come to a standstill?
                     tgt_reached : bool,     #has the vehicle reached an identified success target?
                    ):
-        """Returns the reward for the current time step (float).  The reward should be near [-1, 1] for any situation.
+        """Returns the reward for the current time step (float).  The reward should be within approx [-1, 1] for any situation.
             NOTE: for now we are only looking at the first vehicle's observations (the ego vehicle).
+            NOTE: observations in self.all_obs are at real world scale.
         """
 
         if self.debug > 1:
@@ -1176,7 +1176,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Reward for following the route planner's recommendations for lane change activity, only if there is a non-zero recommendation that
             # is not "current lane". Staying in the current lane by default doesn't deserve a reward if it is the only possible choice.
 
-            # CAUTION: this code block is tightly coupled to the design of the BridgitCtrl class.
+            # CAUTION: this code block is tightly coupled to the design of the BridgitGuidance class.
             lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
             des_max = max(lc_desired)
             if des_max < 0.001:
@@ -1189,7 +1189,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
-                factor = 0.3
+                factor = 0.4
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
                     bonus = factor #bonus needs to be rather large, since this will be a rare event
                     explanation += "LC des bonus {:.4f}. ".format(bonus)
@@ -1197,7 +1197,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
                 else: #otherwise not desirable
-                    bonus = -factor
+                    bonus = -0.3*factor
                     explanation += "LC des poor {:.4f}. ".format(bonus)
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
@@ -1208,7 +1208,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
+                penalty = 0.0001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 
@@ -1223,14 +1223,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             """
 
             # Small penalty for widely varying speed commands
-            cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED
-            penalty = 0.07 * cmd_diff * cmd_diff
+            cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
+            penalty = 1.0 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.06
+            speed_mult = 0.05
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

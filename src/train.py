@@ -37,7 +37,7 @@ def main(argv):
     # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 10000
+    max_iterations      = 40000
 
     # Define the custom environment for Ray
     env_config = {}

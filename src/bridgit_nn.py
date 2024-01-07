@@ -97,8 +97,6 @@ class BridgitNN(TorchModelV2, nn.Module):
 
             # Load the weights for the main Bridgit model's actor network (since this will be used for inference only)
             sd = torch.load(BRIDGIT_MODEL).state_dict()
-            print("***** Bridgit state dict is:")
-            print(sd.keys())
             with torch.no_grad():
                 try: #TODO: remove the old naming convention once checkpoints from 1/5/24 and earlier are no longer used
                     self.fc1.weight.copy_(sd["action_model.fc1.weight"])
@@ -129,7 +127,6 @@ class BridgitNN(TorchModelV2, nn.Module):
         """
 
         x = input_dict["obs"]
-        print("***** BridgitNN.forward: incoming x shape = ", x.shape)
 
         # Pull out the macro observations, according to the ObsVec descriptions and compute its first linear layer
         macro = x[:, 0 : ObsVec.BASE_SENSOR_DATA]

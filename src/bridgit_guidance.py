@@ -62,7 +62,6 @@ class BridgitGuidance(VehicleGuidance):
 
         # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
         # model here so that it can be executed.
-        print("***** BridgitGuidance constructor: is_learning = ", is_learning)
         self.tactical_model = None
         if not is_learning:
             config = {"inference_only": True}
@@ -95,10 +94,7 @@ class BridgitGuidance(VehicleGuidance):
 
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
 
-        #raise NotImplementedError("///// BridgitGuidance.step has yet to get a checkpoint running capability.")
-
         actions = self.tactical_model({"obs": obs})
-        print("***** BridgitGuidance.step: returning ", actions)
         return actions
 
 
