@@ -114,7 +114,7 @@ class BotType1bGuidance(VehicleGuidance):
                     # If the sensors detect that the zones immediately to the left are unoccupied then command the change.
                     # Randomize the initiation of the command, since most crashes happen in the first couple seconds of a scenario, when
                     # all vehicles are trying to adjust their lateral position at the same time.
-                    if obs[ObsVec.LEFT_OCCUPIED] < 0.5  and  self.prng.random() < 0.2:
+                    if obs[ObsVec.LEFT_OCCUPIED] < 0.5  and  self.prng.random() < 0.06:
                         cmd = LaneChange.CHANGE_LEFT
 
             # Else (target must be to our right)
@@ -124,7 +124,7 @@ class BotType1bGuidance(VehicleGuidance):
                 if rid >= 0  and ra <= 0.0  and rb >= 0.0:
 
                     # If the sensors detect that the zones immediately to the left are unoccupied then command the change
-                    if obs[ObsVec.RIGHT_OCCUPIED] < 0.5  and  self.prng.random() < 0.2:
+                    if obs[ObsVec.RIGHT_OCCUPIED] < 0.5  and  self.prng.random() < 0.06:
                         cmd = LaneChange.CHANGE_RIGHT
 
         action[1] = cmd
@@ -143,8 +143,8 @@ class BotType1bGuidance(VehicleGuidance):
             whenever possible, but slows to match the speed of a slower vehicle close in front of it to avoid a crash.
         """
 
-        DISTANCE_OF_CONCERN     = 12.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to start slowing, m
-        CRITICAL_DISTANCE       =  3.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to be matching speed, m
+        DISTANCE_OF_CONCERN     = 15.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to start slowing, m
+        CRITICAL_DISTANCE       =  4.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to be matching speed, m
 
         speed_cmd = tgt_speed
 

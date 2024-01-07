@@ -103,10 +103,45 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  are apparently rare), and they all look correct - both the raw observation values and the
 	  interpreted values coming out of the autoencoder.
 
+* Run C4 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Revised the BridgitNN code so that its first layer is now named "fc1" instead of "macro_encoder",
+	  which breaks compatibility with older checkpoints.
+	* Modified reward function:
+		* Reduced the penalty for LC desirability poor choice; increased the factor from 0.3 to 0.4.
+		* Reduced normal lane change penalty mult from 0.002 to 0.0001. Both of these changes should
+		  encourage the agent to take more risks in changing lanes.
+		* Reduced speed_mult from 0.06 to 0.05 for penalties for not following speed limit (to help
+		  avoid episode rewards < -1).
+		* Increased mult for widely varying speed commands from 0.07 to 0.1 to encourage more
+		  smoothness.
+	* I killed the run after 5k iters since the speed variation penalty was still ridiculously low.
+
+* Run C5 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Checkpoints are in dir 20240106-2006.
+	* Revised reward penalty for speed variation - multiplier from 0.1 to 1.0.
+	* Training progressed okay until 12000 iters, after which the rewards and episode length suddenly
+	  tumbled and stayed at low values from then on.
+	* Inference on one of the late iterations showed consistent desire to make immediate lane changes,
+	  despite the situation. Inference on iter 12000 worked fairly well, but it had some speed control
+	  problems and would change lanes out of lane 0.
+
+1/7/24
+
+* Run C6...
+	* Changed BotType1bGuidance so that its probability of lane change is reduced from 0.2 to 0.06,
+	  in order to make it more lazy about the maneuver.
+	* Made the bot guidance (both 1a & 1b) a little more conservative in their ACC logic.
+	* Changed the global constants DISTRO_DIST_REAR, DISTRO_DIST_FRONT to be balanced at 200 m each.
+	  They were previously 150 and 250, skewing the neighbor vehicles in front of ego. As ego often
+	  starts at a low speed, most of the vehicles have passed it by by the time it reaches cruising
+	  speed, so they are useless for the sensor training.
+
 
 
 
 TODO:
+- Reduce speed penalty even more, to be on line with speed var penalty.
+
 - Review TODOs in graphics.py
 - consider adding dropouts to BridgitNN
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
@@ -122,13 +157,14 @@ TODO:
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
-- Build BridgitCtrl to read a checkpoint & execute it (preferably without Ray)
 - find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
   only with torch, no ray involved.
-- Try running inference with real checkpoint - modify the action loop to use BridgitCtrl instead of loading directly?
+- Try running inference with real checkpoint - modify the action loop to use BridgitGuidance instead of loading directly?
 
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
 - Add vehicle icons to graphics
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
+- Add graphic replay w/step fwd/back
+- Display lane change as a gradual motion
