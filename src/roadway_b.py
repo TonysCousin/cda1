@@ -86,12 +86,14 @@ class Roadway:
                 Lane 1  ---------------------------------->Lane 2---------------------------------------->
 
 
-        CAUTION: This is not a general container.  This __init__ code defines the exact geometry of the highway.
+        CAUTION: This is not a general container.  The code in __init__, param_to_map_frame() and map_to_param_frame()
+                 defines, and is dependent upon, the exact geometry of the highway.
     """
 
     NUM_LANES               = 6         #total number of unique lanes in the scenario
     WIDTH                   = 30.0      #lane width, m; using a crazy large number so that grapics are pleasing
     COS_RAMP_ANGLE          = 0.8660    #cosine of the angle of any ramp segment from the X axis
+    SIN_RAMP_ANGLE          = 0.5       #sine of the angle of ramp segments from the X axis
 
 
     def __init__(self,
@@ -175,30 +177,30 @@ class Roadway:
 
         p = x
         if lane == 0:
-            join_point = self.lanes[0].segments[0][2]
-            sep_point = self.lanes[0].segments[2][0]
-            if x < join_point:
-                p = join_point - (join_point - x)/self.COS_RAMP_ANGLE
-            elif x > sep_point:
-                p = sep_point + (x - sep_point)/self.COS_RAMP_ANGLE
+            join_x = self.lanes[0].segments[0][2]
+            sep_x = self.lanes[0].segments[2][0]
+            if x < join_x:
+                p = join_x - (join_x - x)/self.COS_RAMP_ANGLE
+            elif x > sep_x:
+                p = sep_x + (x - sep_x)/self.COS_RAMP_ANGLE
 
         elif lane == 1:
-            join_point = self.lanes[1].segments[0][2]
-            if x < join_point:
-                p = join_point - (join_point - x)/self.COS_RAMP_ANGLE
+            join_x = self.lanes[1].segments[0][2]
+            if x < join_x:
+                p = join_x - (join_x - x)/self.COS_RAMP_ANGLE
 
         elif lane == 4:
-            join_point = self.lanes[4].segments[0][2]
-            sep_point = self.lanes[4].segments[2][0]
-            if x < join_point:
-                p = join_point - (join_point - x)/self.COS_RAMP_ANGLE
-            elif x > sep_point:
-                p = sep_point + (x - sep_point)/self.COS_RAMP_ANGLE
+            join_x = self.lanes[4].segments[0][2]
+            sep_x = self.lanes[4].segments[2][0]
+            if x < join_x:
+                p = join_x - (join_x - x)/self.COS_RAMP_ANGLE
+            elif x > sep_x:
+                p = sep_x + (x - sep_x)/self.COS_RAMP_ANGLE
 
         elif lane == 5:
-            join_point = self.lanes[5].segments[0][2]
-            if x < join_point:
-                p = join_point - (join_point - x)/self.COS_RAMP_ANGLE
+            join_x = self.lanes[5].segments[0][2]
+            if x < join_x:
+                p = join_x - (join_x - x)/self.COS_RAMP_ANGLE
 
         return p
 
@@ -206,46 +208,63 @@ class Roadway:
     def param_to_map_frame(self,
                            p                : float,        #P coordinate in the parametric frame, m
                            lane             : int           #lane ID (0-indexed)
-                          ) -> float:                       #Returns X coordinate, m
+                          ) -> Tuple:                       #Returns (X, Y) coordinate, m
         """Converts a point in the parametric coordinate frame (p, q) to a corresponding point in the map frame (x, y).
-            Since the vehicles have no freedom of lateral movement other than whole-lane changes, Q and Y coordinates
-            are not important, only lane IDs, which will not change between coordinate frames.
+            Since the vehicles have no freedom of lateral movement other than whole-lane changes, we us lane ID as a
+            suitable proxy for the vertical location.
 
             CAUTION: this logic is specific to the roadway geometry defined in __init__().
         """
 
         # We need to use max() here to compensate for small round-off errors
         x = p
+        y = self.lanes[lane].segments[0][1] #left end of the lane
         if lane == 0:
-            join_point = self.lanes[0].segments[0][2]
-            sep_point = self.lanes[0].segments[2][0]
-            if p < join_point:
-                x = max(join_point - (join_point - p)*self.COS_RAMP_ANGLE, self.lanes[0].start_x)
-            elif p > sep_point:
-                x = sep_point + (p - sep_point)*self.COS_RAMP_ANGLE
+            join_x = self.lanes[0].segments[0][2]
+            join_y = self.lanes[0].segments[0][3]
+            sep_x = self.lanes[0].segments[2][0]
+            sep_y = self.lanes[0].segments[2][1]
+            y = join_y
+            if p < join_x:
+                x = max(join_x - (join_x - p)*self.COS_RAMP_ANGLE, self.lanes[0].start_x)
+                y = join_y + (join_x - p)*self.SIN_RAMP_ANGLE
+            elif p > sep_x:
+                x = sep_x + (p - sep_x)*self.COS_RAMP_ANGLE
+                y = sep_y + (p - sep_x)*self.SIN_RAMP_ANGLE
 
         elif lane == 1:
-            join_point = self.lanes[1].segments[0][2]
-            if p < join_point:
-                x = max(join_point - (join_point - p)*self.COS_RAMP_ANGLE, self.lanes[1].start_x)
+            join_x = self.lanes[1].segments[0][2]
+            join_y = self.lanes[1].segments[0][3]
+            y = join_y
+            if p < join_x:
+                x = max(join_x - (join_x - p)*self.COS_RAMP_ANGLE, self.lanes[1].start_x)
+                y = join_y + (join_x - p)*self.SIN_RAMP_ANGLE
 
         elif lane == 4:
-            join_point = self.lanes[4].segments[0][2]
-            sep_point = self.lanes[4].segments[2][0]
-            if p < join_point:
-                x = max(join_point - (join_point - p)*self.COS_RAMP_ANGLE, self.lanes[4].start_x)
-            elif p > sep_point:
-                x = sep_point + (p - sep_point)*self.COS_RAMP_ANGLE
+            join_x = self.lanes[4].segments[0][2]
+            join_y = self.lanes[4].segments[0][3]
+            sep_x = self.lanes[4].segments[2][0]
+            sep_y = self.lanes[4].segments[2][1]
+            y = join_y
+            if p < join_x:
+                x = max(join_x - (join_x - p)*self.COS_RAMP_ANGLE, self.lanes[4].start_x)
+                y = join_y - (join_x - p)*self.SIN_RAMP_ANGLE #ramp is angling downward
+            elif p > sep_x:
+                x = sep_x + (p - sep_x)*self.COS_RAMP_ANGLE
+                y = sep_y - (p - sep_x)*self.SIN_RAMP_ANGLE #ramp is angling downward
 
         elif lane == 5:
-            join_point = self.lanes[5].segments[0][2]
-            if p < join_point:
-                x = max(join_point - (join_point - p)*self.COS_RAMP_ANGLE, self.lanes[5].start_x)
+            join_x = self.lanes[5].segments[0][2]
+            join_y = self.lanes[5].segments[0][3]
+            y = join_y
+            if p < join_x:
+                x = max(join_x - (join_x - p)*self.COS_RAMP_ANGLE, self.lanes[5].start_x)
+                y = join_y - (join_x - p)*self.SIN_RAMP_ANGLE
 
         else: #any remaining straight lanes
             x = max(p, self.lanes[lane].start_x)
 
-        return x
+        return x, y
 
 
     def get_current_lane_geom(self,
@@ -264,7 +283,7 @@ class Roadway:
         """
 
         # Ensure that the given location is not prior to beginning of the lane
-        assert self.param_to_map_frame(p_loc, lane_id) >= self.lanes[lane_id].start_x, \
+        assert self.param_to_map_frame(p_loc, lane_id)[0] >= self.lanes[lane_id].start_x, \
                 "///// Roadway.get_current_lane_geom: p_loc of {} is prior to beginning of lane {}".format(p_loc, lane_id)
 
         if self.debug > 0:
@@ -353,7 +372,7 @@ class Roadway:
 
         assert 0 <= lane < len(self.lanes), "Roadway.get_speed_limit input lane ID {} invalid.".format(lane)
 
-        x = self.param_to_map_frame(p, lane)
+        x, _ = self.param_to_map_frame(p, lane)
         for s in self.lanes[lane].segments:
             if s[0] <= x <= s[2]:
                 return s[5]
@@ -368,7 +387,7 @@ class Roadway:
 
         """Returns the pavement type at the indicated lane & P coordinate."""
 
-        x = self.param_to_map_frame(p, lane)
+        x, _ = self.param_to_map_frame(p, lane)
         for s in self.lanes[lane].segments:
             if s[0] <= x <= s[2]:
                 return s[6]

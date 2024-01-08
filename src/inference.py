@@ -1,4 +1,3 @@
-print("***** first line!")
 from cmath import inf
 import sys
 import time
@@ -7,22 +6,17 @@ from typing import List
 import numpy as np
 import argparse
 import pygame
-print("***** pygame imported")
 
 from obs_vec import ObsVec
-print("***** ObsVec imported")
 from highway_env_wrapper import HighwayEnvWrapper
-print("***** env imported")
 from bridgit_nn import BridgitNN
 from graphics import Graphics
-print("***** Imports complete")
 
 """This program runs the selected policy checkpoint for one episode and captures key state variables throughout."""
 
 def main(argv):
 
     # Handle any args
-    print("***** main started")
     program_desc = "Runs a single episode of the cda1 vehicle ML roadway environment in inference mode with any combination of vehicles."
     scenario_desc = '''Scenario - initial vehicle locations & speeds:
         0:  (default) everything randomized.
@@ -35,16 +29,13 @@ def main(argv):
     '''
     epilog = "If a non-learning scenario (*) is chosen then any checkpoint specified is ignored."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = epilog, formatter_class = argparse.RawTextHelpFormatter)
-    print("***** parser created")
     parser.add_argument("-c", type = str, help = "Ray checkpoint dir containing the RL model to be run for the ego vehicle.")
     parser.add_argument("-L", type = int, default = inf, help = "Max num time steps to run")
     parser.add_argument("-s", type = int, default = 0, help = scenario_desc)
-    print("***** args added")
     args = parser.parse_args()
     checkpoint = args.c
     scenario = args.s
     episode_len = args.L
-    print("***** completed handling args.")
 
     # Verify that checkpoint & scenario are telling the same story. If we are going inference-only then erase the checkpoint.
     inference_only = False

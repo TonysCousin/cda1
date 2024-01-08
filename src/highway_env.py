@@ -1,4 +1,3 @@
-print("***** HighwayEnv beginning imports")
 import sys
 import copy
 from statistics import mean
@@ -32,7 +31,6 @@ from bridgit_model import BridgitModel
 from bridgit_guidance import BridgitGuidance
 from embed_model import EmbedModel
 from embed_guidance import EmbedGuidance
-print("***** HighwayEnv imports complete")
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
 
@@ -1215,7 +1213,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
+                penalty = 0.0002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
                 explanation += "Ln chg pen {:.4f}. ".format(penalty)
 

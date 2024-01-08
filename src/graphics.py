@@ -2,19 +2,37 @@ from cmath import inf
 import math
 import pygame
 from pygame.locals import *
-import gymnasium
 from typing import List
 from constants import Constants
-from highway_env_wrapper import HighwayEnvWrapper
+from highway_env import HighwayEnv
 from roadway_b import Roadway
+from target_destination import TargetDestination
 
-"""Provides all the graphics display for the inference program."""
+"""Provides all the graphics display for the inference program.
+
+    Some notes about pixel geometry. These are subject to change, so should be taken with a grain of salt.
+    Window size of 1800 (wide) x 800 (high) pixels works well.  With this size and the RoadwayB track, we
+    get a scale factor of 0.588 pixels/meter.  A 30 m lane width display is pleasing to the eye and scales
+    to 18 pixels across, which fits a 16x16 icon nicely, to represent a vehicle for visual purposes. Note
+    that this width is only used for display purposes - for dynamic calculations, it is assumed the lane is
+    a typical 3.7 m width.
+
+    However, note that
+        * a 5 m long vehicle covers only 3 pixels in the display
+        * each 5 m sensor grid is 3x3 pixels across (despite the ridiculously large display of lane width)
+
+    For the graphics, the R-S coordinate frame has its origin at the upper left of the window, with R
+    values increasing to the right and S values increasing downward.  Meanwhile, the map coordinate frame
+    (x, y) has its origin somewhere on the left edge of the map, so all X values are positive, increasing
+    to the right, and y values increase going upward.
+"""
 
 class Graphics:
 
     # set up the colors & fonts
     BLACK                   = (  0,   0,   0)
     WHITE                   = (255, 255, 255)
+    BACKGROUND_COLOR        = ( 40,  40,  40)
     LEGEND_COLOR            = WHITE
     LANE_EDGE_COLOR         = WHITE
     NEIGHBOR_COLOR          = ( 64, 128, 255)
@@ -29,18 +47,18 @@ class Graphics:
 
     # Other graphics constants
     LANE_WIDTH      = Roadway.WIDTH
-    WINDOW_SIZE_R   = 1800        #window width, pixels
-    WINDOW_SIZE_S   = 800         #window height, pixels
+    WINDOW_SIZE_R   = 1800      #window width, pixels
+    WINDOW_SIZE_S   = 800       #window height, pixels
     REAL_TIME_RATIO = 5.0       #Factor faster than real time
     FONT_PATH       = "docs/fonts"
     IMAGE_PATH      = "docs/images"
 
     # Geometry of data plots
-    PLOT_H          = 80       #height of each plot, pixels
+    PLOT_H          = 80        #height of each plot, pixels
     PLOT_W          = 300       #width of each plot, pixels
     PLOT1_R         = 0.7*WINDOW_SIZE_R #upper-left corner of plot #1
     PLOT1_S         = 0.5*WINDOW_SIZE_S
-    PLOT2_R         = PLOT1_R #upper-left corner of plot #2
+    PLOT2_R         = PLOT1_R   #upper-left corner of plot #2
     PLOT2_S         = PLOT1_S + PLOT_H + BASIC_FONT_SIZE + 30
     LOW_SPEED       = 20.1      #m/s
     NOMINAL_SPEED   = 29.1      #m/s
@@ -53,7 +71,7 @@ class Graphics:
     #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
     def __init__(self,
-                 env    : gymnasium.Env
+                 env    : HighwayEnv,
                 ):
         """Initializes the graphics and draws the roadway background display."""
 
@@ -74,7 +92,7 @@ class Graphics:
         self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
 
         # draw the background onto the surface
-        self.window_surface.fill(Graphics.BLACK)
+        self.window_surface.fill(Graphics.BACKGROUND_COLOR)
 
         # Loop through all segments of all lanes and find the extreme coordinates to determine our bounding box
         x_min = inf
@@ -104,7 +122,7 @@ class Graphics:
         roadway_height = y_max - y_min
         ar_display = display_width / display_height
         ar_roadway = roadway_width / roadway_height
-        self.scale = display_height / roadway_height     #pixels/meter
+        self.scale = display_height / roadway_height     #pixels/meter (on Tensorbook this is 0.588)
         if ar_roadway > ar_display:
             self.scale = display_width / roadway_width
         self.roadway_center_x = x_min + 0.5*roadway_width
@@ -125,8 +143,20 @@ class Graphics:
         # Initialize images
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH + "/crash16.bmp").convert()
         self.off_road_image = pygame.image.load(Graphics.IMAGE_PATH + "/off-road16.bmp").convert()
-        self.train_vehicle_image = pygame.image.load(Graphics.IMAGE_PATH + "/Yellow_car16.bmp").convert()
-        #TODO need a blue image for bots also
+        self.vehicle_ego_image = pygame.image.load(Graphics.IMAGE_PATH + "/Yellow_red_car16.bmp").convert()
+        self.vehicle_bot1b_image = pygame.image.load(Graphics.IMAGE_PATH + "/Blue_car16.bmp").convert()
+        self.target_primary_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_red_white_lg_16.bmp").convert()
+        self.target_secondary_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_black_white_sm_16.bmp").convert()
+        self.square_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_16.bmp").convert()
+
+        # Determine offsets for vehicle image centers - these needed to be subtracted from the (r, s) location in order to display an image
+        # because the image display is keyed to the upper-left corner of the image. Assumes all vehicle images are the same size.
+        image_rect = list(self.vehicle_ego_image.get_rect())
+        self.veh_image_r_offset = (image_rect[2] - image_rect[0])//2
+        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2
+
+        # Display the training targets (primary) and bot targets (secondary)
+        self._display_targets()
 
         # Set up lists of previous screen coords and display colors for each vehicle
         vehicles = env.get_vehicle_data()
@@ -170,14 +200,13 @@ class Graphics:
         self.plot_lane.add_reference_line(4, Graphics.REFERENCE_COLOR)
         self.plot_lane.add_reference_line(5, Graphics.REFERENCE_COLOR)
 
+
+
+
         #TODO: sample the vehicle images to see how they fit
-        """
-        image_rect = list(self.train_vehicle_image.get_rect())
-        veh_image_r_offset = (image_rect[2] - image_rect[0])//2
-        veh_image_s_offset = (image_rect[3] - image_rect[1])//2
-        pos = self.train_vehicle_image.get_rect().move(Graphics.PLOT1_R + Graphics.PLOT_W + 200, Graphics.PLOT1_S)
-        self.window_surface.blit(self.train_vehicle_image, pos)
-        """
+        r, s = self._map2screen(350.0, 0.0)
+        pos = self.square_image.get_rect().move(r - self.veh_image_r_offset, s - self.veh_image_s_offset)
+        self.window_surface.blit(self.square_image, pos)
 
 
     def update(self,
@@ -191,7 +220,7 @@ class Graphics:
         for v_idx in range(len(vehicles)):
 
             # Grab the background under where we want the vehicle to appear & erase the old vehicle
-            pygame.draw.circle(self.window_surface, Graphics.BLACK, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
+            pygame.draw.circle(self.window_surface, Graphics.BACKGROUND_COLOR, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
 
             # Skip over vehicles that are inactive for reasons other than a crash or ego off-roading
             if not vehicles[v_idx].active  and  not (vehicles[v_idx].crashed  or  (v_idx == 0  and  vehicles[v_idx].off_road)):
@@ -204,7 +233,7 @@ class Graphics:
             # If the vehicle has crashed, then display the crash symbol at its location
             if vehicles[v_idx].crashed:
                 #print("***   Graphics.update: vehicle {} crashed.".format(v_idx))
-                image_rect = list(self.crash_image.get_rect())
+                image_rect = list(self.crash_image.get_rect()) #TODO: refactor all of these offset calcs into the constructor for 16-bit images
                 r_offset = (image_rect[2] - image_rect[0])//2
                 s_offset = (image_rect[3] - image_rect[1])//2
                 pos = self.crash_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
@@ -333,8 +362,7 @@ class Graphics:
 
         road = self.env.roadway
         lane = vehicles[vehicle_id].lane_id
-        x = road.param_to_map_frame(vehicles[vehicle_id].p, lane)
-        y = None
+        x, y = road.param_to_map_frame(vehicles[vehicle_id].p, lane)
 
         # Figure out which segment of the lane it is in
         found = False
@@ -366,6 +394,31 @@ class Graphics:
         return r, s
 
 
+    def _display_targets(self):
+        """Displays each of the primary and secondary target locations."""
+
+        # Display the secondary one first, as this may be a superset of the primary targets
+        for tgt in self.env.b_targets:
+            self._display_target(tgt, self.target_secondary_image)
+
+        # Now display the primary targets, whose images will overlay any secondaries that coincide
+        for tgt in self.env.t_targets:
+            self._display_target(tgt, self.target_primary_image)
+
+
+    def _display_target(self,
+                            tgt     : TargetDestination,
+                            image   : pygame.image,
+                        ):
+        """Displays a single target destination, using the desired image, at its defined location."""
+
+        x, y = self.env.roadway.param_to_map_frame(tgt.p, tgt.lane_id)
+        r, s = self._map2screen(x, y)
+        pos = image.get_rect().move(r - self.veh_image_r_offset, s - self.veh_image_s_offset)
+        self.window_surface.blit(image, pos)
+
+
+
     def _write_legend(self,
                       r     : int,          #R coordinate of upper-left corner of the legend
                       s     : int,          #S coordinate of the upper-left corner of the legend
@@ -375,7 +428,7 @@ class Graphics:
         # Create the text on a separate surface and copy it to the display surface
         title = "SPACE = Start/Pause/Resume,  ESC = Exit"
         width = len(title) * Graphics.AVG_PIX_PER_CHAR_LARGE
-        text = self.basic_font.render(title, True, Graphics.LEGEND_COLOR, Graphics.BLACK)
+        text = self.basic_font.render(title, True, Graphics.LEGEND_COLOR, Graphics.BACKGROUND_COLOR)
         text_rect = text.get_rect()
         text_rect.center = (r + width//2, s - Graphics.LARGE_FONT_SIZE)
         self.window_surface.blit(text, text_rect)
@@ -442,7 +495,7 @@ class Plot:
 
         # Create the plot's text on a separate surface and copy it to the display surface
         if title is not None:
-            text = self.basic_font.render(title, True, axis_color, Graphics.BLACK)
+            text = self.basic_font.render(title, True, axis_color, Graphics.BACKGROUND_COLOR)
             text_rect = text.get_rect()
             text_rect.center = (corner_r + width//2, corner_s - Graphics.BASIC_FONT_SIZE)
             surface.blit(text, text_rect)
@@ -492,7 +545,7 @@ class Plot:
         """
 
         label = "{:.0f}".format(val)
-        text = self.basic_font.render(label, True, self.axis_color, Graphics.BLACK)
+        text = self.basic_font.render(label, True, self.axis_color, Graphics.BACKGROUND_COLOR)
         text_rect = text.get_rect()
         text_rect.center = (self.cr - (len(label) + 1)*Graphics.BASIC_FONT_SIZE//2, location)
         self.surface.blit(text, text_rect)

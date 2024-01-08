@@ -1,11 +1,7 @@
-print("***** Beginning imports for HighwayEnvWrapper")
 import numpy as np
 from typing import Tuple, Dict
-print("***** HighwayEnvWrapper: ready to import rllib")
 from ray.rllib.env.env_context import EnvContext
-print("***** HighwayEnvWrapper: rllib import complete.")
 from gymnasium.spaces import Box
-print("***** HighwayEnvWrapper: gymnasium import complete.")
 
 from constants import Constants
 from obs_vec import ObsVec

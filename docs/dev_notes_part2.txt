@@ -107,12 +107,12 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Revised the BridgitNN code so that its first layer is now named "fc1" instead of "macro_encoder",
 	  which breaks compatibility with older checkpoints.
 	* Modified reward function:
-		* Reduced the penalty for LC desirability poor choice; increased the factor from 0.3 to 0.4.
-		* Reduced normal lane change penalty mult from 0.002 to 0.0001. Both of these changes should
+		1 Reduced the penalty for LC desirability poor choice; increased the factor from 0.3 to 0.4.
+		2 Reduced normal lane change penalty mult from 0.002 to 0.0001. Both of these changes should
 		  encourage the agent to take more risks in changing lanes.
-		* Reduced speed_mult from 0.06 to 0.05 for penalties for not following speed limit (to help
+		3 Reduced speed_mult from 0.06 to 0.05 for penalties for not following speed limit (to help
 		  avoid episode rewards < -1).
-		* Increased mult for widely varying speed commands from 0.07 to 0.1 to encourage more
+		4 Increased mult for widely varying speed commands from 0.07 to 0.1 to encourage more
 		  smoothness.
 	* I killed the run after 5k iters since the speed variation penalty was still ridiculously low.
 
@@ -148,6 +148,20 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* While this was running (at ~14k iters) the inference program crashed with a segfault several
 	  times. Usually, this brings down the whole machine eventually, so it may start affecting
 	  training results. However, training continued for some time afterwards...
+	* Training continued through at least 21k iters, with rewards and mean episode lengths
+	  gradually improving like they should. At this point rmin ~-1.5, rmean ~+0.1, rmax ~1.1
+	  and mean ep len ~98.
+	* Finally died of a segfault after 30200 iters, so the last checkpoint is 30000. At that time
+	  rmin ~-1, rmean ~0.5, rmax ~1.5 and mean ep len ~99, training at 6100 ksteps/hr.
+	* Inference on checkpoint 30000: still will not change lanes out of 0. Rear-ended bots in two
+	  different tests. Otherwise, behavior is basically good.
+
+1/8/24
+
+* Run C8 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Reduced penalty for lane change - multiplier from 0.002 to 0.0002 (reintroducing C4 change
+	  #2, but not quite as large a change.
+	* Checkpoints stored in 20240108-0834.
 
 
 
@@ -156,6 +170,7 @@ TODO:
 - Reintroduce reward changes
 - Reduce speed penalty even more, to be on line with speed var penalty.
 
+- get square & two new car icons in slack & try them out
 - Review TODOs in graphics.py
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider adding dropouts to BridgitNN
@@ -170,6 +185,7 @@ TODO:
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
+- move targets around wheen training, including lane 0 and 4 exits. This will require changing pavement type on ramps to asphalt.
 
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
@@ -178,3 +194,4 @@ TODO:
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
 - Add graphic replay w/step fwd/back
 - Display lane change as a gradual motion
+- Greenfish icon editor Pro used for making the graphic icons.
