@@ -1,3 +1,4 @@
+print("***** first line!")
 from cmath import inf
 import sys
 import time
@@ -6,43 +7,54 @@ from typing import List
 import numpy as np
 import argparse
 import pygame
-import ray
-import ray.rllib.algorithms.ppo as ppo
-import ray.rllib.algorithms.sac as sac
-from ray.tune.logger import pretty_print
-from ray.rllib.models import ModelCatalog
+print("***** pygame imported")
 
 from obs_vec import ObsVec
+print("***** ObsVec imported")
 from highway_env_wrapper import HighwayEnvWrapper
+print("***** env imported")
 from bridgit_nn import BridgitNN
 from graphics import Graphics
+print("***** Imports complete")
 
 """This program runs the selected policy checkpoint for one episode and captures key state variables throughout."""
 
 def main(argv):
 
     # Handle any args
-    program_desc = "Runs a single episode of the cda1 vehicle ML agent in inference mode in its roadway environment with other vehicles."
-    scenario_desc = " 0:  (default) everything randomized.\n" \
-                    + " 1:  all neighbor vehicles in same lane.\n" \
-                    + " 2:  no neighbor vehicles in ego's lane.\n" \
-                    + "10-15:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.\n" \
-                    + "20-25:  embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).\n" \
-                    + "29:     embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in a random location.\n" \
-                    + "90-95:  no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing)."
-    parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = "Either -c or -w argument must be used, but never both.")
-    parser.add_argument("-c", "--checkpoint", type = str, help = "Ray checkpoint dir containing the model to be run.")
-    parser.add_argument("-s", "--scenario", type = int, default = 0, help = scenario_desc)
-    parser.add_argument("-L", "--length", type = int, default = inf, help = "Max num time steps to run")
-    parser.add_argument("-w", "--weights", type = str, default = None, help = "Filename with policy network weights to control the Bridgit agent.")
+    print("***** main started")
+    program_desc = "Runs a single episode of the cda1 vehicle ML roadway environment in inference mode with any combination of vehicles."
+    scenario_desc = '''Scenario - initial vehicle locations & speeds:
+        0:  (default) everything randomized.
+        1:  all neighbor vehicles in same lane.
+        2:  no neighbor vehicles in ego's lane.
+    10-15:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.
+    20-25*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).
+       29*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in a random location.
+    90-95*: no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing).
+    '''
+    epilog = "If a non-learning scenario (*) is chosen then any checkpoint specified is ignored."
+    parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = epilog, formatter_class = argparse.RawTextHelpFormatter)
+    print("***** parser created")
+    parser.add_argument("-c", type = str, help = "Ray checkpoint dir containing the RL model to be run for the ego vehicle.")
+    parser.add_argument("-L", type = int, default = inf, help = "Max num time steps to run")
+    parser.add_argument("-s", type = int, default = 0, help = scenario_desc)
+    print("***** args added")
     args = parser.parse_args()
-    checkpoint = args.checkpoint
-    scenario = args.scenario
-    episode_len = args.length
-    print("***** inputs: scenario = {}, length = {}, checkpoint = {}, weights = {}".format(scenario, episode_len, checkpoint, args.weights))
-    if (checkpoint is None  and  args.weights is None)  or  (checkpoint is not None  and  args.weights is not None):
-        print("///// ERROR: either checkpoint or weights arg must be specified, but not both.")
-        sys.exit(1)
+    checkpoint = args.c
+    scenario = args.s
+    episode_len = args.L
+    print("***** completed handling args.")
+
+    # Verify that checkpoint & scenario are telling the same story. If we are going inference-only then erase the checkpoint.
+    inference_only = False
+    if scenario >= 20:
+        checkpoint = None
+        inference_only = True
+    else:
+        if checkpoint is None:
+            print("///// ERROR: Must specify a checkpoint if scenario is trainable (run `{} -h` for help).".format(argv[0]))
+            sys.exit(1)
 
     # Set up the environment
     env_config = {  "time_step_size":           0.2,
@@ -63,11 +75,17 @@ def main(argv):
     #print("///// inference: vehicle[1] = ")
     #vehicles[1].print()
 
-    # If we are using a checkpointed NN for the ego vehicle, then start up rllib to run it
+    # If we are reading a training checkpoint for the ego guidance model, then start up rllib to run it
     algo = None
-    if checkpoint is not None:
+    if not inference_only:
 
         # Set up the Ray framework
+        import ray
+        import ray.rllib.algorithms.ppo as ppo
+        import ray.rllib.algorithms.sac as sac
+        from ray.tune.logger import pretty_print
+        from ray.rllib.models import ModelCatalog
+
         ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
         ray.init()
         print("///// inference: ray init complete.")
@@ -97,8 +115,7 @@ def main(argv):
 
     # Else, the model weights file was specified, and we don't need Ray at all - just read the file and have PyTorch load it.
     else:
-        print("***** Handling model weights is not yet implemented!  Exiting now, until code exists.")
-        sys.exit(3) #TODO: remove when implemented.
+        print("\n///// No checkpoint loaded! Assuming that the ego vehicle provides all guidance logic.\n")
 
     # Set up the graphic display & user interaction
     graphics = Graphics(env)
@@ -137,16 +154,13 @@ def main(argv):
 
         # Grab ego vehicle actions if it is participating, or use dummies if not
         action = np.zeros(2)
-        if vehicles[0].active:
-            try:
-                action = algo.compute_single_action(obs, explore = False)
-            except:
-                print("///// Exception trapped in inference during call to algo.compute_single_action(). obs = ")
-                print(obs)
-
-        # Command masking for first few steps to allow feedback obs to populate
-        if step < 2:
-            action[1] = 0.0
+        if not inference_only:
+            if vehicles[0].active:
+                try:
+                    action = algo.compute_single_action(obs, explore = False)
+                except:
+                    print("///// Exception trapped in inference during call to algo.compute_single_action(). obs = ")
+                    print(obs)
 
         # Move the environment forward one time step
         raw_obs, reward, done, truncated, info = env.step(np.ndarray.tolist(action)) #obs returned is UNSCALED
@@ -159,9 +173,14 @@ def main(argv):
         # Scale the observations to be ready for NN ingest next time step
         obs = env.scale_obs(raw_obs)
 
-        print("///// step {:3d}: sc act = [{:5.2f} {:5.2f}], lane = {}, LC#{}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
-                        raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
+        if inference_only:
+            print("///// step {:3d}: lane = {}, LC#{}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+                    .format(step, vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
+                            raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
+        else:
+            print("///// step {:3d}: sc act = [{:5.2f} {:5.2f}], lane = {}, LC#{}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
+                    .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
+                            raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
         #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
 
         """

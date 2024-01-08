@@ -152,9 +152,13 @@ Scenario Definitions
 10-15 - Ego vehicle randomly initialized in the lane indicated by the last digit. Bot
 	vehicles randomly initialized around it.
 
-20-25 - Embedding run. Like ego training scenarios 10-15, but vehicle 0 is not training,
-	and uses Bridgit model (observations) and the Embed guidance. Vehicle 0
-	is initialized to the lane indicated by the last digit.
+20-25 - Inference only. Like ego training scenarios 10-15, but vehicle 0 is not training.
+	These were created for building the sensor embeddings, giving a very broad range
+	of initial conditions, and intended to use the Bridgit model (observations) and
+	the Embed guidance. However, with a different vehicle config file, these
+	scenarios can easily perform inference on any combination of vehicle models.
+	Vehicle 0 is initialized to the lane indicated by the last digit, but is otherwise
+	treated like all of the other vehicles.
 
 29    - embedding run like 20-25, but where vehicle 0's location is fully randomized.
 

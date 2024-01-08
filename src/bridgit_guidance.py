@@ -65,7 +65,7 @@ class BridgitGuidance(VehicleGuidance):
         self.tactical_model = None
         if not is_learning:
             config = {"inference_only": True}
-            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 output for mean, stddev for each of the 2 actions
+            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 outputs for (mean, stddev) for each of the 2 actions
 
 
     def reset(self,
@@ -92,7 +92,9 @@ class BridgitGuidance(VehicleGuidance):
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (corresponds to type LaneChange)
 
-        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands."""
+        """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands.
+            This method should only be called when the vehicle is in inference-only mode.
+        """
 
         actions = self.tactical_model({"obs": obs})
         print("***** BridgitNN.step returning actions ", actions)

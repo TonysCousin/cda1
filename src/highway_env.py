@@ -1,3 +1,4 @@
+print("***** HighwayEnv beginning imports")
 import sys
 import copy
 from statistics import mean
@@ -31,7 +32,7 @@ from bridgit_model import BridgitModel
 from bridgit_guidance import BridgitGuidance
 from embed_model import EmbedModel
 from embed_guidance import EmbedGuidance
-
+print("***** HighwayEnv imports complete")
 
 class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettableEnv can be used for curriculum learning
 
@@ -361,8 +362,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         for i in range(self.num_vehicles):
             self.vehicles[i].reset()
 
-        # Embedding data collection scenarios - this doesn't train anything, so vehicle 0 is a bot, but is still the center
-        # of attention here, so we can call it the ego vehicle.
+        # All inference - this doesn't train anything, so vehicle 0 is in inference mode, but is still the center
+        # of attention here, so we can call it the ego vehicle. These scenarios are used for embedding data
+        # collection, but can be used for any general-purpose inference runs.
         if 20 <= self.effective_scenario <= 29:
             if self.effective_scenario != 29  and  self.effective_scenario - 20 >= self.roadway.NUM_LANES:
                 raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
@@ -388,6 +390,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Choose how many vehicles will participate
             episode_vehicles = self._decide_num_vehicles()
 
+            # TODO: refactor this logic into a separate function; used for other scenarios below, also.
             # Randomize all participating vehicles within a box around the ego vehicle to maximize exercising its sensors.
             # As a rule, neighbors here will be allowed to pack a lot closer together than in a real training episode, because
             # we need to expose the sensors to all possible situations.
@@ -630,15 +633,19 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 cmd     : list      #list of floats; 0 = speed command, 1 = desired lane, scaled
             ) -> Tuple[np.array, float, bool, bool, Dict]:
 
-        """Executes a single time step of the environment.  Determines how the input commands (actions) will alter the
-            simulated world and returns the resulting observations.
+        """Executes a single time step of the environment.  Determines how the input commands (actions) will affect
+            the ego vehicle, and thus alter the simulated world, and returns the resulting observations.
 
             Return is array of new observations, new reward, done flag, truncated flag, and a dict of additional info.
+
+            NOTE: the scenario selected dictates if the ego vehicle is a learner or simply running in inference mode.
+            When it is in inference mode the input `cmd` is thrown away, and it takes commands from its own guidance
+            logic instead (just as all other vehicles always do).
 
             CAUTION: the returned observation vector is at actual world scale and needs to be
                      preprocessed before going into a NN!
 
-            The process is:
+            The process in this method is:
                 - gather tactical guidance commands based on existing observations (for the ego vehicle in training,
                   these come in as input args; for other vehicles (including ego vehicle not in training) their model
                   needs to generate)

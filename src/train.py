@@ -197,7 +197,7 @@ def main(argv):
                 remaining_hrs = (max_iterations - iter) / perf
             print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
                   .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
-                  "Elapsed = {:.2f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+                  "Elapsed = {:.1f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
 
     print("\n///// Training completed.  Final iteration results:\n")
     print(pretty_print(result))

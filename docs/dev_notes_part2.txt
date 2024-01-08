@@ -145,14 +145,19 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Rolled back all the reward changes made for runs C4 and C5 above. Keeping the bot changes
 	  made for run C6.
 	* Checkpoints stored in 20240107-1231.
+	* While this was running (at ~14k iters) the inference program crashed with a segfault several
+	  times. Usually, this brings down the whole machine eventually, so it may start affecting
+	  training results. However, training continued for some time afterwards...
 
 
 
 
 TODO:
+- Reintroduce reward changes
 - Reduce speed penalty even more, to be on line with speed var penalty.
 
 - Review TODOs in graphics.py
+- add coreographed scenarios to routine training that force certain close call situations.
 - consider adding dropouts to BridgitNN
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
@@ -162,14 +167,9 @@ TODO:
 	b) Intersperse imitation episodes with normal episodes in SAC RL training. ~10% of episodes would use the 1c bot
 	   to produce the expert actions for a given time step, then adjust the full ego state to that result and repeat.
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
-- consider adding coreographed scenarios to routine training that force certain close call situations.
-- reduce prob of lane change in bots so that they don't jump across so quickly
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
-- find a way to load just the NN weights in inference (or in a vehicle controller) so that it can be run
-  only with torch, no ray involved.
-- Try running inference with real checkpoint - modify the action loop to use BridgitGuidance instead of loading directly?
 
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
