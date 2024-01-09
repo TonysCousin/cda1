@@ -181,7 +181,6 @@ def main(argv):
             path = "{}/{:05d}".format(DATA_PATH, iter)
             ckpt_res = algo.save(checkpoint_dir = path)
             #print("///// Checkpoint saved in {}".format(ckpt_res.checkpoint.path))
-            #print(result)
             #print(pretty_print(ckpt_res.metrics))
 
         if iter % status_int == 0:

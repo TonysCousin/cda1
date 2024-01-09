@@ -473,9 +473,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ego_lane_id = 1
             if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
                 draw = self.prng.random()
-                if draw < 0.25:
+                if draw < 0.40:
                     ego_lane_id = 0
-                elif draw < 0.5:
+                elif draw < 0.55:
                     ego_lane_id = 4
                 elif draw < 0.75:
                     ego_lane_id = 5
@@ -504,10 +504,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 ego_p = self.prng.random() * 0.5*max(lane_length - 150.0, 1.0) + lane_begin
 
             # Randomly define the starting speed and initialize the vehicle data
-            speed = self.prng.random() * Constants.MAX_SPEED
-            self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
+            ego_speed = self.prng.random() * Constants.MAX_SPEED
+            self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, speed))
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
 
             # Choose how many vehicles will participate
             episode_vehicles = self._decide_num_vehicles()
@@ -578,13 +578,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-            """
-            if deactivated_count == 0:
-                print("***** reset: bots that don't fit = {}".format(deactivated_count))
-            else:
-                print("***** reset: bots that don't fit = {}; ego lane = {}, p = {:.1f}, effective scenario = {}"
-                      .format(deactivated_count, ego_lane_id, ego_p, self.effective_scenario))
-            """
+            #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}"
+            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -1230,7 +1225,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.07 * cmd_diff * cmd_diff
+            penalty = 0.1 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
