@@ -32,7 +32,7 @@ class Graphics:
     # set up the colors & fonts
     BLACK                   = (  0,   0,   0)
     WHITE                   = (255, 255, 255)
-    BACKGROUND_COLOR        = ( 40,  40,  40)
+    BACKGROUND_COLOR        = ( 10,  10,  10)
     LEGEND_COLOR            = WHITE
     LANE_EDGE_COLOR         = WHITE
     NEIGHBOR_COLOR          = ( 64, 128, 255)
@@ -87,12 +87,12 @@ class Graphics:
         self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), flags = 0)
         pygame.display.set_caption('cda1')
 
-        # set up fonts
-        self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
-        self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
-
         # draw the background onto the surface
         self.window_surface.fill(Graphics.BACKGROUND_COLOR)
+
+        # Load the canned background image that shows the track, empty data plots and legend info
+        self.background_image = pygame.image.load(Graphics.IMAGE_PATH + "/cda1_background_r1.bmp").convert()
+        self.window_surface.blit(self.background_image, (0, 0)) #display at an S offset since image is slightly short
 
         # Loop through all segments of all lanes and find the extreme coordinates to determine our bounding box
         x_min = inf
@@ -132,38 +132,54 @@ class Graphics:
         print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
                 .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
 
+        """
+        # set up fonts
+        self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
+        self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
+
         # Loop through the lane segments and draw the left and right edge lines of each
         for lane in env.roadway.lanes:
             for seg in lane.segments:
                 self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
 
+        # Display the training targets (primary) and bot targets (secondary)
+        self._display_targets()
+
+        # Display the window legend & other footer text
+        self._write_legend(0, Graphics.WINDOW_SIZE_S)
+
         pygame.display.update()
         #time.sleep(20) #debug only
+        """
 
-        # Initialize images
-        self.crash_image = pygame.image.load(Graphics.IMAGE_PATH + "/crash16.bmp").convert()
-        self.off_road_image = pygame.image.load(Graphics.IMAGE_PATH + "/off-road16.bmp").convert()
-        self.vehicle_ego_image = pygame.image.load(Graphics.IMAGE_PATH + "/Yellow_red_car16.bmp").convert()
-        self.vehicle_bot1b_image = pygame.image.load(Graphics.IMAGE_PATH + "/Blue_car16.bmp").convert()
-        self.target_primary_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_red_white_lg_16.bmp").convert()
-        self.target_secondary_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_black_white_sm_16.bmp").convert()
-        self.square_image = pygame.image.load(Graphics.IMAGE_PATH + "/square_16.bmp").convert()
+        # Initialize images - use convert_alpha to enable the transparent areas of the bitmaps
+        self.crash_image = pygame.image.load(Graphics.IMAGE_PATH +              "/crash16.bmp").convert_alpha()
+        self.off_road_image = pygame.image.load(Graphics.IMAGE_PATH +           "/off-road16.bmp").convert_alpha()
+        self.vehicle_ego_image = pygame.image.load(Graphics.IMAGE_PATH +        "/Ego2_16.bmp").convert_alpha()
+        self.vehicle_bridgit_image = pygame.image.load(Graphics.IMAGE_PATH +    "/Yellow_car16_simple.bmp").convert_alpha()
+        self.vehicle_bot1a_image = pygame.image.load(Graphics.IMAGE_PATH +      "/Purple_car16_simple.bmp").convert_alpha()
+        self.vehicle_bot1b_image = pygame.image.load(Graphics.IMAGE_PATH +      "/Blue_car16_simple.bmp").convert_alpha()
+        self.target_primary_image = pygame.image.load(Graphics.IMAGE_PATH +     "/square_red_white_lg_16.bmp").convert_alpha()
+        self.target_secondary_image = pygame.image.load(Graphics.IMAGE_PATH +   "/square_black_white_sm_16.bmp").convert_alpha()
 
         # Determine offsets for vehicle image centers - these needed to be subtracted from the (r, s) location in order to display an image
         # because the image display is keyed to the upper-left corner of the image. Assumes all vehicle images are the same size.
         image_rect = list(self.vehicle_ego_image.get_rect())
         self.veh_image_r_offset = (image_rect[2] - image_rect[0])//2
-        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2
+        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2 + 3 #TODO ???
 
-        # Display the training targets (primary) and bot targets (secondary)
-        self._display_targets()
-
-        # Set up lists of previous screen coords and display colors for each vehicle
+        # Set up lists of previous screen coords and display images for each vehicle
         vehicles = env.get_vehicle_data()
         self.prev_veh_r = [0] * len(vehicles)
         self.prev_veh_s = [0] * len(vehicles)
-        self.veh_colors = [Graphics.NEIGHBOR_COLOR] * len(vehicles)
-        self.veh_colors[0] = Graphics.EGO_COLOR
+        self.veh_images = [self.vehicle_bot1b_image] * len(vehicles)
+        self.veh_images[0] = self.vehicle_ego_image
+        for v_idx in range(1, len(self.prev_veh_r)): #don't overwrite the ego vehicle
+            gn = vehicles[v_idx].guidance.name
+            if gn == "BridgitGuidance":
+                self.veh_images[v_idx] = self.vehicle_bridgit_image
+            elif gn == "BotType1aGuidance":
+                self.veh_images[v_idx] = self.vehicle_bot1a_image
 
         # Initialize the previous vehicles' locations near the beginning of a lane (doesn't matter which lane for this step)
         for v_idx in range(len(self.prev_veh_r)):
@@ -172,9 +188,6 @@ class Graphics:
                                      int(self.scale*(self.env.roadway.lanes[0].segments[0][1] - self.roadway_center_y)) - self.display_center_s
         #TODO: draw rectangles instead of circles, with length = vehicle length & width = 0.5*lane width
         self.veh_radius = int(0.25 * Graphics.LANE_WIDTH * self.scale) #radius of icon in pixels
-
-        # Display the window legend & other footer text
-        self._write_legend(0, Graphics.WINDOW_SIZE_S)
 
         #
         #..........Add live data plots to the display
@@ -191,22 +204,13 @@ class Graphics:
         self.plot_speed.add_reference_line(Graphics.HIGH_SPEED, Graphics.REFERENCE_COLOR)
 
         # Plot the lane ID of the ego vehicle
-        if self.env.scenario < 90:
-            self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, 5, \
-                                    max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
+        self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, 5, \
+                                max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
         self.plot_lane.add_reference_line(1, Graphics.REFERENCE_COLOR)
         self.plot_lane.add_reference_line(2, Graphics.REFERENCE_COLOR)
         self.plot_lane.add_reference_line(3, Graphics.REFERENCE_COLOR)
         self.plot_lane.add_reference_line(4, Graphics.REFERENCE_COLOR)
         self.plot_lane.add_reference_line(5, Graphics.REFERENCE_COLOR)
-
-
-
-
-        #TODO: sample the vehicle images to see how they fit
-        r, s = self._map2screen(350.0, 0.0)
-        pos = self.square_image.get_rect().move(r - self.veh_image_r_offset, s - self.veh_image_s_offset)
-        self.window_surface.blit(self.square_image, pos)
 
 
     def update(self,
@@ -220,7 +224,13 @@ class Graphics:
         for v_idx in range(len(vehicles)):
 
             # Grab the background under where we want the vehicle to appear & erase the old vehicle
-            pygame.draw.circle(self.window_surface, Graphics.BACKGROUND_COLOR, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
+            #pygame.draw.circle(self.window_surface, Graphics.BACKGROUND_COLOR, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
+
+            # Replace the background under where the vehicle was previously located
+            image_r = self.prev_veh_r[v_idx] - self.veh_image_r_offset
+            image_s = self.prev_veh_s[v_idx] - self.veh_image_s_offset - 0 #TODO - adjustment needed???
+            pos = self.veh_images[v_idx].get_rect().move(image_r, image_s)
+            self.window_surface.blit(self.background_image, pos, pos)
 
             # Skip over vehicles that are inactive for reasons other than a crash or ego off-roading
             if not vehicles[v_idx].active  and  not (vehicles[v_idx].crashed  or  (v_idx == 0  and  vehicles[v_idx].off_road)):
@@ -234,9 +244,7 @@ class Graphics:
             if vehicles[v_idx].crashed:
                 #print("***   Graphics.update: vehicle {} crashed.".format(v_idx))
                 image_rect = list(self.crash_image.get_rect()) #TODO: refactor all of these offset calcs into the constructor for 16-bit images
-                r_offset = (image_rect[2] - image_rect[0])//2
-                s_offset = (image_rect[3] - image_rect[1])//2
-                pos = self.crash_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
+                pos = self.crash_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.crash_image, pos)
 
             # Else if the ego vehicle ran off-road, display that symbol next to the lane where it happened. Normally off-roading is to the side
@@ -248,14 +256,14 @@ class Graphics:
                 elif vehicles[v_idx].lane_change_status == "right":
                     lateral_offset = -int(self.LANE_WIDTH*self.scale + 0.5)
                 image_rect = list(self.off_road_image.get_rect())
-                r_offset = (image_rect[2] - image_rect[0])//2
-                s_offset = (image_rect[3] - image_rect[1])//2 + lateral_offset
-                pos = self.off_road_image.get_rect().move(new_r - r_offset, new_s - s_offset) #defines the upper-left corner of the image
+                pos = self.off_road_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset + lateral_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.off_road_image, pos)
 
             # else the vehicle is still active display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
             else:
-                pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
+                #pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
+                pos = self.veh_images[v_idx].get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset)
+                self.window_surface.blit(self.veh_images[v_idx], pos)
 
            # Update the previous location
             self.prev_veh_r[v_idx] = new_r

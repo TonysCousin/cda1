@@ -23,8 +23,9 @@ class BotType1bGuidance(VehicleGuidance):
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
+                 name       : str = "BotType1bGuidance"
                 ):
-        super().__init__(prng, roadway, targets, is_learning, obs_space, act_space)
+        super().__init__(prng, roadway, targets, is_learning, obs_space, act_space, name)
 
         # Pick an offset from the posted speed limit that will define the target speed
         self.speed_offset = (self.prng.random() - 0.5) * 0.2*Constants.MAX_SPEED #gives +/- 10%

@@ -119,10 +119,10 @@ def main(argv):
     done = False
     action_list = [0, 0]
     raw_obs, _ = env.unscaled_reset()
-    if checkpoint is None:
+    if scenario >= 90:
         vehicles[0].active = False
 
-    print("///// inference: ready to update graphics before loop:")
+    print("///// inference: graphic background complete.")
     vehicles[0].print("Ego")
 
     graphics.update(action_list, raw_obs, vehicles)

@@ -68,10 +68,10 @@ vehicles:
 
   - id:           8 ##########################
     model:        BotType1Model
-    guidance:     BotType1bGuidance
+    guidance:     BotType1aGuidance
     max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
+    max_accel:    3.0     #m/s^2
+    length:       12.0     #m
     lc_duration:  2.4     #sec
 
   - id:           9 ##########################
@@ -116,24 +116,24 @@ vehicles:
 
   - id:           14 ##########################
     model:        BotType1Model
-    guidance:     BotType1bGuidance
+    guidance:     BotType1aGuidance
     max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
+    max_accel:    3.0     #m/s^2
+    length:       12.0     #m
     lc_duration:  2.4     #sec
 
   - id:           15 ##########################
     model:        BotType1Model
-    guidance:     BotType1bGuidance
+    guidance:     BotType1aGuidance
     max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
+    max_accel:    3.0     #m/s^2
+    length:       12.0     #m
     lc_duration:  2.4     #sec
 
   - id:           16 ##########################
     model:        BotType1Model
-    guidance:     BotType1bGuidance
+    guidance:     BotType1aGuidance
     max_jerk:     4.0     #m/s^3
-    max_accel:    4.0     #m/s^2
-    length:       5.0     #m
+    max_accel:    3.0     #m/s^2
+    length:       12.0     #m
     lc_duration:  2.4     #sec

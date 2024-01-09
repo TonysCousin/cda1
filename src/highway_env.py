@@ -247,7 +247,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                #guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets, is_learning)
                 guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets, is_learning, \
                                                                             self.observation_space, self.action_space)
                 v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
@@ -461,7 +460,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.vehicles[i].active = False
 
             lane_id = self.effective_scenario - 90
-            self.vehicles[1].reset(init_lane_id = lane_id, init_ddt = 0.0, init_speed = self.roadway.lanes[lane_id].segments[0][5])
+            p = self.roadway.get_lane_start_p(lane_id)
+            self.vehicles[1].reset(init_lane_id = lane_id, init_p = p, init_speed = self.roadway.lanes[lane_id].segments[0][5])
 
         # All other scenarios: trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
         else:
@@ -741,7 +741,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Get the sensor observations from each vehicle
         try:
             for i in range(self.num_vehicles):
-                self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
+                if self.vehicles[i].active:
+                    self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, vehicle_actions[i], self.all_obs[i, :])
         except AssertionError as e:
             v = self.vehicles[i]
             print("///// AssertionError trapped in _step while getting obs vector for vehicle {} with LC stat = {}, count = {}, cur_speed = {:.1f}, "

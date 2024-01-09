@@ -17,6 +17,7 @@ class VehicleGuidance(ABC):
                  is_learning: bool = True,  #is the guidance algorithm an RL agent under training?
                  obs_space  : Box = None,   #the observation space used by the environment model
                  act_space  : Box = None,   #the action space used by the environment model
+                 name       : str = "Unknown", #a descriptive name for this instance (or class)
                 ):
 
         self.prng = prng
@@ -24,6 +25,7 @@ class VehicleGuidance(ABC):
         self.targets = targets
         self.my_vehicle = None
         self.is_learning = is_learning
+        self.name = name
 
         # Environment obs/action spaces that are needed by objects used for inference only
         self.obs_space = obs_space
