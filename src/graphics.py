@@ -32,7 +32,7 @@ class Graphics:
     # set up the colors & fonts
     BLACK                   = (  0,   0,   0)
     WHITE                   = (255, 255, 255)
-    BACKGROUND_COLOR        = ( 10,  10,  10)
+    BACKGROUND_COLOR        = ( 50,  50,  50)
     LEGEND_COLOR            = WHITE
     LANE_EDGE_COLOR         = WHITE
     NEIGHBOR_COLOR          = ( 64, 128, 255)
@@ -46,12 +46,14 @@ class Graphics:
     AVG_PIX_PER_CHAR_LARGE  = 7.5
 
     # Other graphics constants
-    LANE_WIDTH      = Roadway.WIDTH
-    WINDOW_SIZE_R   = 1800      #window width, pixels
-    WINDOW_SIZE_S   = 800       #window height, pixels
-    REAL_TIME_RATIO = 5.0       #Factor faster than real time
-    FONT_PATH       = "docs/fonts"
-    IMAGE_PATH      = "docs/images"
+    LANE_WIDTH              = Roadway.WIDTH
+    WINDOW_SIZE_R           = 1800      #window width, pixels
+    WINDOW_SIZE_S           = 800       #window height, pixels
+    REAL_TIME_RATIO         = 5.0       #Factor faster than real time
+    FONT_PATH               = "docs/fonts"
+    IMAGE_PATH              = "docs/images"
+    BACKGROUND_IMAGE        = "/cda1_background_r1.bmp"
+    BACKGROUND_VERT_SHIFT   = 3 #num pixels it is shifted upward from where the plotting thinks it is
 
     # Geometry of data plots
     PLOT_H          = 80        #height of each plot, pixels
@@ -91,8 +93,8 @@ class Graphics:
         self.window_surface.fill(Graphics.BACKGROUND_COLOR)
 
         # Load the canned background image that shows the track, empty data plots and legend info
-        self.background_image = pygame.image.load(Graphics.IMAGE_PATH + "/cda1_background_r1.bmp").convert()
-        self.window_surface.blit(self.background_image, (0, 0)) #display at an S offset since image is slightly short
+        self.background_image = pygame.image.load(Graphics.IMAGE_PATH + Graphics.BACKGROUND_IMAGE).convert_alpha()
+        self.window_surface.blit(self.background_image, (0, 0))
 
         # Loop through all segments of all lanes and find the extreme coordinates to determine our bounding box
         x_min = inf
@@ -132,11 +134,11 @@ class Graphics:
         print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
                 .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
 
-        """
         # set up fonts
         self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
         self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
 
+        """
         # Loop through the lane segments and draw the left and right edge lines of each
         for lane in env.roadway.lanes:
             for seg in lane.segments:
@@ -166,7 +168,7 @@ class Graphics:
         # because the image display is keyed to the upper-left corner of the image. Assumes all vehicle images are the same size.
         image_rect = list(self.vehicle_ego_image.get_rect())
         self.veh_image_r_offset = (image_rect[2] - image_rect[0])//2
-        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2 + 3 #TODO ???
+        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2 + Graphics.BACKGROUND_VERT_SHIFT
 
         # Set up lists of previous screen coords and display images for each vehicle
         vehicles = env.get_vehicle_data()
@@ -228,7 +230,7 @@ class Graphics:
 
             # Replace the background under where the vehicle was previously located
             image_r = self.prev_veh_r[v_idx] - self.veh_image_r_offset
-            image_s = self.prev_veh_s[v_idx] - self.veh_image_s_offset - 0 #TODO - adjustment needed???
+            image_s = self.prev_veh_s[v_idx] - self.veh_image_s_offset
             pos = self.veh_images[v_idx].get_rect().move(image_r, image_s)
             self.window_surface.blit(self.background_image, pos, pos)
 
@@ -243,7 +245,6 @@ class Graphics:
             # If the vehicle has crashed, then display the crash symbol at its location
             if vehicles[v_idx].crashed:
                 #print("***   Graphics.update: vehicle {} crashed.".format(v_idx))
-                image_rect = list(self.crash_image.get_rect()) #TODO: refactor all of these offset calcs into the constructor for 16-bit images
                 pos = self.crash_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.crash_image, pos)
 
@@ -255,7 +256,6 @@ class Graphics:
                     lateral_offset = int(self.LANE_WIDTH*self.scale + 0.5)
                 elif vehicles[v_idx].lane_change_status == "right":
                     lateral_offset = -int(self.LANE_WIDTH*self.scale + 0.5)
-                image_rect = list(self.off_road_image.get_rect())
                 pos = self.off_road_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset + lateral_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.off_road_image, pos)
 
@@ -474,7 +474,7 @@ class Plot:
 
         self.surface = surface
         self.cr = corner_r
-        self.cs = corner_s
+        self.cs = corner_s - Graphics.BACKGROUND_VERT_SHIFT
         self.height = height
         self.width = width
         self.min_y = min_y
@@ -495,17 +495,18 @@ class Plot:
 
         # Draw the axes - for numbering, assume that the given min & max are "nice" numbers, so don't need to search
         # for nearest nice numbers.
-        pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r+width, corner_s+height))
-        pygame.draw.line(surface, axis_color, (corner_r, corner_s+height), (corner_r, corner_s))
+        pygame.draw.line(surface, axis_color, (self.cr, self.cs + height), (self.cr + width, self.cs + height))
+        pygame.draw.line(surface, axis_color, (self.cr, self.cs + height), (self.cr, self.cs))
         if show_vert_axis_scale:
-            self._make_y_label(min_y, corner_s + height)
-            self._make_y_label(max_y, corner_s)
+            self._make_y_label(min_y, self.cs + height)
+            self._make_y_label(max_y, self.cs)
 
         # Create the plot's text on a separate surface and copy it to the display surface
         if title is not None:
+            print("***** background color = ", Graphics.BACKGROUND_COLOR)
             text = self.basic_font.render(title, True, axis_color, Graphics.BACKGROUND_COLOR)
             text_rect = text.get_rect()
-            text_rect.center = (corner_r + width//2, corner_s - Graphics.BASIC_FONT_SIZE)
+            text_rect.center = (self.cr + width//2, self.cs - Graphics.BASIC_FONT_SIZE)
             surface.blit(text, text_rect)
 
         pygame.display.update()

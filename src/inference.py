@@ -142,6 +142,10 @@ def main(argv):
     # Loop on time steps until episode is complete
     while not done  and  step < episode_len:
         step += 1
+        #print("    * left bdry = {:1f} {:1f} {:1f}, right bdry = {:1f} {:1f} {:1f}, des = {:.2f} {:.2f} {:.2f}"
+        #      .format(obs[ObsVec.BASE_LEFT_CTR_BDRY+0], obs[ObsVec.BASE_LEFT_CTR_BDRY+1], obs[ObsVec.BASE_LEFT_CTR_BDRY+2],
+        #              obs[ObsVec.BASE_RIGHT_CTR_BDRY+0], obs[ObsVec.BASE_RIGHT_CTR_BDRY+1], obs[ObsVec.BASE_RIGHT_CTR_BDRY+2],
+        #              obs[ObsVec.DESIRABILITY_LEFT], obs[ObsVec.DESIRABILITY_CTR], obs[ObsVec.DESIRABILITY_RIGHT]))
 
         # Grab ego vehicle actions if it is participating, or use dummies if not
         action = np.zeros(2)
