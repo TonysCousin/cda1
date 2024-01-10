@@ -503,7 +503,6 @@ class Plot:
 
         # Create the plot's text on a separate surface and copy it to the display surface
         if title is not None:
-            print("***** background color = ", Graphics.BACKGROUND_COLOR)
             text = self.basic_font.render(title, True, axis_color, Graphics.BACKGROUND_COLOR)
             text_rect = text.get_rect()
             text_rect.center = (self.cr + width//2, self.cs - Graphics.BASIC_FONT_SIZE)

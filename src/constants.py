@@ -9,3 +9,4 @@ class Constants:
     CONSERVATIVE_LC_DIST    = 140.0     #a conservative estimate of a distance within which virtually every lane change can complete, m
     N_DISTRO_DIST_REAR      = 200.0     #distance to the rear of ego within which neighbors should be initially placed, m
     N_DISTRO_DIST_FRONT     = 200.0     #distance to the front of ego within which neighbors should be initially placed, m
+    NUM_TARGETS             = 4         #total target destinations in the roadway (any given target may be active or inactive)

@@ -51,6 +51,8 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
+                    "valid_targets":            [2], #list can include 0, 1, 2, 3 (no duplicates)
+                    "randomize_targets":        False,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "vehicle_file":             "config/vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,

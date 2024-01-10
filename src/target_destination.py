@@ -12,10 +12,12 @@ class TargetDestination:
                  roadway: Roadway,  #the Roadway geometry that this target lives in
                  lane   : int,      #ID of the lane where the target lives
                  p      : float,    #P coordinate of the target, m
+                 active : bool = True, #is this target actively being used for the current episode?
                 ):
 
         self.lane_id = lane
         self.p = p
+        self.active = active
         #print("\n***** TargetDestination created in lane {} at p = {:.1f}".format(lane, p))
 
         # Define the tree of all lanes that feed into this target point

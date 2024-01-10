@@ -162,18 +162,81 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Reduced penalty for lane change - multiplier from 0.002 to 0.0002 (reintroducing C4 change
 	  #2, but not quite as large a change.
 	* Checkpoints stored in 20240108-0834.
+	* Training completed in 14 hr (5900 ksteps/hr) with rmin ~-0.7, rmean ~0.5, rmax ~1.7, mean
+	  episode len ~99.
+	* Inference on checkpoint 40000: lane 0 start still refuses to change lanes. Other lanes
+	  perform pretty well, however, twice it crashed while changing lanes coming up from behind
+	  a slower neighbor in the left lane. In one episode, it rear-ended a bot (minimal speed diff).
+	* Added logging to confirm that both the left & right center-lane boundary observations are
+	  correct, as well as the lane change desirabilities, throughout an episode on lane 0. So it
+	  simply is not learning how to handle these correct observations.
 
+* Updated graphics to display a different icon for each type of vehicle (by guidance model), and to
+  show the primary and secondary target destinations.
+
+1/9/24
+
+* Analysis of training lane assignments early in a training run. It includes 1800 iterations and 450
+  episodes logged.
+	* Initial lane distro is
+		0: 106, 23.6%
+		1:  26,  5.8%
+		2:  19,  4.2%
+		3:  70, 15.6%
+		4: 107, 23.8%
+		5: 122, 27.1%
+	* Confirmed that the number of neighbors being used starts in the low range 0 to 3, and
+	  gradually increases.
+	* Confirmed that, for the lane 0 starts, speeds look evenly distributed across the full
+	  range, and starting P locations also cover the full lane, realizing that the very early
+	  ones are grouped closer to the end, and then gradually start backing up toward the beginning
+	  of the lane.
+	* In summary, all training conditions appear as designed, and nothing that should inhibit the
+	  agent from having ample opportunity to learn the lane change required.
+	* It could be that, since starts in lanes 3-5 all require left-hand lane changes, and lane 0
+	  is the only one requiring a right-hand, the agent simply learns early that a left LC is
+	  more important. Therefore, increasing the early opportunities to experience lane 0 might be
+	  a benefit.
+
+* Run C9 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Shifted the lane assignment probabilities for the early episodes so that it is now:
+		0: 40%
+		1:  5%
+		2:  5%
+		3: 15%
+		4: 15%
+		5: 20%
+	* Increased penalty multiplier for speed variation from 0.07 to 0.1 (reintroducing C4
+	  change #4).
+	* Change the vehicle mix by adding a few Type1a bots to the mix.
+	* Checkpoints stored in 20240109-1304.
+	* Training completed in 13.5 hr with rmin ~-1.0, rmean ~0.5, rmax ~1.6, mean ep len ~99.
+	* Inference on checkpoint 40000: rear-ended a bot with only a slightly slower speed.
+	  Lane 0 starts still don't change lanes. Otherwise, similar behavior to before, not bad.
+	  Occasionally, the speed variation penalty shows up at a significant size, but it is
+	  rare enough that it probably doesn't have much impact on behavior; need it larger.
+
+1/10/24
+
+* Run C10 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Increased multiplier on speed variation penalty from 0.1 to 0.4.
+	* Added flexible targeting, meaning that each episode reset has the opportunity to 
+	  randomly select a different set of active targets from the list of valid targets given
+	  by the user (in a config list). Valid targets can be a subset of the total list of
+	  targets defined. These apply only to the ego vehicle; neighbor vehicle targets always
+	  have the full list of defined targets available.
 
 
 
 TODO:
 - Reintroduce reward changes
 - Reduce speed penalty even more, to be on line with speed var penalty.
+- move targets around wheen training, including lane 0 and 4 exits. This will require changing pavement type on ramps to asphalt.
+- consider adding dropouts to BridgitNN
+- need prev time step distance to fwd vehicle to help prevent rear-endings
 
-- get square & two new car icons in slack & try them out
 - Review TODOs in graphics.py
 - add coreographed scenarios to routine training that force certain close call situations.
-- consider adding dropouts to BridgitNN
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
 	a) Pre-train the agent with supervised learning. Requires episode capture (like embed_collect) to capture a db
@@ -185,11 +248,9 @@ TODO:
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
-- move targets around wheen training, including lane 0 and 4 exits. This will require changing pavement type on ramps to asphalt.
 
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics
-- Add vehicle icons to graphics
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
 - Add graphic replay w/step fwd/back

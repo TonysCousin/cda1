@@ -52,15 +52,6 @@ class BridgitGuidance(VehicleGuidance):
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
         self.positions = [self.PosInfo() for each in range(3)]
 
-        # Get all of the eligible targets and the starting points for each possible target destination and merge them, taking the
-        # set-wise union of points in each lane.
-        self.starting_points = {}
-        self.lane_to_target = {}
-        for idx, tgt in enumerate(self.targets):
-            self.lane_to_target[tgt.lane_id] = idx
-            starts = tgt.get_starting_points()
-            self.starting_points = self._dict_union(self.starting_points, starts)
-
         # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
         # model here so that it can be executed.
         self.tactical_model = None
@@ -85,6 +76,24 @@ class BridgitGuidance(VehicleGuidance):
 
         # Ensure the planning method will get called on the first step of the episode
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
+
+        #TODO testing only
+        atl = []
+        for ti in range(Constants.NUM_TARGETS):
+            if self.targets[ti].active:
+                atl.append(ti)
+        print("***   BridgitGuidance active targets for this episode: ", atl)
+
+        # Get all of the active targets and the starting points for each possible target destination and merge them, taking the
+        # set-wise intersection of points in each lane.
+        self.starting_points = {}
+        self.lane_to_target = {}
+        for idx, tgt in enumerate(self.targets):
+            if not tgt.active:
+                continue
+            self.lane_to_target[tgt.lane_id] = idx
+            starts = tgt.get_starting_points()
+            self.starting_points = self._dict_intersection(self.starting_points, starts)
 
 
     def step(self,
@@ -136,7 +145,7 @@ class BridgitGuidance(VehicleGuidance):
 
             tgt_idx = -1
             try:
-                idx = self.lane_to_target[pos.lane_id]
+                idx = self.lane_to_target[pos.lane_id] #target is in the indicated lane
                 if idx >= 0:
                     tgt_idx = idx
             except KeyError:
@@ -195,7 +204,7 @@ class BridgitGuidance(VehicleGuidance):
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
         obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
         obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob
-        #print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1])
+        print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1])
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0
@@ -225,15 +234,15 @@ class BridgitGuidance(VehicleGuidance):
             self.positions[self.RIGHT].lane_id = -1
 
 
-    def _dict_union(self,
+    def _dict_intersection(self,
                     a        : Dict, #first dict of starting points
                     b        : Dict  #second dict of starting points
                    ) -> Dict:
 
-        """Merges the two given dicts by taking the set-wise union of the max P values for each indicated lane. Return is the union
-            of the two input sets, meaning it contains the largest P value from either dict for a given lane ID. These dicts are assumed
-            to have the key (int) representing a lane ID and the value (float) representing the maximum P coordinate allowable to reach
-            a target from that lane, in the spirit of TargetDestination.get_starting_point().
+        """Merges the two given dicts by taking the set-wise intersection of the max P values for each indicated lane. Return is the
+            intersection of the two input sets, meaning it contains the largest P value from either dict for a given lane ID. These
+            dicts are assumed to have the key (int) representing a lane ID and the value (float) representing the maximum P coordinate
+            allowable to reach a target from that lane, in the spirit of TargetDestination.get_starting_point().
         """
 
         a_copy = copy.deepcopy(a)

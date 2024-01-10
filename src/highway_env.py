@@ -166,11 +166,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Define the target destinations for the ego vehicle (T targets) and for the bot vehicles (B targets)
         self.t_targets = []
+        self.t_targets.append(TargetDestination(self.roadway, 0, 2500.0))
         self.t_targets.append(TargetDestination(self.roadway, 1, 2900.0))
         self.t_targets.append(TargetDestination(self.roadway, 2, 2900.0))
+        self.t_targets.append(TargetDestination(self.roadway, 4, 1600.0))
         self.b_targets = copy.deepcopy(self.t_targets) #bots can seek T targets also
-        self.b_targets.append(TargetDestination(self.roadway, 0, 2500.0))
-        self.b_targets.append(TargetDestination(self.roadway, 4, 1600.0))
 
         #
         #..........Define the observation space
@@ -239,7 +239,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
             v = None
             spec = v_data[i]
-            targets = self.t_targets if is_learning  else  self.b_targets #list of possible targets to navigate to
+            targets = self.t_targets if is_learning  else  self.b_targets #list of all possible targets to navigate to
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
@@ -347,6 +347,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Copy the user-desired scenario to an effective value that can be changed just for this episode
         self.effective_scenario = self.scenario
+
+        # Decide which targets will be activated for this episode
+        self._choose_active_targets()
+
+        #TODO testing only
+        atl = []
+        for ti in range(Constants.NUM_TARGETS):
+            if self.t_targets[ti].active:
+                atl.append(ti)
+        print("***** Active targets for this episode: ", atl)
 
         #
         #..........Set the initial conditions for each vehicle, depending on the scenario config
@@ -878,6 +888,59 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         except KeyError as e:
             pass
 
+        self.valid_targets = [0, 1, 2, 3] #list of the 4 defined targest that are valid for this run (not all will necessarily be used in each episode)
+        try:
+            vt = config["valid_targets"]
+            if type(vt) == list  and  len(vt) > 0:
+                legal = True
+                for item in vt:
+                    if item < 0  or  item >= 4:
+                        print("///// WARNING: illegal target list specified. All must be 0, 1, 2 or 3. Ignoring.")
+                        legal = False
+                        break
+                if legal:
+                    self.valid_targets = vt
+        except Exception:
+            pass
+
+        self.randomize_targets = True #should each episode have its active targets randomly selected?
+        try:
+            rt = config["randomize_targets"]
+            self.randomize_targets = rt
+        except KeyError:
+            pass
+
+
+    def _choose_active_targets(self):
+        """Makes random choices, where appropriate, and marks target destinations as active or inactive for the episode."""
+
+        # If we are to randomize the target destinations then
+        print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
+        if self.randomize_targets:
+
+            # loop through each target marked valid and decide if it will be active
+            at_least_one_active = False
+            for t_idx in range(Constants.NUM_TARGETS):
+                tgt = self.t_targets[t_idx]
+                tgt.active = False
+                print("** choose_active_targets: t_idx = ", t_idx, ", in lis? ", t_idx in self.valid_targets)
+                if t_idx in self.valid_targets  and  self.prng.random() > 0.5:
+                    tgt.active = True
+                    at_least_one_active = True
+
+            # If no target was marked active, then randomly choose one of the valid ones (not all targets are valid for this run)
+            if not at_least_one_active:
+                choice = int(self.prng.random() * min(len(self.valid_targets), Constants.NUM_TARGETS))
+                t_idx = self.valid_targets[choice]
+                self.t_targets[t_idx].active = True
+
+        # Else, mark all valid targets active
+        else:
+            for t_idx in range(Constants.NUM_TARGETS):
+                self.t_targets[t_idx].active = False
+                if t_idx in self.valid_targets:
+                    self.t_targets[t_idx].active = True
+
 
     def _decide_num_vehicles(self) -> int:
         """Uses a weighted random draw to decide how many vehicles to use in the episode, favoring a small number in early
@@ -1190,6 +1253,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
+                print("***** reward: lc_cmd = {}, cmd_desirability = {:.2f}, same_lane_desirability = {:.2f}, lc_desired = {}"
+                      .format(lc_cmd, cmd_desirability, same_lane_desirability, lc_desired))
                 factor = 0.3
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
                     bonus = factor #bonus needs to be rather large, since this will be a rare event
@@ -1198,7 +1263,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
                 else: #otherwise not desirable
-                    bonus = -factor #TODO: try -0.3*factor
+                    bonus = -factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
                     explanation += "LC des poor {:.4f}. ".format(bonus)
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
@@ -1225,7 +1290,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.1 * cmd_diff * cmd_diff
+            penalty = 0.4 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
