@@ -351,13 +351,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Decide which targets will be activated for this episode
         self._choose_active_targets()
 
-        #TODO testing only
-        atl = []
-        for ti in range(Constants.NUM_TARGETS):
-            if self.t_targets[ti].active:
-                atl.append(ti)
-        print("***** Active targets for this episode: ", atl)
-
         #
         #..........Set the initial conditions for each vehicle, depending on the scenario config
         #
@@ -713,7 +706,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
                 for t in self.t_targets:
-                    if self.vehicles[0].lane_id == t.lane_id  and  self.vehicles[0].p >= t.p:
+                    if t.active  and  self.vehicles[0].lane_id == t.lane_id  and  self.vehicles[0].p >= t.p:
                         reached_tgt = True
                         break
 
@@ -915,7 +908,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         """Makes random choices, where appropriate, and marks target destinations as active or inactive for the episode."""
 
         # If we are to randomize the target destinations then
-        print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
+        #print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
         if self.randomize_targets:
 
             # loop through each target marked valid and decide if it will be active
@@ -923,7 +916,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             for t_idx in range(Constants.NUM_TARGETS):
                 tgt = self.t_targets[t_idx]
                 tgt.active = False
-                print("** choose_active_targets: t_idx = ", t_idx, ", in lis? ", t_idx in self.valid_targets)
                 if t_idx in self.valid_targets  and  self.prng.random() > 0.5:
                     tgt.active = True
                     at_least_one_active = True
@@ -1253,8 +1245,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
-                print("***** reward: lc_cmd = {}, cmd_desirability = {:.2f}, same_lane_desirability = {:.2f}, lc_desired = {}"
-                      .format(lc_cmd, cmd_desirability, same_lane_desirability, lc_desired))
+                #print("***** reward: lc_cmd = {}, cmd_desirability = {:.2f}, same_lane_desirability = {:.2f}, lc_desired = {}"
+                #      .format(lc_cmd, cmd_desirability, same_lane_desirability, lc_desired))
                 factor = 0.3
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
                     bonus = factor #bonus needs to be rather large, since this will be a rare event
@@ -1290,13 +1282,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Small penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.4 * cmd_diff * cmd_diff
+            penalty = 0.6 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.06
+            speed_mult = 0.04
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

@@ -225,13 +225,36 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  by the user (in a config list). Valid targets can be a subset of the total list of
 	  targets defined. These apply only to the ego vehicle; neighbor vehicle targets always
 	  have the full list of defined targets available.
+		* For this run, only target #2 is valid (the one in lane 2), thus forcing the
+		  agent to learn more about right-hand LCs. Target randomization is off.
+	* During early inference, discovered that the target mod didn't take effect, because
+	  the reward function didn't get modified to only look at active targets. Therefore,
+	  this training was using all 4 targets for the ego vehicle (different from all previous
+	  runs, which only used targets 1 & 2).
+	* Inference on checkpoint 29000: agent has learned to steer out of lane 0 sometimes.
+	  However, since it trained with all 4 targets active, it sometimes steered _into_ lane
+	  0 from lane 1 just to reach its endpoint! Giving it individual targets in inference
+	  now is no good, since it hasn't learned too much about the meaning of the desirability
+	  values, as they didn't change much in training, at least from episode to episode in
+	  the same lane. Training with randomly chosen targets will provide it a much better
+	  understanding of why those obs are valuable.
+	* Speed changes were still erratic, so the penalty maybe needs to be bigger still.
+
+* Run C11 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Fixed the reward function to only consider active targets.
+	* Configured to randomize over all 4 targets for training.
+	* Changed RoadwayB so that the ends of lanes 0 & 4 are marked as ASPHALT, which were
+	  previously EXIT_RAMP. EXIT_RAMP is now not used.
+	* Increased penalty for speed variation multiplier from 0.4 to 0.6, while reducing the
+	  multiplier for speed limit deviation from 0.06 to 0.04 to keep from piling on large
+	  penalties (C4 change #3).
+	* Checkpoints are stored in 20240110-2210.
 
 
 
 TODO:
-- Reintroduce reward changes
+- Reintroduce reward changes from runs C4, C5
 - Reduce speed penalty even more, to be on line with speed var penalty.
-- move targets around wheen training, including lane 0 and 4 exits. This will require changing pavement type on ramps to asphalt.
 - consider adding dropouts to BridgitNN
 - need prev time step distance to fwd vehicle to help prevent rear-endings
 
@@ -253,6 +276,7 @@ TODO:
 - Add lane IDs to graphics
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
+- Make target displays sticky, so that they reappear after vehicle runs over them.
 - Add graphic replay w/step fwd/back
 - Display lane change as a gradual motion
 - Greenfish icon editor Pro used for making the graphic icons.

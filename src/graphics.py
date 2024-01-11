@@ -52,7 +52,7 @@ class Graphics:
     REAL_TIME_RATIO         = 5.0       #Factor faster than real time
     FONT_PATH               = "docs/fonts"
     IMAGE_PATH              = "docs/images"
-    BACKGROUND_IMAGE        = "/cda1_background_r1.bmp"
+    BACKGROUND_IMAGE        = "/cda1_background_r2.bmp" #r2 has no target indicators, but is missing top 3 rows of pixels
     BACKGROUND_VERT_SHIFT   = 3 #num pixels it is shifted upward from where the plotting thinks it is
 
     # Geometry of data plots
@@ -144,9 +144,6 @@ class Graphics:
             for seg in lane.segments:
                 self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
 
-        # Display the training targets (primary) and bot targets (secondary)
-        self._display_targets()
-
         # Display the window legend & other footer text
         self._write_legend(0, Graphics.WINDOW_SIZE_S)
 
@@ -169,6 +166,9 @@ class Graphics:
         image_rect = list(self.vehicle_ego_image.get_rect())
         self.veh_image_r_offset = (image_rect[2] - image_rect[0])//2
         self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2 + Graphics.BACKGROUND_VERT_SHIFT
+
+        # Display the training targets (primary) and bot targets (secondary)
+        self._display_targets()
 
         # Set up lists of previous screen coords and display images for each vehicle
         vehicles = env.get_vehicle_data()
@@ -259,7 +259,7 @@ class Graphics:
                 pos = self.off_road_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset + lateral_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.off_road_image, pos)
 
-            # else the vehicle is still active display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
+            # else the vehicle is still active, so display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
             else:
                 #pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
                 pos = self.veh_images[v_idx].get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset)
@@ -403,15 +403,18 @@ class Graphics:
 
 
     def _display_targets(self):
-        """Displays each of the primary and secondary target locations."""
+        """Displays each of the primary and secondary target locations. All targets are displayed, since all are used by the bot vehicles.
+            Only valid, active targets are used by the ego vehicle, and those are displayed differently.
+        """
 
-        # Display the secondary one first, as this may be a superset of the primary targets
+        # Display the secondary ones first, as this may be a superset of the primary (active) targets
         for tgt in self.env.b_targets:
             self._display_target(tgt, self.target_secondary_image)
 
         # Now display the primary targets, whose images will overlay any secondaries that coincide
         for tgt in self.env.t_targets:
-            self._display_target(tgt, self.target_primary_image)
+            if tgt.active:
+                self._display_target(tgt, self.target_primary_image)
 
 
     def _display_target(self,

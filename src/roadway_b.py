@@ -8,7 +8,7 @@ class PavementType:
     """Enumeration to represent types of pavement."""
     GRASS       = 0 #anything not driveable
     ASPHALT     = 1 #everyday drivability
-    EXIT_RAMP   = 2 #only useful for vehicles aiming for a target on this ramp
+    EXIT_RAMP   = 2 #only useful for vehicles aiming for a target on this ramp; currently not used
 
 
 class Roadway:
@@ -118,7 +118,7 @@ class Roadway:
         L0_Y = 3*Roadway.WIDTH #the merge segment
         segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
                 (2000.0,    L0_Y,           2400.0,     L0_Y,           400.0,  NORMAL_SL,  PavementType.ASPHALT),
-                (2400.0,    L0_Y,           2486.6,     L0_Y+0.5*100.0, 100.0,  RAMP_SL,    PavementType.EXIT_RAMP)]
+                (2400.0,    L0_Y,           2486.6,     L0_Y+0.5*100.0, 100.0,  RAMP_SL,    PavementType.ASPHALT)]
         lane = Lane(0, 1653.6, 900.0, segs, right_id = 1, right_join = 2000.0, right_sep = 2400.0)
         self.lanes.append(lane)
 
@@ -150,7 +150,7 @@ class Roadway:
         L4_Y = L3_Y - Roadway.WIDTH #the merge segment
         segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
                 (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
-                (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL,    PavementType.EXIT_RAMP)]
+                (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL,    PavementType.ASPHALT)]
         origin_p = 900.0 #manually converted x0 to p0; can't use map_to_param_frame() yet, cuz it requires all lanes to be defined
         lane = Lane(4, 953.6, 700.0, segs, left_id = 3, left_join = 1300.0, left_sep = 1500.0,
                     right_id = 5, right_join = origin_p, right_sep = 1350.0)

@@ -77,13 +77,6 @@ class BridgitGuidance(VehicleGuidance):
         # Ensure the planning method will get called on the first step of the episode
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
 
-        #TODO testing only
-        atl = []
-        for ti in range(Constants.NUM_TARGETS):
-            if self.targets[ti].active:
-                atl.append(ti)
-        print("***   BridgitGuidance active targets for this episode: ", atl)
-
         # Get all of the active targets and the starting points for each possible target destination and merge them, taking the
         # set-wise intersection of points in each lane.
         self.starting_points = {}
@@ -152,7 +145,23 @@ class BridgitGuidance(VehicleGuidance):
                 pass
 
             pos.tgt_id = tgt_idx
-            pos.delta_p = self.starting_points[pos.lane_id] - self.my_vehicle.p
+
+            # Get the worst-case starting P location in this lane that could still reach an active target. In case there are no reachable
+            # targets, default the starting point to P = 0.
+            sp = 0.0
+            try:
+                sp = self.starting_points[pos.lane_id]
+            except KeyError:
+                """ #for testing only
+                at = []
+                for t_idx, t in enumerate(self.targets):
+                    if t.active:
+                        at.append(t_idx)
+                print("//    INFO: BridgitGuidance.plan_route: no starting point found for lane_id = {} to any active targets {}".format(pos.lane_id, at))
+                """
+                pass
+
+            pos.delta_p = sp - self.my_vehicle.p
 
         # Loop through the relative positions again to assign desirable probabilities of being in that lane
         max_prob = 0.0
@@ -204,7 +213,7 @@ class BridgitGuidance(VehicleGuidance):
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob
         obs[ObsVec.DESIRABILITY_CTR]    = self.positions[self.CENTER].prob
         obs[ObsVec.DESIRABILITY_RIGHT]  = self.positions[self.RIGHT].prob
-        print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1])
+        #print("*     plan_route done: output = ", obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1])
 
         # Indicate that planning has been completed for a while
         self.steps_since_plan = 0
