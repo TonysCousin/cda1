@@ -229,7 +229,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Normally, this would be wrapped in a try-except block, but Ray makes it very difficult to see the exception
         # in that case. So we let it fail ugly and the problem is much easier to spot.
         vc = self.vehicle_config
-        v_data = vc["vehicles"]
+        v_data = []
+        try:
+            v_data = vc["vehicles"]
+        except KeyError:
+            vc["title"] = "NO VEHICLE FILE FOUND" #allow running with no vehicle file (no vehicles defined)
         self.num_vehicles = len(v_data)
 
         # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
@@ -871,7 +875,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 d = yaml.load(stream, Loader = Loader) #TODO: replace with call to safe_load() to plug security risk (https://pyyaml.org/wiki/PyYAMLDocumentation)
                 self.vehicle_config = d
         except Exception as e:
-            print("///// Exception in loading YAML file {}: {}".format(vcf, e))
+            print("\n///// Exception in loading YAML file {}: {}\nProceding with no vehicles defined!\n".format(vcf, e))
 
         self.scenario = 0 #indicates the initial conditions of the scenario
         try:

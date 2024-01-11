@@ -52,8 +52,13 @@ class Graphics:
     REAL_TIME_RATIO         = 5.0       #Factor faster than real time
     FONT_PATH               = "docs/fonts"
     IMAGE_PATH              = "docs/images"
-    BACKGROUND_IMAGE        = "/cda1_background_r2.bmp" #r2 has no target indicators, but is missing top 3 rows of pixels
-    BACKGROUND_VERT_SHIFT   = 3 #num pixels it is shifted upward from where the plotting thinks it is
+
+    # Background images:
+    #   r0, r1 - initial attempts
+    #   r2 - removed target indicators (they can now be dynamically assigned); requires +3 pix vert shift
+    #   r3 - includes extended lane 0 & 4 exit ramps;
+    BACKGROUND_IMAGE        = "/cda1_background_r3.bmp"
+    BACKGROUND_VERT_SHIFT   = 0 #num pixels it is shifted upward from where the plotting thinks it is
 
     # Geometry of data plots
     PLOT_H          = 80        #height of each plot, pixels
@@ -73,83 +78,43 @@ class Graphics:
     #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
     def __init__(self,
-                 env    : HighwayEnv,
+                 env                : HighwayEnv,   #the environment model that describes the roadway simulation
+                 background_only    : bool = False, #should we stop after only generating the static background display?
                 ):
-        """Initializes the graphics and draws the roadway background display."""
+        """Initializes the graphics. If the object is being used only for displaying the background (e.g. for capturing a
+            new screen image for later use), then draws the roadway segments and other static display elements. However,
+            if it is being used to actually run inference activity, it will simply display a static image with all of these
+            elements already embedded.
+        """
 
-        # Save the environment for future reference
-        self.env = env
-
-        # set up pygame
+        # set up pygame and the basic geometry calculations
         pygame.init()
         self.pgclock = pygame.time.Clock()
         self.display_freq = Graphics.REAL_TIME_RATIO / env.time_step_size
+        self.set_up_geometry(env)
 
-        # set up the window
-        self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), flags = 0)
-        pygame.display.set_caption('cda1')
+        # If we're only doing a background display, then
+        if background_only:
 
-        # draw the background onto the surface
-        self.window_surface.fill(Graphics.BACKGROUND_COLOR)
+            # Loop through the lane segments and draw the left and right edge lines of each
+            for lane in env.roadway.lanes:
+                for seg in lane.segments:
+                    self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
 
-        # Load the canned background image that shows the track, empty data plots and legend info
-        self.background_image = pygame.image.load(Graphics.IMAGE_PATH + Graphics.BACKGROUND_IMAGE).convert_alpha()
-        self.window_surface.blit(self.background_image, (0, 0))
+            # Display the window legend & other footer text
+            self._write_legend(0, Graphics.WINDOW_SIZE_S)
 
-        # Loop through all segments of all lanes and find the extreme coordinates to determine our bounding box
-        x_min = inf
-        y_min = inf
-        x_max = -inf
-        y_max = -inf
-        for lane in env.roadway.lanes:
-            for seg in lane.segments:
-                x_min = min(x_min, seg[0], seg[2])
-                y_min = min(y_min, seg[1], seg[3])
-                x_max = max(x_max, seg[0], seg[2])
-                y_max = max(y_max, seg[1], seg[3])
+            # Display the results and exit with a warning
+            pygame.display.update()
+            print("\n///// WARNING: Background construction only!  Vehicles have not been initialized. NOT FOR OPERATIONAL USE!\n")
+            return
 
-        # Add a buffer all around to ensure we have room to draw the edge lines, which are 1/2 lane width away
-        x_min -= 0.5*Graphics.LANE_WIDTH
-        y_min -= 0.5*Graphics.LANE_WIDTH
-        x_max += 0.5*Graphics.LANE_WIDTH
-        y_max += 0.5*Graphics.LANE_WIDTH
+        # Else, setting up an operational run
+        else:
 
-        # Define the transform between roadway coords (x, y) and display viewport pixels (r, s).  Note that
-        # viewport origin is at upper left, with +s pointing downward.  Leave a few pixels of buffer on all sides
-        # of the display so the lines don't bump the edge.
-        buffer = 8 #pixels
-        display_width = Graphics.WINDOW_SIZE_R - 2*buffer
-        display_height = Graphics.WINDOW_SIZE_S - 2*buffer
-        roadway_width = x_max - x_min
-        roadway_height = y_max - y_min
-        ar_display = display_width / display_height
-        ar_roadway = roadway_width / roadway_height
-        self.scale = display_height / roadway_height     #pixels/meter (on Tensorbook this is 0.588)
-        if ar_roadway > ar_display:
-            self.scale = display_width / roadway_width
-        self.roadway_center_x = x_min + 0.5*roadway_width
-        self.roadway_center_y = y_min + 0.5*roadway_height
-        self.display_center_r = Graphics.WINDOW_SIZE_R // 2
-        self.display_center_s = int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - 2*buffer #set the roadway as high in the window as possible
-        print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
-                .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
-
-        # set up fonts
-        self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
-        self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
-
-        """
-        # Loop through the lane segments and draw the left and right edge lines of each
-        for lane in env.roadway.lanes:
-            for seg in lane.segments:
-                self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
-
-        # Display the window legend & other footer text
-        self._write_legend(0, Graphics.WINDOW_SIZE_S)
-
-        pygame.display.update()
-        #time.sleep(20) #debug only
-        """
+            # Load the canned background image that shows the track, empty data plots and legend info
+            self.background_image = pygame.image.load(Graphics.IMAGE_PATH + Graphics.BACKGROUND_IMAGE).convert_alpha()
+            self.window_surface.blit(self.background_image, (0, 0))
 
         # Initialize images - use convert_alpha to enable the transparent areas of the bitmaps
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH +              "/crash16.bmp").convert_alpha()
@@ -290,6 +255,66 @@ class Graphics:
 
     def close(self):
         pygame.quit()
+
+
+    def set_up_geometry(self,
+                        env    : HighwayEnv,   #the environment model that describes the roadway simulation
+                       ):
+        """Defines the fundamentals that will be needed to handle all the geometric calcs later in object construction
+            and operation.
+        """
+
+        # Save the environment for future reference
+        self.env = env
+
+        # set up the window
+        self.window_surface = pygame.display.set_mode((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S), flags = 0)
+        pygame.display.set_caption('cda1')
+
+        # draw the background onto the surface
+        self.window_surface.fill(Graphics.BACKGROUND_COLOR)
+
+        # Loop through all segments of all lanes and find the extreme coordinates to determine our bounding box
+        x_min = inf
+        y_min = inf
+        x_max = -inf
+        y_max = -inf
+        for lane in env.roadway.lanes:
+            for seg in lane.segments:
+                x_min = min(x_min, seg[0], seg[2])
+                y_min = min(y_min, seg[1], seg[3])
+                x_max = max(x_max, seg[0], seg[2])
+                y_max = max(y_max, seg[1], seg[3])
+
+        # Add a buffer all around to ensure we have room to draw the edge lines, which are 1/2 lane width away
+        x_min -= 0.5*Graphics.LANE_WIDTH
+        y_min -= 0.5*Graphics.LANE_WIDTH
+        x_max += 0.5*Graphics.LANE_WIDTH
+        y_max += 0.5*Graphics.LANE_WIDTH
+
+        # Define the transform between roadway coords (x, y) and display viewport pixels (r, s).  Note that
+        # viewport origin is at upper left, with +s pointing downward.  Leave a few pixels of buffer on all sides
+        # of the display so the lines don't bump the edge.
+        buffer = 8 #pixels
+        display_width = Graphics.WINDOW_SIZE_R - 2*buffer
+        display_height = Graphics.WINDOW_SIZE_S - 2*buffer
+        roadway_width = x_max - x_min
+        roadway_height = y_max - y_min
+        ar_display = display_width / display_height
+        ar_roadway = roadway_width / roadway_height
+        self.scale = display_height / roadway_height     #pixels/meter (on Tensorbook this is 0.588)
+        if ar_roadway > ar_display:
+            self.scale = display_width / roadway_width
+        self.roadway_center_x = x_min + 0.5*roadway_width
+        self.roadway_center_y = y_min + 0.5*roadway_height
+        self.display_center_r = Graphics.WINDOW_SIZE_R // 2
+        self.display_center_s = int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - 2*buffer #set the roadway as high in the window as possible
+        print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
+                .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
+
+        # set up fonts
+        self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)
+        self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
 
 
     def key_press_event(self) -> int:
