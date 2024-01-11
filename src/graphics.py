@@ -253,9 +253,9 @@ class Graphics:
             elif v_idx == 0  and  vehicles[v_idx].off_road:
                 lateral_offset = 0 #as if it ran off the end of a lane
                 if vehicles[v_idx].lane_change_status == "left":
-                    lateral_offset = int(self.LANE_WIDTH*self.scale + 0.5)
-                elif vehicles[v_idx].lane_change_status == "right":
                     lateral_offset = -int(self.LANE_WIDTH*self.scale + 0.5)
+                elif vehicles[v_idx].lane_change_status == "right":
+                    lateral_offset = int(self.LANE_WIDTH*self.scale + 0.5)
                 pos = self.off_road_image.get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset + lateral_offset) #defines the upper-left corner of the image
                 self.window_surface.blit(self.off_road_image, pos)
 

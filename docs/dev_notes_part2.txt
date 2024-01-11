@@ -267,6 +267,13 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		  on the lane 4 & 5 on-ramps from 20.1 to 22.4 m/s to give more variety of
 		  training experiences.
 	* Checkpoints stored in 20240111-0959.
+	* After ~15k iters, rewards and episode lengths tanked. Inference on checkpoint 22000
+	  shows rapid LC command, no matter where it is, until it runs off road. This is
+	  apparently more desirable than the huge speed penalties it is receiving.
+
+* Run C13 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Reduced speed limit penalty multiplier from 0.04 to 0.02.
+	* Checkpoints stored in 20240111-1744.
 
 NEXT: recreate the background image for the new lanes
 
