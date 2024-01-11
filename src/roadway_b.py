@@ -106,8 +106,10 @@ class Roadway:
         self.lanes = [] #list of all the lanes in the scenario; list index is lane ID
 
         NORMAL_SL   = 29.1 #speed limit, m/s (65 mph)
-        HIGH_SL     = 33.5 #speed limit, m/s (75 mph)
-        RAMP_SL     = 20.1 #speed limit, m/s (45 mph)
+        HIGH1_SL    = 31.3 #speed limit, m/s (70 mph)
+        HIGH2_SL    = 33.5 #speed limit, m/s (75 mph)
+        RAMP1_SL    = 20.1 #speed limit, m/s (45 mph)
+        RAMP2_SL    = 22.4 #speed limit, m/s (50 mph)
 
         # NOTE: all values used in this geometry are lane centerlines
 
@@ -116,17 +118,17 @@ class Roadway:
 
         # Lane 0 - entrance ramp, short merge segment, then exit ramp
         L0_Y = 3*Roadway.WIDTH #the merge segment
-        segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
+        segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP1_SL,   PavementType.ASPHALT),
                 (2000.0,    L0_Y,           2400.0,     L0_Y,           400.0,  NORMAL_SL,  PavementType.ASPHALT),
-                (2400.0,    L0_Y,           2486.6,     L0_Y+0.5*100.0, 100.0,  RAMP_SL,    PavementType.ASPHALT)]
-        lane = Lane(0, 1653.6, 900.0, segs, right_id = 1, right_join = 2000.0, right_sep = 2400.0)
+                (2400.0,    L0_Y,           2573.2,     L0_Y+0.5*200.0, 200.0,  RAMP1_SL,   PavementType.ASPHALT)]
+        lane = Lane(0, 1653.6, 1000.0, segs, right_id = 1, right_join = 2000.0, right_sep = 2400.0)
         self.lanes.append(lane)
 
         # Lane 1 - short full-speed ramp, then straight to the end, with high speed final segment
         L1_Y = L0_Y - Roadway.WIDTH
         segs = [(626.8,     L1_Y+0.5*200.0, 800.0,      L1_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
                 (800.0,     L1_Y,           2400.0,     L1_Y,           1600.0, NORMAL_SL,  PavementType.ASPHALT),
-                (2400.0,    L1_Y,           3000.0,     L1_Y,           600.0,  HIGH_SL,   PavementType.ASPHALT)]
+                (2400.0,    L1_Y,           3000.0,     L1_Y,           600.0,  HIGH2_SL,   PavementType.ASPHALT)]
         lane = Lane(1, 626.8, 2400.0, segs, left_id = 0, left_join = 2000.0, left_sep = 2400.0,
                     right_id = 2, right_join = 800.0, right_sep = 3000.0)
         self.lanes.append(lane)
@@ -140,7 +142,7 @@ class Roadway:
 
         # Lane 3 - high-speed single-lane road, then runs parallel to lane 2 for a while
         L3_Y = 0.0
-        segs = [(0.0,       L3_Y,           500.0,      L3_Y,           500.0,  HIGH_SL,    PavementType.ASPHALT),
+        segs = [(0.0,       L3_Y,           500.0,      L3_Y,           500.0,  HIGH1_SL,   PavementType.ASPHALT),
                 (500.0,     L3_Y,           2200.0,     L3_Y,           1700.0, NORMAL_SL,  PavementType.ASPHALT)]
         lane = Lane(3, 0.0, 2200.0, segs, left_id = 2, left_join = 500.0, left_sep = 2200.0,
                     right_id = 4, right_join = 1300.0, right_sep = 1500.0)
@@ -148,18 +150,18 @@ class Roadway:
 
         # Lane 4 - entrance ramp with short merge area then exit ramp
         L4_Y = L3_Y - Roadway.WIDTH #the merge segment
-        segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
+        segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP2_SL,   PavementType.ASPHALT),
                 (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
-                (1500.0,    L4_Y,           1586.6,     L4_Y-0.5*100.0, 100.0,  RAMP_SL,    PavementType.ASPHALT)]
+                (1500.0,    L4_Y,           1673.2,     L4_Y-0.5*200.0, 200.0,  RAMP1_SL,   PavementType.ASPHALT)]
         origin_p = 900.0 #manually converted x0 to p0; can't use map_to_param_frame() yet, cuz it requires all lanes to be defined
-        lane = Lane(4, 953.6, 700.0, segs, left_id = 3, left_join = 1300.0, left_sep = 1500.0,
+        lane = Lane(4, 953.6, 800.0, segs, left_id = 3, left_join = 1300.0, left_sep = 1500.0,
                     right_id = 5, right_join = origin_p, right_sep = 1350.0)
         self.lanes.append(lane)
 
         # Lane 5 - secondary entrance ramp
         L5_Y = L4_Y - Roadway.WIDTH #the stubby merge segment
-        segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP_SL,    PavementType.ASPHALT),
-                (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP_SL,    PavementType.ASPHALT)]
+        segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP2_SL,   PavementType.ASPHALT),
+                (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP2_SL,   PavementType.ASPHALT)]
         lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = origin_p, left_sep = 1350.0)
         self.lanes.append(lane)
 

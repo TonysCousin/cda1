@@ -269,6 +269,9 @@ class Graphics:
             self.prev_veh_r[v_idx] = new_r
             self.prev_veh_s[v_idx] = new_s
 
+        # Refresh the targets in case they were driven through
+        self._display_targets()
+
         # Update data plots
         pv = 0
         if self.env.scenario >= 90:

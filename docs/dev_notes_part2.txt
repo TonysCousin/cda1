@@ -248,7 +248,27 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Increased penalty for speed variation multiplier from 0.4 to 0.6, while reducing the
 	  multiplier for speed limit deviation from 0.06 to 0.04 to keep from piling on large
 	  penalties (C4 change #3).
-	* Checkpoints are stored in 20240110-2210.
+	* Checkpoints are stored in 20240110-2217.
+	* Run died early due to a segfault. Completed 15600 iters, at which point rmin ~-2.2,
+	  rmean ~-0.2, rmax ~0.9, mean ep len ~91.
+	* Inference on checkpoint 15000: does not change lanes out of lane 0. Speeds are a
+	  little smoother, but still occasional large swings for no reason.
+
+1/11/24
+
+* Run C12 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Changed multiplier on speed variation penalty from 0.6 to 1.0.
+	* Reduced penalty for making a poor choice on LC desirabilty from -factor to -0.3*factor.
+***	* Updated RoadwayB to alter the track a bit:
+		* Lengthened the exit ramps on lanes 0 and 4 to 200 m, so that they each have
+		  100 m beyond their target destinations to provide conssitent sensor data
+		  that gives the agent the impression of an on-going drive.
+		* Changed the speed limits on the lane 3 segment 1 from 33.5 to 31.3 m/s and
+		  on the lane 4 & 5 on-ramps from 20.1 to 22.4 m/s to give more variety of
+		  training experiences.
+	* Checkpoints stored in 20240111-0959.
+
+NEXT: recreate the background image for the new lanes
 
 
 
@@ -258,6 +278,7 @@ TODO:
 - consider adding dropouts to BridgitNN
 - need prev time step distance to fwd vehicle to help prevent rear-endings
 
+- update roadway diagram in readme
 - Review TODOs in graphics.py
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then

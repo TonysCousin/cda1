@@ -1255,7 +1255,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
                 else: #otherwise not desirable
-                    bonus = -factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
+                    bonus = -0.3*factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
                     explanation += "LC des poor {:.4f}. ".format(bonus)
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
@@ -1280,9 +1280,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln cmd pen {:.4f}. ".format(penalty)
             """
 
-            # Small penalty for widely varying speed commands
+            # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.6 * cmd_diff * cmd_diff
+            penalty = 1.0 * cmd_diff * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
