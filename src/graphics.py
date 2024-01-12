@@ -1,5 +1,6 @@
 from cmath import inf
 import math
+import time
 import pygame
 from pygame.locals import *
 from typing import List
@@ -58,7 +59,7 @@ class Graphics:
     #   r2 - removed target indicators (they can now be dynamically assigned); requires +3 pix vert shift
     #   r3 - includes extended lane 0 & 4 exit ramps;
     BACKGROUND_IMAGE        = "/cda1_background_r3.bmp"
-    BACKGROUND_VERT_SHIFT   = 0 #num pixels it is shifted upward from where the plotting thinks it is
+    BACKGROUND_VERT_SHIFT   = -1 #num pixels it is shifted upward from where the plotting thinks it is
 
     # Geometry of data plots
     PLOT_H          = 80        #height of each plot, pixels
@@ -125,6 +126,7 @@ class Graphics:
         self.vehicle_bot1b_image = pygame.image.load(Graphics.IMAGE_PATH +      "/Blue_car16_simple.bmp").convert_alpha()
         self.target_primary_image = pygame.image.load(Graphics.IMAGE_PATH +     "/square_red_white_lg_16.bmp").convert_alpha()
         self.target_secondary_image = pygame.image.load(Graphics.IMAGE_PATH +   "/square_black_white_sm_16.bmp").convert_alpha()
+        self.alert_image = pygame.image.load(Graphics.IMAGE_PATH +              "/Red_bang16.bmp").convert_alpha()
 
         # Determine offsets for vehicle image centers - these needed to be subtracted from the (r, s) location in order to display an image
         # because the image display is keyed to the upper-left corner of the image. Assumes all vehicle images are the same size.
@@ -156,6 +158,10 @@ class Graphics:
         #TODO: draw rectangles instead of circles, with length = vehicle length & width = 0.5*lane width
         self.veh_radius = int(0.25 * Graphics.LANE_WIDTH * self.scale) #radius of icon in pixels
 
+        # Initialize the alert display location
+        self.alert_pos_r = 0
+        self.alert_pos_s = 0
+
         #
         #..........Add live data plots to the display
         #
@@ -185,13 +191,19 @@ class Graphics:
                obs     : list,      #vector of observations of the ego vehicle for the current time step
                vehicles: list,      #list of Vehicle objects, with item [0] as the ego vehicle
               ):
-        """Paints all updates on the display screen, including the new motion of every vehicle and any data plots."""
+        """Paints all updates for the current time step on the display screen, including the new motion of every vehicle and any data plots."""
+
+        # If ego vehicle is in alert status then capture the location and begin displaying the alert icon every time step
+        if vehicles[0].alert:
+            self.alert_pos_r = self.prev_veh_r[0]
+            self.alert_pos_s = self.prev_veh_s[0]
+
+        if self.alert_pos_r > 0:
+            pos = self.alert_image.get_rect().move(self.alert_pos_r - self.veh_image_r_offset, self.alert_pos_s - self.veh_image_s_offset)
+            self.window_surface.blit(self.alert_image, pos)
 
         # Loop through each vehicle in the scenario
         for v_idx in range(len(vehicles)):
-
-            # Grab the background under where we want the vehicle to appear & erase the old vehicle
-            #pygame.draw.circle(self.window_surface, Graphics.BACKGROUND_COLOR, (self.prev_veh_r[v_idx], self.prev_veh_s[v_idx]), self.veh_radius, 0)
 
             # Replace the background under where the vehicle was previously located
             image_r = self.prev_veh_r[v_idx] - self.veh_image_r_offset
@@ -226,11 +238,10 @@ class Graphics:
 
             # else the vehicle is still active, so display the vehicle in its new location.  Note that the obs vector is not scaled at this point.
             else:
-                #pygame.draw.circle(self.window_surface, self.veh_colors[v_idx], (new_r, new_s), self.veh_radius, 0)
                 pos = self.veh_images[v_idx].get_rect().move(new_r - self.veh_image_r_offset, new_s - self.veh_image_s_offset)
                 self.window_surface.blit(self.veh_images[v_idx], pos)
 
-           # Update the previous location
+            # Update the previous location
             self.prev_veh_r[v_idx] = new_r
             self.prev_veh_s[v_idx] = new_s
 

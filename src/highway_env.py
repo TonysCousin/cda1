@@ -688,6 +688,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if not self.vehicles[i].active:
                 continue
 
+            # Clear any alerts that may have been set in the previous time step
+            self.vehicles[i].alert = False
+
             # Exercise the tactical guidance algo to generate the next action commands for vehicles that aren't in training.
             if i > 0  or  20 <= self.effective_scenario <= 29:
                 #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
@@ -1220,6 +1223,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 reward = -1.0
                 explanation = "Vehicle stopped. "
 
+            """
             # Else if a target point has been achieved (mostly good for inference demo, but also special cases of complete episode)
             elif tgt_reached:
                 reward = 1.0 #
@@ -1229,6 +1233,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             else:
                 reward = 1.0
                 explanation = "Successful episode!"
+            """
 
         # Else, episode still underway
         else:
@@ -1246,11 +1251,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change has been commanded, give a bonus if it is going in a desirable direction. But don't consider if it's overly
             # redundant (more than twice while the maneuver is underway).
-            if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 3:
+            if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 2:
                 cmd_desirability = lc_desired[lc_cmd+1]
                 same_lane_desirability = lc_desired[1]
                 #print("***** reward: lc_cmd = {}, cmd_desirability = {:.2f}, same_lane_desirability = {:.2f}, lc_desired = {}"
                 #      .format(lc_cmd, cmd_desirability, same_lane_desirability, lc_desired))
+
                 factor = 0.3
                 if cmd_desirability > same_lane_desirability: #command is better than staying put
                     bonus = factor #bonus needs to be rather large, since this will be a rare event
@@ -1258,9 +1264,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 elif cmd_desirability < 0.1: #command was an especially poor choice
                     bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
-                else: #otherwise not desirable
+                else: #otherwise not desirable - set the alert flag to draw attention to the info logged
                     bonus = -0.3*factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
-                    explanation += "LC des poor {:.4f}. ".format(bonus)
+                    explanation += "LC des poor {:.4f} (lc_desired = {}, lc_cmd = {}). ".format(bonus, lc_desired, lc_cmd)
+                    self.vehicles[0].alert = True
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
@@ -1292,7 +1299,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.02
+            speed_mult = 0.01
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

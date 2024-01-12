@@ -51,9 +51,10 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
-                    "valid_targets":            [0, 1, 2, 3], #list can include 0, 1, 2, 3 (no duplicates)
+                    "valid_targets":            [1, 2], #list can include 0, 1, 2, 3 (no duplicates)
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
+                    "episode_length":           episode_len,
                     "vehicle_file":             "config/vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
                     "crash_report":             True,
@@ -132,6 +133,11 @@ def main(argv):
     step = 0
 
     # Wait for user to indicate okay to begin animation
+    tgt_list = []
+    for i, t in enumerate(env.t_targets):
+        if t.active:
+            tgt_list.append(i)
+    print("\n///// Beginning episode with env {} and active targets are: {}".format(env.rollout_id, tgt_list))
     key = None
     while key != RESUME_KEY:
         if key == END_KEY:
@@ -139,10 +145,9 @@ def main(argv):
             graphics.close()
             sys.exit()
         key = graphics.wait_for_key_press()
-    print("      Beginning...")
 
     # Loop on time steps until episode is complete
-    while not done  and  step < episode_len:
+    while not done  and  step <= episode_len:
         step += 1
         #print("    * left bdry = {:1f} {:1f} {:1f}, right bdry = {:1f} {:1f} {:1f}, des = {:.2f} {:.2f} {:.2f}"
         #      .format(obs[ObsVec.BASE_LEFT_CTR_BDRY+0], obs[ObsVec.BASE_LEFT_CTR_BDRY+1], obs[ObsVec.BASE_LEFT_CTR_BDRY+2],

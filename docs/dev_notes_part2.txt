@@ -274,19 +274,52 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Run C13 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
 	* Reduced speed limit penalty multiplier from 0.04 to 0.02.
 	* Checkpoints stored in 20240111-1744.
+	* Over the past several runs I have seen several crashes where agent changes lanes
+	  just in front of a faster moving bot. Usually these occur late in the LC count,
+	  indicating that when it committed to beginning the LC, the neighbor was probably
+	  too far back to be seen. Since it has no way to abort an underway LC, the crash is
+	  then inevitable. And the bot can't sense the ego vehicle's LC in progress until it
+	  crosses the dividing line (step 8).
+	* Training proceeded well through ~15k iters, at which point it showed rmin ~-2.1,
+	  rmean ~-0.1, rmax ~1.2 and mean ep len ~89 steps. At that point performance began
+	  to drop, oddly ending with similar rewards but mean ep len dropped to ~5 then
+	  somewhat recovered to ~25 by the time it hit 40k iters.
+	* Inference on checkpoint 15000: prefers to steer toward lane 1 even when there is
+	  not an active target there. After several episodes, I saw one lane 0
+	  start that changed lanes when no target exists in lane 0.
+	* Inference on checkpoint 21000 (where mean ep len was worst): a lane 0 start
+	  changed lanes into 1. Otherwise, every start did an immediate left turn off-road.
+	* Inference on checkpoint 40000: not much different from 21000.
+	* Inference on checkpoint 16000 with 100 step limit (like training episodes):
+	  well-performing episodes only score -0.3 (no reward for completing the trajectory).
+		* Lane 4 start changed to lane 3, as needed, and got a "poor" desirability
+		  penalty of -0.9 for that!
 
-NEXT: recreate the background image for the new lanes
+1/12/24
+
+* Run C14 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Eliminated reward bonus for complete episode (normally 100 steps) or for hitting
+	  an active target, since those are so rare, and is outside the control of the
+	  tactical guidance anyway.
+	* Added an alert flag in the Vehicle class, which is now set if a poor LC desirability
+	  choice is made (in the reward function), and displays on the inference graphics.
+	* Changed LC desirability reward section to ony award for the single time step that
+	  initiates the LC mvr (it was doing it for two consecutive steps), so that bonus
+	  impact will be lower.
+	* Halved the speed limit penalty multiplier from 0.02 to 0.01 to emphasize the value
+	  of followiing lane desirability and speed smoothness.
+	* Checkpoints stored in 20240112-1811.
+
 
 
 
 TODO:
 - Reintroduce reward changes from runs C4, C5
-- Reduce speed penalty even more, to be on line with speed var penalty.
 - consider adding dropouts to BridgitNN
 - need prev time step distance to fwd vehicle to help prevent rear-endings
+- consider adding logic to abort a LC mvr.
 
 - update roadway diagram in readme
-- Review TODOs in graphics.py
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
@@ -300,11 +333,12 @@ TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 
+- Review TODOs in graphics.py
+- Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
+- Investigate target markers initially having white border, then losing it after a car passes through.
 - Add lane IDs to graphics
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
-- Make target displays sticky, so that they reappear after vehicle runs over them.
 - Add graphic replay w/step fwd/back
-- Display lane change as a gradual motion
 - Greenfish icon editor Pro used for making the graphic icons.

@@ -45,6 +45,7 @@ class Vehicle:
         self.off_road = False                   #has this vehicle driven off-road?
         self.stopped_count = 0                  #num consecutive time steps that the vehicle's speed is very close to 0
         self.stopped = False                    #is this vehicle considered effectively stopped? (this is a latch)
+        self.alert = False                      #flag can be used to alert the user to some situation; not used in routine logic.
 
 
     def reset(self,
