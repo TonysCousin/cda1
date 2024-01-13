@@ -1249,6 +1249,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is quantized in [-1, 1]; add 1 to use it as an index
             bonus = 0.0
 
+            # If a lane change is not currently underway, or just begun, give a bonus for lateral control decision proportional to the
+            # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
+            if self.vehicles[0].lane_change_count <= 1:
+                bonus = 0.01 * lc_desired[lc_cmd+1]
+
+                # If the command is to change lanes, then multiply the bonus by the num time steps required to complete, since it won't get
+                # awarded while a LC mvr is underway
+                if self.vehicles[0].lane_change_count > 0:
+                    bonus *= self.vehicles[0].model.lc_compl_steps
+
+            """
             # If a lane change has been commanded, give a bonus if it is going in a desirable direction. But don't consider if it's overly
             # redundant (more than twice while the maneuver is underway).
             if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 2:
@@ -1268,6 +1279,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     bonus = -0.3*factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
                     explanation += "LC des poor {:.4f} (lc_desired = {}, lc_cmd = {}). ".format(bonus, lc_desired, lc_cmd)
                     self.vehicles[0].alert = True
+            """
             """ previously used; may come back:
             if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max

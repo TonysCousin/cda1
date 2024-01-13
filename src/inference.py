@@ -30,7 +30,7 @@ def main(argv):
     epilog = "If a non-learning scenario (*) is chosen then any checkpoint specified is ignored."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = epilog, formatter_class = argparse.RawTextHelpFormatter)
     parser.add_argument("-c", type = str, help = "Ray checkpoint dir containing the RL model to be run for the ego vehicle.")
-    parser.add_argument("-L", type = int, default = inf, help = "Max num time steps to run")
+    parser.add_argument("-L", type = int, default = 999999, help = "Max num time steps to run")
     parser.add_argument("-s", type = int, default = 0, help = scenario_desc)
     args = parser.parse_args()
     checkpoint = args.c

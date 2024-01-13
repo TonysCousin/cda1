@@ -309,12 +309,17 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Halved the speed limit penalty multiplier from 0.02 to 0.01 to emphasize the value
 	  of followiing lane desirability and speed smoothness.
 	* Checkpoints stored in 20240112-1811.
+	* I killed the run after 9k iters, in favor of a better reward scheme (next run).
+
+* Run C15 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Changed reward design for lane change desirability, providing a keep-alive bonus for
+	  every time step that is proportional to the desirability of that lateral decision.
+	* Checkpoints stored in 20240112-2129.
 
 
 
 
 TODO:
-- Reintroduce reward changes from runs C4, C5
 - consider adding dropouts to BridgitNN
 - need prev time step distance to fwd vehicle to help prevent rear-endings
 - consider adding logic to abort a LC mvr.
