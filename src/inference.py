@@ -51,7 +51,7 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
-                    "valid_targets":            [1, 2], #list can include 0, 1, 2, 3 (no duplicates)
+                    "valid_targets":            [0, 1, 2, 3], #list can include 0, 1, 2, 3 (no duplicates)
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "episode_length":           episode_len,

@@ -315,7 +315,30 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Changed reward design for lane change desirability, providing a keep-alive bonus for
 	  every time step that is proportional to the desirability of that lateral decision.
 	* Checkpoints stored in 20240112-2129.
+	* Training completed with rmin ~-1 (many iters had rmin > -1), rmean ~0.6, rmax ~0.95
+	  and mean ep len ~94 (never an iter with mean ep len > 98).
+	* Inference on checkpoint 32000: way too many lane changes; several of them are
+	  reckless, causing sideways crashes, even into bots it should see just off the front
+	  bow. Speed selection is good, but still noisy.
+	* Inference on checkpoint 40000: same as above with additional notes. Extraneous LCs
+	  happen periodically back and forth between two of the long lanes, usually with 2-4
+	  steps of rest in between mvrs. This induces a frequency penalty about half as large
+	  as the max desirability bonus. Even egregious speed deviations are now only getting
+	  penalties ~0.005, which is half the desirability bonus for a time step. The worst
+	  penalties for speed variation are ~0.003, and usually a lot smaller.
 
+1/13/24
+
+* Run C16 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Increased reward penalty for frequent lane changes; mult from 0.0002 to 0.002 (as
+	  it was prior to run C4).
+	* Changed reward penalty for speed command variation from a square relationship to a
+	  linear one, with multiplier reduced from 1.0 to 0.5, hoping to give more motivation
+	  to tame the smaller variations, while not being severe in the occasional large ones,
+	  which are needed occasionally.
+	* Reduced speed deviation penalty mutliplier from 0.01 to 0.006 to keep from over-
+	  burdening the agent with piles of penalties.
+	* Checkpoints stored in 20240113-1638.
 
 
 
@@ -325,6 +348,8 @@ TODO:
 - consider adding logic to abort a LC mvr.
 
 - update roadway diagram in readme
+- make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
+- Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
