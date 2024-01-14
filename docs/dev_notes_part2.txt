@@ -339,6 +339,8 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Reduced speed deviation penalty mutliplier from 0.01 to 0.006 to keep from over-
 	  burdening the agent with piles of penalties.
 	* Checkpoints stored in 20240113-1638.
+	* Training killed by OS at 16800 iters due to some file system fault.
+		* Rebooted and resumed training from checkpoint 16000.
 
 
 
@@ -347,7 +349,6 @@ TODO:
 - need prev time step distance to fwd vehicle to help prevent rear-endings
 - consider adding logic to abort a LC mvr.
 
-- update roadway diagram in readme
 - make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.
