@@ -18,7 +18,7 @@ A statement of the detailed software requirements [can be found here](docs/cda1_
 
 Training and testing is currently being performed with the _Roadway B_ test track, shown here. It is a 3 km long freeway segment with several speed limits, merges and lane drops, to exercise lane change maneuvering and, eventually, cooperative behavior.
 
-![Roadway B](docs/images/RoadwayB_map.png)
+![Roadway B](docs/images/Roadway_B_map.png)
 
 ## Installation & Running
 
@@ -88,6 +88,7 @@ with the appropriate command line options (explained with `--help`).
 This is a long process that can run for many hours, depending on the hardware.
 It may be necessary to edit the `train.py` code, as it includes config hyperparameters for resource usage, which may need to be tuned to your particular system.
 This training uses the **SAC** algorithm, and is quite robust to changes in the non-resource hyperparameters; the primary consideration is number of iterations required.
+The code in `train.py` includes specification of several environment config parameters near the top.
 
 #### Inference Behavior
 
@@ -98,6 +99,7 @@ Running
 with the appropriate command line options (explained with `--help`) can be used to choose a variety of scenarios (initial conditions).
 The number and types of vehicles available for any given run (both training and inference) can be specified with a vehicle config file.
 Two config files are currently available, but any new file can be created and pointed to from within the config parameters section of both `train.py` and `inference.py`.
+The code in `inference.py` includes specification of several environment config parameters near the top.
 
 ## License & Authorship
 This software is published under the [Apache 2.0 open source license](LICENSE), and can be used and distributed according to the terms of that license.
