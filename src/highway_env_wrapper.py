@@ -99,6 +99,7 @@ class HighwayEnvWrapper(HighwayEnv):
         scaled[ObsVec.LOCAL_SPD_LIMIT]      = obs[ObsVec.LOCAL_SPD_LIMIT]       / Constants.MAX_SPEED           #range [0, 1]
         scaled[ObsVec.STEPS_SINCE_LN_CHG]   = obs[ObsVec.STEPS_SINCE_LN_CHG]    / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
         scaled[ObsVec.FWD_DIST]             = min(obs[ObsVec.FWD_DIST]          / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
+        scaled[ObsVec.FWD_DIST_PREV]        = min(obs[ObsVec.FWD_DIST_PREV]     / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
         scaled[ObsVec.FWD_SPEED]            = obs[ObsVec.FWD_SPEED]             / Constants.MAX_SPEED           #range [0, 1]
 
         # Copy the remaining contents directly, as no scaling is needed on these

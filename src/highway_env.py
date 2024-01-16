@@ -189,6 +189,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lower_obs[ObsVec.SPEED_PREV]            = 0.0
         lower_obs[ObsVec.LOCAL_SPD_LIMIT]       = 0.0
         lower_obs[ObsVec.FWD_DIST]              = 0.0
+        lower_obs[ObsVec.FWD_DIST_PREV]         = 0.0
         lower_obs[ObsVec.FWD_SPEED]             = -Constants.MAX_SPEED
         lower_obs[ObsVec.DESIRABILITY_LEFT]     = 0.0
         lower_obs[ObsVec.DESIRABILITY_CTR]      = 0.0
@@ -204,6 +205,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         upper_obs[ObsVec.SPEED_PREV]            = Constants.MAX_SPEED
         upper_obs[ObsVec.LOCAL_SPD_LIMIT]       = Constants.MAX_SPEED
         upper_obs[ObsVec.FWD_DIST]              = Constants.REFERENCE_DIST
+        upper_obs[ObsVec.FWD_DIST_PREV]         = Constants.REFERENCE_DIST
         upper_obs[ObsVec.FWD_SPEED]             = Constants.MAX_SPEED
 
         self.observation_space = Box(low = lower_obs, high = upper_obs, dtype = float)
@@ -1224,16 +1226,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 reward = -1.0
                 explanation = "Vehicle stopped. "
 
+            # Else (episode ended successfully)
+            else:
+                reward = 0.1
+                explanation = "Complete episode!"
+
             """
             # Else if a target point has been achieved (mostly good for inference demo, but also special cases of complete episode)
             elif tgt_reached:
                 reward = 1.0 #
                 explanation = "Success: target point reached!"
-
-            # Else (episode ended successfully)
-            else:
-                reward = 1.0
-                explanation = "Successful episode!"
             """
 
         # Else, episode still underway
@@ -1280,7 +1282,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     bonus = -factor
                     explanation += "LC des terrible {:.4f}. ".format(bonus)
                 else: #otherwise not desirable - set the alert flag to draw attention to the info logged
-                    bonus = -0.3*factor #TODO: try -0.3*factor, or based on ratio of same_lane_desirability/cmd_desirability
+                    bonus = -0.3*factor
                     explanation += "LC des poor {:.4f} (lc_desired = {}, lc_cmd = {}). ".format(bonus, lc_desired, lc_cmd)
                     self.vehicles[0].alert = True
             """
@@ -1289,22 +1291,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
                 explanation += "LC des bonus {:.4f}. ".format(bonus)
             """
-            if bonus > 0.0001:
-                explanation += "LC des bonus {:.4f}. ".format(bonus)
+            explanation += "LC des {:.4f} ({:.2f} {:.2f} {:.2f}). ".format(bonus, lc_desired[0], lc_desired[1], lc_desired[2])
             reward += bonus
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
                 penalty = 0.002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
-                explanation += "Ln chg pen {:.4f}. ".format(penalty)
+                explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
             penalty = 0.2 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
-                explanation += "Spd var pen {:.4f}. ".format(penalty)
+                explanation += "Spd var {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
             speed_mult = 0.25
@@ -1317,7 +1318,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 diff = abs(norm_speed - 1.0)
                 if diff > 0.02:
                     penalty = speed_mult * diff*diff
-                    explanation += "spd pen {:.4f}. ".format(penalty)
+                    explanation += "spd {:.4f}. ".format(-penalty)
             reward -= penalty
 
         if self.debug > 0:

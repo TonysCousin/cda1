@@ -394,20 +394,38 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  lanes out of 0 when the nearest target is in 1 or 2. Twice it rear-ended a bot after
 	  following it for some time (not large speed diffs).
 
-* Run C21
+* Run C21 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
 	* Changed speed penalty from a linear to a square relationship, with multiplier of 0.25.
 	* Changed LC desirability reward from linear to a square relationship to help deter it
 	  from choosing a non-optimum lane.
 	* Added data element to obs vector for distance to forward vehicle in previous time step.
 	  This should allow the agent to better judge the collision risk by sensing its relative
 	  speed.
+	* Checkpoints stored in 20240116-0006.
+	* Training completed with questionable performance. rmax did okay, climbing to ~0.3, but
+	  rmin and rmean didn't climb as in previous runs, ending ~-3, -0.8, respectively, with
+	  mean ep len topping out ~80 at 11k iters, then gradually dropping to ~50 at the end.
+	* Inference on checkpoint 33000: it somewhat attempts to follow speed limit (better than
+	  C20), but still erratic. LC decisions are befuddling. Lane 0 starts won't change lanes
+	  to get to a valid target, but lane 4 starts will change to lane 3 even when there's a
+	  target in lane 4. It seems to have a heavy bias toward moving left whenever possible.
+	  Speed penalties are pretty stiff (often 0.01 or more), and it doesn't seem to be
+	  trying to avoid these. It still does random off-roads or crashes into neighbors, either
+	  rear-end or adjacent lane.
+
+1/16/24
+
+* Run C22 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Added more explanation details to the LC des reward to show the full desirability vector
+	  at each step, to help ensure there is not a defect somewhere.
+	* Added modest reward (0.1) for completing a 100-step episode.
+	* Changed all 3 learning rates to 1e-5 (was 2e-5 for actor & critic and 5e-5 for entropy).
 
 
 
 
 TODO:
 - consider adding dropouts to BridgitNN
-- need prev time step distance to fwd vehicle to help prevent rear-endings
 - consider adding logic to abort a LC mvr.
 
 - make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).

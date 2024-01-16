@@ -108,9 +108,9 @@ def main(argv):
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
-    opt_config["actor_learning_rate"]           = 2e-5
-    opt_config["critic_learning_rate"]          = 2e-5
-    opt_config["entropy_learning_rate"]         = 5e-5
+    opt_config["actor_learning_rate"]           = 1e-5
+    opt_config["critic_learning_rate"]          = 1e-5
+    opt_config["entropy_learning_rate"]         = 1e-5
 
     policy_config = cfg_dict["policy_model_config"]
     policy_config["custom_model"]               = "bridgit_policy_model"
