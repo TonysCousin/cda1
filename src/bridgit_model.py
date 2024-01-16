@@ -43,6 +43,7 @@ class BridgitModel(VehicleModel):
         prev_speed = obs[ObsVec.SPEED_CUR]
         prev_speed_cmd = obs[ObsVec.SPEED_CMD]
         prev_lc_cmd = obs[ObsVec.LC_CMD]
+        prev_fwd_dist = obs[ObsVec.FWD_DIST]
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
         lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
@@ -62,6 +63,7 @@ class BridgitModel(VehicleModel):
         obs[ObsVec.LC_CMD] = actions[1]
         obs[ObsVec.SPEED_PREV] = prev_speed
         obs[ObsVec.SPEED_CUR] = me.cur_speed
+        obs[ObsVec.FWD_DIST_PREV] = prev_fwd_dist
         obs[ObsVec.LOCAL_SPD_LIMIT] = self.roadway.get_speed_limit(me.lane_id, me.p)
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:

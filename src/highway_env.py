@@ -1253,7 +1253,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # If a lane change is not currently underway, or just begun, give a bonus for lateral control decision proportional to the
             # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
             if self.vehicles[0].lane_change_count <= 1:
-                bonus = 0.01 * lc_desired[lc_cmd+1]
+                des = lc_desired[lc_cmd+1] #always in [0, 1]
+                bonus = 0.01 * des*des
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
@@ -1306,7 +1307,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.008
+            speed_mult = 0.25
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
@@ -1315,7 +1316,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 norm_speed = cur_speed / speed_limit #1.0 = speed limit
                 diff = abs(norm_speed - 1.0)
                 if diff > 0.02:
-                    penalty = speed_mult*(diff - 0.02)
+                    penalty = speed_mult * diff*diff
                     explanation += "spd pen {:.4f}. ".format(penalty)
             reward -= penalty
 

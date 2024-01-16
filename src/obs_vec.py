@@ -93,9 +93,10 @@ class ObsVec:
     SPEED_PREV          =  6 #agent's actual speed in previous time step, m/s
     LOCAL_SPD_LIMIT     =  7 #posted speed limit at the host's current location, m/s
     FWD_DIST            =  8 #distance to nearest downtrack vehicle in same lane, m
-    FWD_SPEED           =  9 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
-    LEFT_OCCUPIED       = 10 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
-    RIGHT_OCCUPIED      = 11 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    FWD_DIST_PREV       =  9 #distance to downtrack vehicle from previous time step, m
+    FWD_SPEED           = 10 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
+    LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
 
     # Elements specific to bots running ACC & changing lanes to reach a target destination
     # --there are none at this time
@@ -104,10 +105,9 @@ class ObsVec:
     #..........Elements specific to the Bridgit model is everything below here
     #
 
-    FUTURE0             = 12 #reserved for future use
-    FUTURE1             = 13
-    FUTURE2             = 14
-    FUTURE3             = 15
+    FUTURE0             = 13 #reserved for future use
+    FUTURE1             = 14
+    FUTURE2             = 15
 
     # Bridgit controller lane change command outputs; relative desirability for each lane that the vehicle can choose.
     # Values are floats from 0 (don't go there) to 1 (highly desirable).

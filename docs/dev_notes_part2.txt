@@ -386,6 +386,21 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Modified ACC logic for both bot 1a and bot 1b guidance to be more conservative, to
 	  avoid more rear-end collisions.
 	* Checkpoints stored in 20240115-1017.
+	* Training went well through 38k iters (where I evaluated), at that point with rmin ~-1,
+	  rmean ~0.2, rmax ~0.5, mean ep len > 97.
+	* Inference on checkpoint 38000: terrible speed, loving the very low values, esp before
+	  doing a lane change. Prefers to change lanes from 4 to 3 even when there is a tgt in
+	  lane 4 and the desirability vector prefers staying in lane 4. It refuses to change
+	  lanes out of 0 when the nearest target is in 1 or 2. Twice it rear-ended a bot after
+	  following it for some time (not large speed diffs).
+
+* Run C21
+	* Changed speed penalty from a linear to a square relationship, with multiplier of 0.25.
+	* Changed LC desirability reward from linear to a square relationship to help deter it
+	  from choosing a non-optimum lane.
+	* Added data element to obs vector for distance to forward vehicle in previous time step.
+	  This should allow the agent to better judge the collision risk by sensing its relative
+	  speed.
 
 
 
