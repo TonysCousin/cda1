@@ -341,6 +341,52 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Checkpoints stored in 20240113-1638.
 	* Training killed by OS at 16800 iters due to some file system fault.
 		* Rebooted and resumed training from checkpoint 16000.
+		* The resumed training got to 7000 additional iters, but by then mean ep len
+		  had dropped to 4 steps. This appears unstable and not worth continuing.
+		* Killed it.
+
+1/14/24
+
+* Run C17 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Reduced LR for policy & critic from 3e-5 to 2e-5.
+	* Checkpoints stored in 20240114-0051.
+	* After 29k iters, it has clearly not learned well. rmax ~-0.8 and mean ep len ~6.
+	* Inference shows a strong desire to change lanes regardless of the circumstances. It
+	  also seems to like very low speeds if it lasts long enough.
+	* Killed the job at 31k iters due to poor learning.
+
+* Run C18 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Reduced speed variation penalty multiplier from 0.5 to 0.2.
+	* Changed reward bonus for LC maneuvers. Instead of a big lump at the beginning of the
+	  mvr, which may be encouraging frequend mvr initiation, spread out the desirability-
+	  based bonus on every time step in the maneuver.
+	* Changed resource allocation: num_gpus from 0.2 to 0.5 (for the local worker doing the
+	  learning algo) and num_gpus_per_worker from 0.2 to 0.1 (for 4 remote workers).
+	* Checkpoints stored in 20240114-1129.
+	* Killed it after 26k iters, as I discovered a defect in the reward code that
+	  discouraged it from changing lanes.
+
+* Run C19 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Fixed reward defect (wan't giving rewards during LC maneuvers).
+	* Checkpoints stored in 20240114-2232.
+	* Training progressed well through 33k iters, at which point I evaluated.
+	* Inference on checkpoint 33000: it has little respect for speed limits, often going
+	  much slower, probably for accumulating more LC des points. Another quirk is that it
+	  tends to choose a poor LC that avoids a target, allowing the LC des bonus to diminish
+	  for a while, but once no target is achievable, that bonus goes back to 0.01 per step
+	  for the remainder.
+
+1/15/24
+
+* Run C20 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots.
+	* Changed LC des bonus so that it does not award a significant value when the agent is
+	  on a no-win lane (target unreachable), to discourage taking this path just to collect
+	  points.
+	* Increased reward penalty for deviation from speed limit; multiplier from 0.006 to 0.008.
+	* Modified ACC logic for both bot 1a and bot 1b guidance to be more conservative, to
+	  avoid more rear-end collisions.
+	* Checkpoints stored in 20240115-1017.
+
 
 
 
@@ -363,6 +409,8 @@ TODO:
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
+- Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
+  independent of model logic.
 
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion

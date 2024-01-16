@@ -144,8 +144,8 @@ class BotType1bGuidance(VehicleGuidance):
             whenever possible, but slows to match the speed of a slower vehicle close in front of it to avoid a crash.
         """
 
-        DISTANCE_OF_CONCERN     = 15.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to start slowing, m
-        CRITICAL_DISTANCE       =  4.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to be matching speed, m
+        DISTANCE_OF_CONCERN     = 20.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to start slowing, m
+        CRITICAL_DISTANCE       =  6.0 * self.my_vehicle.model.veh_length #following distance below which the vehicle needs to be matching speed, m
 
         speed_cmd = tgt_speed
 

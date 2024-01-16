@@ -78,10 +78,10 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 0.2, #for the local worker, which does the learning & evaluation runs
+    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
                     num_cpus_for_local_worker   = 4,
                     num_cpus_per_worker         = 2,   #also applies to the evaluation workers
-                    num_gpus_per_worker         = 0.2, #this has to allow gpu left over for local worker & evaluation workers also
+                    num_gpus_per_worker         = 0.1, #this has to allow gpu left over for local worker & evaluation workers also
     )
 
     cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
@@ -108,8 +108,8 @@ def main(argv):
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
-    opt_config["actor_learning_rate"]           = 3e-5
-    opt_config["critic_learning_rate"]          = 3e-5
+    opt_config["actor_learning_rate"]           = 2e-5
+    opt_config["critic_learning_rate"]          = 2e-5
     opt_config["entropy_learning_rate"]         = 5e-5
 
     policy_config = cfg_dict["policy_model_config"]
@@ -192,13 +192,13 @@ def main(argv):
             steps = result["num_env_steps_sampled"] - starting_step_count
             ksteps_per_hr = 0
             if elapsed_hr > 0.01:
-                ksteps_per_hr = int(0.001*steps/elapsed_hr)
+                ksteps_per_hr = 0.001*steps/elapsed_hr
             remaining_hrs = 0.0
             if iter > 1:
                 remaining_hrs = (max_iterations - iter) / perf
             print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
                   .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
-                  "Elapsed = {:.1f} hr @{:d} iter/hr, {:d} k steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, ksteps_per_hr, remaining_hrs))
+                  "Elapsed = {:.1f} hr @{:d} iter/hr, {:.1f} M steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, 0.001*ksteps_per_hr, remaining_hrs))
 
     print("\n///// Training completed.  Final iteration results:\n")
     print(pretty_print(result))

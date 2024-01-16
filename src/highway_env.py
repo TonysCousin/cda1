@@ -282,6 +282,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.steps_since_reset = 0  #length of the current episode in time steps
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
+        self.reward_lc_progress_points = 0 #bonus points to be awarded during a lane change in progress
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
         print("///// Initializing env environment ID {} with configuration: {}".format(self.rollout_id, vc["title"]))
 
@@ -1254,10 +1255,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if self.vehicles[0].lane_change_count <= 1:
                 bonus = 0.01 * lc_desired[lc_cmd+1]
 
-                # If the command is to change lanes, then multiply the bonus by the num time steps required to complete, since it won't get
-                # awarded while a LC mvr is underway
-                if self.vehicles[0].lane_change_count > 0:
-                    bonus *= self.vehicles[0].model.lc_compl_steps
+                # Store this for doling out in future time steps as a LC maneuver progresses.
+                self.reward_lc_progress_points = bonus
+
+            # Else, a LC maneuver is in progress, so hand out the reward based on the desirability of entering this maneuver
+            else:
+                bonus = self.reward_lc_progress_points
 
             """
             # If a lane change has been commanded, give a bonus if it is going in a desirable direction. But don't consider if it's overly
@@ -1297,13 +1300,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.5 * cmd_diff
+            penalty = 0.2 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var pen {:.4f}. ".format(penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.006
+            speed_mult = 0.008
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
