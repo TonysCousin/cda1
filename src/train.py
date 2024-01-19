@@ -37,7 +37,7 @@ def main(argv):
     # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 50000
+    max_iterations      = 80000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -65,7 +65,7 @@ def main(argv):
     explore_config["random_timesteps"]          = 1000000
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1
-    explore_config["scale_timesteps"]           = 80000000
+    explore_config["scale_timesteps"]           = 100_000_000
     exp_switch                                  = True
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)

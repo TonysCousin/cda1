@@ -483,6 +483,9 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  are mostly well below speed limit. Nothing good here.  Run C24 was probably a little
 	  better.
 
+1/19/24
+
+***
 * Considerations for continued work, given the lack of success so far. I'm not even doing the
   intended part 2 work yet, still trying to reproduce the results of part 1 since that checkpoint
   can't be read with the new Ray library.
@@ -495,22 +498,29 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		provide a baseline for comparison of all changes since then.
 	3. Review how lane changes out of 0 were handled in part 1.
 	4. Alter NN shape a bit.
+		Easy to play with, but will take time for probably several trials, and no
+		confidence that anything will improve.
 	5. Add dropouts to the NN.
+		Easy to do, one or two trials should give results.
 	6. Re-architect the whole NN - add recursion and/or conv layers.
 	7. Adjust noise params.
 	8. Much longer training from scratch.
-	9. Change the sensor encoders for more accuracy or smaller size.
-	10. Remove all the sensor observations and replace them with just a couple simple inputs.
-	11. Abort the whole idea of using a NN for tactical guidance & replace with a pid. Then I
+	9. Adjust learning rates (larger?).
+	10. Change the sensor encoders for more accuracy or smaller size.
+	11. Remove all the sensor observations and replace them with just a couple simple inputs.
+	12. Abort the whole idea of using a NN for tactical guidance & replace with a pid. Then I
 	   can focus on the meat of the bigger project, by building a NN for strategic guidance
 	   and move into cda2 to add messaging to its actions.
+
+* Run C26 training single BridgitNN agent from scratch, with SAC over 80k iters using 16 bots.
+	* Expanded BridgitNN size (added layer 4, increased sizes of layers 1 and 2), and added
+	  20% dropout to outputs of layers 1-3. This implements ideas 4, 5 & 8 from above.
+	* Checkpoints written to 20240119-1637.
 
 
 
 TODO:
-- consider adding dropouts to BridgitNN
 - consider adding logic to abort a LC mvr.
-
 - make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.

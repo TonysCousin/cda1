@@ -42,9 +42,10 @@ class BridgitNN(TorchModelV2, nn.Module):
         self.NUM_VEHICLES_NEURONS = 140
         self.VEHICLES_DATA_SIZE = ObsVec.SENSOR_DATA_SIZE // 2
 
-        NUM_FC1_NEURONS = 64
-        NUM_FC2_NEURONS = 512
+        NUM_FC1_NEURONS = 100
+        NUM_FC2_NEURONS = 640
         NUM_FC3_NEURONS = 128
+        NUM_FC4_NEURONS = 32
         BRIDGIT_MODEL = "/home/starkj/ray_results/cda1/20240105-2054/30000/policies/default_policy/model/model.pt"
 
         # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
@@ -73,13 +74,15 @@ class BridgitNN(TorchModelV2, nn.Module):
         # The structure that brings all three data streams together
         self.fc2 = nn.Linear(NUM_FC1_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
         self.fc3 = nn.Linear(NUM_FC2_NEURONS, NUM_FC3_NEURONS)
+        self.fc4 = nn.Linear(NUM_FC3_NEURONS, NUM_FC4_NEURONS)
+        self.dropout = nn.Dropout(0.2)
 
         self._actor_head = nn.Sequential(
-            nn.Linear(NUM_FC3_NEURONS, self._num_actions)
+            nn.Linear(NUM_FC4_NEURONS, self._num_actions)
         )
 
         self._critic_head = nn.Sequential(
-            nn.Linear(NUM_FC3_NEURONS, 1)
+            nn.Linear(NUM_FC4_NEURONS, 1)
         )
 
         inference_only = False
@@ -98,20 +101,17 @@ class BridgitNN(TorchModelV2, nn.Module):
             # Load the weights for the main Bridgit model's actor network (since this will be used for inference only)
             sd = torch.load(BRIDGIT_MODEL).state_dict()
             with torch.no_grad():
-                try: #TODO: remove the old naming convention once checkpoints from 1/5/24 and earlier are no longer used
-                    self.fc1.weight.copy_(sd["action_model.fc1.weight"])
-                    self.fc1.bias.copy_(sd["action_model.fc1.bias"])
-                except KeyError:
-                    # Try the old naming convention
-                    print("      Handling KeyError using old names...")
-                    self.fc1.weight.copy_(sd["action_model.macro_encoder.weight"])
-                    self.fc1.bias.copy_(sd["action_model.macro_encoder.bias"])
+                self.fc1.weight.copy_(sd["action_model.fc1.weight"])
+                self.fc1.bias.copy_(sd["action_model.fc1.bias"])
 
                 self.fc2.weight.copy_(sd["action_model.fc2.weight"])
                 self.fc2.bias.copy_(sd["action_model.fc2.bias"])
 
                 self.fc3.weight.copy_(sd["action_model.fc3.weight"])
                 self.fc3.bias.copy_(sd["action_model.fc3.bias"])
+
+                self.fc4.weight.copy_(sd["action_model.fc4.weight"])
+                self.fc4.bias.copy_(sd["action_model.fc4.bias"])
 
                 self._actor_head[0].weight.copy_(sd["action_model._actor_head.0.weight"])
                 self._actor_head[0].bias.copy_(sd["action_model._actor_head.0.bias"])
@@ -147,10 +147,14 @@ class BridgitNN(TorchModelV2, nn.Module):
 
         # Assemble the first full layer input, which is an aggregate of the macro plus the two sensor embeddings outputs
         l1_out = torch.cat((mo, po, vo), dim = 1)
+        x = self.dropout(l1_out)
 
         # Compute the remaining layers of the common network, bringing all of these parts together
-        x = F.tanh(self.fc2(l1_out))
+        x = F.tanh(self.fc2(x))
+        x = self.dropout(x)
         x = F.tanh(self.fc3(x))
+        x = self.dropout(x)
+        x = F.tanh(self.fc4(x))
 
         # Final layer for the actor output (action values)
         actions = self._actor_head(x)
