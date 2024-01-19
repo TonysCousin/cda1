@@ -921,12 +921,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
         if self.randomize_targets:
 
-            # loop through each target marked valid and decide if it will be active
+            # Loop through each target marked valid and decide if it will be active. Use a random threshold > 0.5
+            # to limit the total number of active targets (prefer to not have all of them active very often).
             at_least_one_active = False
             for t_idx in range(Constants.NUM_TARGETS):
                 tgt = self.t_targets[t_idx]
                 tgt.active = False
-                if t_idx in self.valid_targets  and  self.prng.random() > 0.5:
+                if t_idx in self.valid_targets  and  self.prng.random() > 0.75:
                     tgt.active = True
                     at_least_one_active = True
 
@@ -1202,6 +1203,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         reward = 0.0
         explanation = ""
 
+        # Determine the max value of the lane change desirability scores
+        lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
+        des_max = max(lc_desired)
+
         # Handle inactive ego vehicle
         if not self.vehicles[0].active:
             reward = -1.0
@@ -1226,29 +1231,24 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 reward = -1.0
                 explanation = "Vehicle stopped. "
 
-            # Else (episode ended successfully)
+            # Else (episode completed all desired time steps)
             else:
-                reward = 0.1
-                explanation = "Complete episode!"
+                # If there is still a lane desirability of 1, it indicates a target is still reachable if the trajectory were to continue,
+                # so give it a bonus.
+                if des_max > 0.5:
+                    reward = 0.1
+                    explanation = "Complete episode headed toward an active target!"
 
-            """
-            # Else if a target point has been achieved (mostly good for inference demo, but also special cases of complete episode)
-            elif tgt_reached:
-                reward = 1.0 #
-                explanation = "Success: target point reached!"
-            """
+                # Else, the agent wouldn't be able to reach an active target if the trajectory were allowed to continue, so assign a penalty.
+                else:
+                    reward = -0.5
+                    explanation = "Complete episode, but unable to reach a target from here."
 
         # Else, episode still underway
         else:
 
-            # Reward for following the route planner's recommendations for lane change activity, only if there is a non-zero recommendation that
-            # is not "current lane". Staying in the current lane by default doesn't deserve a reward if it is the only possible choice.
-
+            # Reward for following the route planner's recommendations for lane change activity.
             # CAUTION: this code block is tightly coupled to the design of the BridgitGuidance class.
-            lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
-            des_max = max(lc_desired)
-            if des_max < 0.001:
-                des_max = 1.0
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is quantized in [-1, 1]; add 1 to use it as an index
             bonus = 0.0
 
@@ -1265,32 +1265,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             else:
                 bonus = self.reward_lc_progress_points
 
-            """
-            # If a lane change has been commanded, give a bonus if it is going in a desirable direction. But don't consider if it's overly
-            # redundant (more than twice while the maneuver is underway).
-            if lc_cmd != LaneChange.STAY_IN_LANE  and  self.vehicles[0].lane_change_status != "none"  and  self.vehicles[0].lane_change_count < 2:
-                cmd_desirability = lc_desired[lc_cmd+1]
-                same_lane_desirability = lc_desired[1]
-                #print("***** reward: lc_cmd = {}, cmd_desirability = {:.2f}, same_lane_desirability = {:.2f}, lc_desired = {}"
-                #      .format(lc_cmd, cmd_desirability, same_lane_desirability, lc_desired))
-
-                factor = 0.3
-                if cmd_desirability > same_lane_desirability: #command is better than staying put
-                    bonus = factor #bonus needs to be rather large, since this will be a rare event
-                    explanation += "LC des bonus {:.4f}. ".format(bonus)
-                elif cmd_desirability < 0.1: #command was an especially poor choice
-                    bonus = -factor
-                    explanation += "LC des terrible {:.4f}. ".format(bonus)
-                else: #otherwise not desirable - set the alert flag to draw attention to the info logged
-                    bonus = -0.3*factor
-                    explanation += "LC des poor {:.4f} (lc_desired = {}, lc_cmd = {}). ".format(bonus, lc_desired, lc_cmd)
-                    self.vehicles[0].alert = True
-            """
-            """ previously used; may come back:
-            if lc_desired[0] > 0.0  or  lc_desired[2] > 0.0: #left or right are reasonable choices
-                bonus = 0.008 * lc_desired[lc_cmd+1] / des_max
-                explanation += "LC des bonus {:.4f}. ".format(bonus)
-            """
             explanation += "LC des {:.4f} ({:.2f} {:.2f} {:.2f}). ".format(bonus, lc_desired[0], lc_desired[1], lc_desired[2])
             reward += bonus
 
@@ -1300,15 +1274,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
-            # Penalty for widely varying speed commands
-            cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.2 * cmd_diff
-            reward -= penalty
-            if penalty > 0.0001:
-                explanation += "Spd var {:.4f}. ".format(-penalty)
-
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.25
+            speed_mult = 0.06
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
@@ -1320,6 +1287,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     penalty = speed_mult * diff*diff
                     explanation += "spd {:.4f}. ".format(-penalty)
             reward -= penalty
+
+            # Penalty for widely varying speed commands
+            """
+            cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
+            penalty = 0.2 * cmd_diff
+            reward -= penalty
+            if penalty > 0.0001:
+                explanation += "Spd var {:.4f}. ".format(-penalty)
+            """
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"

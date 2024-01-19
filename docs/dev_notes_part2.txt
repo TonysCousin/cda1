@@ -420,7 +420,90 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  at each step, to help ensure there is not a defect somewhere.
 	* Added modest reward (0.1) for completing a 100-step episode.
 	* Changed all 3 learning rates to 1e-5 (was 2e-5 for actor & critic and 5e-5 for entropy).
+	* Checkpoints stored in 20240116-1301.
+	* Killed it early after finding a code defect in BridgitGuidance.
 
+* Run C23 training single BridgitNN agent from scratch with SAC over 40k iters using 16 bots
+	* Fixed defect in BridgitGuidance assigning unreasonably low lane desirabilities in some
+	  cases.
+	* Changed env _choose_active_targets() to generally lean toward a small number of targets
+	  most of the time.
+	* Checkpoints stored in 20240116-1457.
+	* Training completed in 13.4 hr with ending rmin ~-3.4, rmean ~-0.6, rmax ~+0.5 and mean
+	  ep len ~99.
+	* Inference on checkpoint 40000: lane 0 start seems willing to change lanes for a target
+	  to the right! However, starts in lane 4 & 5 don't want to change. It seems the LC des
+	  bonus is usually being swamped by the speed penalties and sometimes the speed variation
+	  penalties. I also see that an episode completion bonus (0.1) is awarded for a trajectory
+	  in lane 1 that goes to the no-win zone (too far to reach the target in lane 4), thus its
+	  max lane desirability is only 0.01. A trajectory that gets into this situation should be
+	  heavily penalized.
+
+1/17/24
+
+* Run C24 training single BridgitNN agent from scratch with SAC over 50k iters using 16 bots.
+	* Changing episode completion reward to only apply the bonus if it ends in a state that is
+	  still viable to reach a target; otherwise it gets a big penalty.
+	* Reduced speed deviation reward multiplier from 0.25 to 0.06 so that it is only a secondary
+	  influence.
+	* Removed penalty for speed variation, just to keep the picture clean and focused on lane
+	  changes for now. May reintroduce this later.
+	* Checkpoints stored in 20240117-1124.
+	* Training completed in 16.9 hr (6.1 M steps/hr). Rewards and ep len plateaued early and
+	  didn't change much after ~22k iters, where rmin ~-1, rmean ~0.3, rmax ~+1 and mean ep len
+	  ~98. However, rmean seemed to improve a bit between there and the end, showing more
+	  occurrences of ~0.5.
+	* Inference on checkpoint 50000: it seems the agent is always aiming for an episode reward
+	  (100 steps) close to 0, but afraid to go much above that. If LC des bonuses are good, it
+	  chooses really low speeds to counteract the bonuses; if LC des is 0 because no target is
+	  reachable, then it does really good speed control. It is willing to change lanes out of 0,
+	  but once it did that despite the only target being in lane 0.
+		* It has a strong desire to change lanes left regardless of the target location.
+		* It also seems to not care about neighbor vehicles, at least in adjacent lanes,
+		  because it often crashes during a lane change into a neighbor going roughly the
+		  same speed, so blindness isn't the problem. Maybe the vehice sensor compression
+		  was too much?
+	* Inference on checkpoint 24000: performed a lot worse than the 50000 model. It really 
+	  likes lower speeds, and I never saw a lane change.
+	* Inference on checkpoint 37000: sometimes speeds are quite steady, but often way too low.
+	  No lane changes observed.
+	* Given the 3 checkpoint behaviors, maybe it just hasn't had enough training. It seems to
+	  be moving in the right direction, so let's give it more time.
+
+1/18/24
+
+
+* Run C25 training single BridgitNN agent from run C24 checkpoint 50000, with SAC over additional
+  50k iters using 16 bots.
+	* Checkpoints stored in 20240118-1308.
+	* Training completed in 16.9 hr. Rewards generally improved to rmin ~-0.9, rmean ~0.4,
+	  rmax ~0.9, mean ep len ~99.
+	* Inference on checkpoint 50000 (100k iters & 102M steps of total training): mostly not
+	  interested in changing lanes, except near end when it does an illegal off-road. Speeds
+	  are mostly well below speed limit. Nothing good here.  Run C24 was probably a little
+	  better.
+
+* Considerations for continued work, given the lack of success so far. I'm not even doing the
+  intended part 2 work yet, still trying to reproduce the results of part 1 since that checkpoint
+  can't be read with the new Ray library.
+	1. Drop back to Ray 2.5 to work part 2.
+		This feels short-sighted, because any new results will need to be migrated to
+		2.9+ eventually.
+	2. Rerun the final part 1 code under Ray 2.9 to generate a new checkpoint that is forward
+	   compatible.
+		May be worthwhile, just to prove that it wasn't a one-time fluke. It would also
+		provide a baseline for comparison of all changes since then.
+	3. Review how lane changes out of 0 were handled in part 1.
+	4. Alter NN shape a bit.
+	5. Add dropouts to the NN.
+	6. Re-architect the whole NN - add recursion and/or conv layers.
+	7. Adjust noise params.
+	8. Much longer training from scratch.
+	9. Change the sensor encoders for more accuracy or smaller size.
+	10. Remove all the sensor observations and replace them with just a couple simple inputs.
+	11. Abort the whole idea of using a NN for tactical guidance & replace with a pid. Then I
+	   can focus on the meat of the bigger project, by building a NN for strategic guidance
+	   and move into cda2 to add messaging to its actions.
 
 
 
