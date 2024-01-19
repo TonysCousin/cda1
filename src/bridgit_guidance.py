@@ -1,5 +1,6 @@
 from typing import List, Dict
 import copy
+import math
 import numpy as np
 from gymnasium.spaces import Box
 
@@ -17,8 +18,6 @@ class BridgitGuidance(VehicleGuidance):
     """Defines the guidance algorithms for the Bridgit NN agent, which has learned some optimum driving in the given roadway."""
 
     PLAN_EVERY_N_STEPS = 5  #num time steps between route plan updates; CAUTION: this needs to be < duration of a lane change
-    SMALL_DISTANCE = 150.0  #distance below which an immediate lane change is necessary in order to get to the target, m.
-                            # At a nominal highway speed and LC duration, the vehicle will cover 80-110 m during the maneuver.
 
     # List indices for positions relative to the host's lane
     LEFT = 0
@@ -161,7 +160,7 @@ class BridgitGuidance(VehicleGuidance):
                 """
                 pass
 
-            pos.delta_p = sp - self.my_vehicle.p
+            pos.delta_p = sp - self.my_vehicle.p #may be negative
 
         # Loop through the relative positions again to assign desirable probabilities of being in that lane
         max_prob = 0.0
@@ -177,10 +176,10 @@ class BridgitGuidance(VehicleGuidance):
 
             # Else assign it a prob < 1 based on its delta P
             else:
-                if pos.delta_p <= self.SMALL_DISTANCE:
+                if pos.delta_p <= 1.0:
                     pos.prob = 0.0
                 else:
-                    pos.prob = 1.0 - self.SMALL_DISTANCE/pos.delta_p
+                    pos.prob = min(0.04 * math.sqrt(pos.delta_p), 1.0)
 
             # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
             # (vehicle will traverse approx 6 sensor zones, or 2 boundary regions, during that time).
