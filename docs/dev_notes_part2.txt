@@ -516,10 +516,38 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Expanded BridgitNN size (added layer 4, increased sizes of layers 1 and 2), and added
 	  20% dropout to outputs of layers 1-3. This implements ideas 4, 5 & 8 from above.
 	* Checkpoints written to 20240119-1637.
+	* Died after 21k iters due to Ray error.
+	* Restarted from checkpoint 21000 - completion job is at 20240120-0843.
+	* Training ran to 77k iters after the restart (98k iters total), leveling off at
+	  rmin ~-0.9, rmean ~0.4, rmax ~1.0, mean ep len ~100. This pattern started around iter
+	  20000 of the restart (41k total). Still performing at 6.1M steps/hr.
+	* Inference on -0843 checkpoint 77000: no lane changes ever. Speeds tend to hang close to
+	  18-20 m/s in all situations. No good.
+	* Inference on -0843 checkpoint 20000: same performance. Speeds are quite smooth and
+	  steady, just at the wrong value. It seems the larger network and/or the dropouts have
+	  made outputs a lot smoother, but maybe overly so (i.e. not interested in taking on new
+	  values when warranted)?
+
+1/21/24
+
+* Run C27 training single BridgitNN agent from scratch, with SAC over 80k iters using 16 bots.
+	* Changed reward for LC des to increase exponentially with each additional time step
+	  (built for a limit of 100 time steps per episode).
+	* Changed reset() to uniformly initialize agent's P coord along the lane's length, 
+	  regardless of how many episodes have completed. It used to force all starts to beginning
+	  of the lane after early episodes, so lots of the 100-step episodes never saw the full
+	  LC experiences!
+	* Changed reset() to not initialize speed < 10 m/s, since to many starts have been down
+	  at those ridiculously low speeds, and cause unnecessary start-up crashes.
+	* Checkpoints stored at 20240121-1323.
 
 
 
 TODO:
+- training rewards (per Kevin email): exponentially increase reward for staying close, but also penalize for leaving the zone.
+- retrace NN size expansion and addition of dropouts once success is found.
+- reconsider turning noise off
+
 - consider adding logic to abort a LC mvr.
 - make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).

@@ -500,21 +500,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if 10 <= self.effective_scenario < 10 + Roadway.NUM_LANES:
                 ego_lane_id = self.effective_scenario - 10
 
-            # Define the starting P coordinate - for early training episodes, give preference toward the end of the lane, so it experiences failures
+            # Define the starting P coordinate - randomize throughout the length of the lane, but not real close to the end
             lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
             lane_length = self.roadway.get_total_lane_length(ego_lane_id)
-            ego_p = lane_begin
-            if self.episode_count < EARLY_EPISODES:
-                if self.prng.random() < 0.3:
-                    ego_p = self.prng.random() * max(lane_length - 150.0, 1.0) + lane_begin
-                else:
-                    ego_p = max(lane_begin + lane_length - self.prng.random()*500.0, lane_begin)
+            ego_p = lane_begin + self.prng.random() * max(lane_length - 150.0, 1.0)
 
             if not self.training: #encourage it to start closer to beginning of the track for inference runs
-                ego_p = self.prng.random() * 0.5*max(lane_length - 150.0, 1.0) + lane_begin
+                ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
 
             # Randomly define the starting speed and initialize the vehicle data
-            ego_speed = self.prng.random() * Constants.MAX_SPEED
+            ego_speed = self.prng.random() * (Constants.MAX_SPEED - 10.0) + 10.0
             self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
                 print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
@@ -1256,7 +1251,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
-                bonus = 0.01 * des*des
+                #bonus = 0.01 * des*des
+                # Bonus increases exponentially to keep agent interested after lots of similar time steps.
+                # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
+                bonus = 0.003*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
