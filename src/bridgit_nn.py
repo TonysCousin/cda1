@@ -154,7 +154,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         x = self.dropout(x)
         x = F.tanh(self.fc3(x))
         x = self.dropout(x)
-        x = F.tanh(self.fc4(x))
+        x = self.fc4(x)
 
         # Final layer for the actor output (action values)
         actions = self._actor_head(x)

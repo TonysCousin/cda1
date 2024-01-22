@@ -179,7 +179,7 @@ class BridgitGuidance(VehicleGuidance):
                 if pos.delta_p <= 1.0:
                     pos.prob = 0.0
                 else:
-                    pos.prob = min(0.04 * math.sqrt(pos.delta_p), 1.0)
+                    pos.prob = min(0.04 * math.sqrt(pos.delta_p), 0.9)
 
             # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
             # (vehicle will traverse approx 6 sensor zones, or 2 boundary regions, during that time).

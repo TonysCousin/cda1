@@ -540,6 +540,32 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Changed reset() to not initialize speed < 10 m/s, since to many starts have been down
 	  at those ridiculously low speeds, and cause unnecessary start-up crashes.
 	* Checkpoints stored at 20240121-1323.
+	* Training completed in ? hr. rewards didn't climb as much as before, and mean ep len
+	  never reached 100. It hit low 90s after ~13k iters, then after 21k it started to drop
+	  off a bit, ending ~81. rmean was rather noisy, but seems to be drifting upward from 12k
+	  iters onward, ending ~-0.2, while rmax also climbed slightly, ending ~0.9.
+	* Inference on checkpoint 30000 with target only in lane 2: starts in lanes 0 & 1 never
+	  change lanes. Start in lane 3 changes lanes left eagerly, all the way to lane 1 (beyond
+	  the target lane). Lane 4 & 5 starts change lanes nicely also, but all the way to lane 1.
+	  Never saw a right lane change. In lane 0 the LC cmd never came close to the 0.5 thresh.
+
+* Run C28 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
+	* Changed BridgitGuidance so that LC desirability never exceeds 0.9 for a lane that doesn't
+	  include a target, regardless of how far away it is.
+	* Changed reward for LC desirability so that if desirability < 0.2 there is a penalty
+	  rather than reducing the bonus to near zero.
+	* Increased LC des bonus multiplier (A) from 0.003 to 0.004.
+	* Checkpoints stored in 20240122-0020.
+	* Training completed with results very similar to C27. Highest mean ep len was 95 steps.
+	* Inference on checkpoint 20000: lane 4 & 5 starts do pretty well on lane changes, although
+	  they tend to happen later than ideal. Lane 0 & 1 starts (with target in lane 2) never move
+	  to the right. Not concerned with poor speed performance now.
+
+1/22/24
+
+* Run C29 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
+	* Removed the tanh nonlinearity from BridgitNN layer 4 (left it linear).
+	* Checkpoints stored in 20240122-1411.
 
 
 
@@ -565,12 +591,14 @@ TODO:
 - Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
+- Refactor the vehicle configs to specify each vehicle type and the number of them.
 
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Investigate target markers initially having white border, then losing it after a car passes through.
 - Add lane IDs to graphics
+- Add checkpoint name to display.
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
 - Add graphic replay w/step fwd/back

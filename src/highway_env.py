@@ -1251,10 +1251,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
-                #bonus = 0.01 * des*des
-                # Bonus increases exponentially to keep agent interested after lots of similar time steps.
-                # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                bonus = 0.003*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+
+                # If desirability is modestly high then
+                if des > 0.2:
+
+                    # Bonus increases exponentially to keep agent interested after lots of similar time steps.
+                    # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
+                    bonus = 0.004*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    #bonus = 0.01 * des*des
+
+                # Else, this is a terrible lane to be in, give a penalty
+                else:
+                    bonus = -0.01
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
