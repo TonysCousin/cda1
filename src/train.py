@@ -23,10 +23,11 @@ def main(argv):
     print("///// ModelCatalog registered.")
 
     # Initialize per https://docs.ray.io/en/latest/workflows/management.html?highlight=local%20storage#storage-configuration
-    # Can use arg num_cpus = 1 to force single-threading for debugging purposes (along with setting num_gpus = 0)
+    # Can use arg num_cpus = 1 to force single-threading for debugging purposes, then comment out the cfg.resources and
+    # cfg.rollouts sections below.
     t = datetime.now()
     DATA_PATH = "/home/starkj/ray_results/cda1/{:4d}{:02d}{:02d}-{:02d}{:02d}".format(t.year, t.month, t.day, t.hour, t.minute)
-    ray.init(storage = DATA_PATH) #CAUTION! storage is an experimental arg (in Ray 2.5.1), and intended to be a URL for cluster-wide access
+    ray.init(storage = DATA_PATH) #, num_cpus = 1, num_gpus = 0)
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"

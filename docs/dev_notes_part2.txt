@@ -566,6 +566,56 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Run C29 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
 	* Removed the tanh nonlinearity from BridgitNN layer 4 (left it linear).
 	* Checkpoints stored in 20240122-1411.
+	* Training completed with steady results since ~12k iters. rmin ~-2.5, rmean ~-0.7 noisy,
+	  rmax ~1, mean ep len ~85.
+	* Inference on checkpoint 30000: it is reluctant to change lanes. It does so sometimes from
+	  lanes 3 & 4 (for lane 2 tgt), but never from lane 5, 0 or 1. Never saw it change lanes right.
+	  Speeds are always way low, but not worried about them now.
+
+1/23/24
+
+* Run C30
+	* Restoring the tanh nonlinearity back to layer 4 of the BridgitNN.
+	* Changed NN dropout from 0.2 to 0.1.
+	* Reordered completion logic in get_rewards() to deal with dones before dealing with inactive
+	  vehicles, which had prevented it from seeing complete episode rewards.
+	* Fixed defect in ACC logic for bots 1a & 1b to allow it to handle jittery forward vehicles
+	  better, thus avoiding some rear-end crashes that may be providing artificially negative
+	  training experiences (not the agent's fault).
+	* Overrode step() to force speed command to always be 28 m/s, so that it will not have to
+	  worry about learning that channel also, and can focus on learning proper LC commands.
+	* Checkpoints stored in 20240123-1243.
+	* Training completed in 10.1 hr. As before, it never reached desirable performance. rmin
+	  ~-1.9, rmean ~-0.1, rmax ~1.4, mean ep len peaked at 85 then diminished to ~71 by the end.
+	* Inference on 30000: forcing a constant speed sometimes causes agent to rear-end slower bots,
+	  which will affect its training, giving it artificial penalties in some cases.
+		* Lane 0 start changed lanes! then changed several more times between 1 & 2 (tgt only
+		  in lane 2). In additional runs, it never changed again once hitting lane 1.
+		* Lane 1 start stayed in lane 1. Starts in higher lanes all move over to get into
+		  lane 1, despite negative LC des rewards.
+		* The difference in LC des reward between a lane with des = 1 and a lane with
+		  des = 0.67 is not that much (about 70% reduction), and probably should be more
+		  drastic to help discourage stayiing in such a lane long term. 
+
+1/24/24
+
+* Ran the train program with extra logging to ensure that it is randomizing the initial conditions
+  well and that reasonable trajectories are getting executed. All looks good. Initial lane choices
+  are heavily weighted to lane 0, and otherwise spread according to the probability distribution
+  coded. Target lists seem uniformly distributed, and mostly contain only 1 target. Step method
+  shows many early cases of lane changes both right and left, although left is more commont
+  (probably because there are more opportunities to do so).
+	* May want to avoid lane 0 starts when only target 3 is active, since it is unreachable.
+
+* Run C31
+	* Removed the artificial holding of all speed commands; allow NN to learn them again.
+	* Changed reward for LC des to be harsher on desirabilities < 1 by squaring it.
+	* Also made the penalty for a terrible choice to grow exponentially. Changed both exponential
+	  growths to start over with each lane change rather than counting steps since beginning of
+	  episode.
+	* Added reset() logic to prevent starting the ego vehicle in any location that is out of reach
+	  of at least one target.
+	* Checkpoints stored at 20240124-2038.
 
 
 
@@ -588,7 +638,6 @@ TODO:
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
-- Convert Stopper class to a Checkpointing class to manage the number of checkpoints, and also the reporting of results based on running averages.
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
 - Refactor the vehicle configs to specify each vehicle type and the number of them.

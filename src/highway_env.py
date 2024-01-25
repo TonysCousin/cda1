@@ -476,37 +476,44 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # All other scenarios: trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
         else:
 
-            # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
-            # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
-            # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
-            # vehicle's starting lane.
-            ego_lane_id = 1
-            if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
-                draw = self.prng.random()
-                if draw < 0.40:
-                    ego_lane_id = 0
-                elif draw < 0.55:
-                    ego_lane_id = 4
-                elif draw < 0.75:
-                    ego_lane_id = 5
-                elif draw < 0.90:
-                    ego_lane_id = 3
-                elif draw < 0.95:
-                    ego_lane_id = 2
-            else:
-                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+            # Loop until a good starting location is found (i.e. one that has a chance to reach at least one active target)
+            good_location = False
+            while not good_location:
 
-            # Scenarios 10-19:  specify ego vehicle starting lane
-            if 10 <= self.effective_scenario < 10 + Roadway.NUM_LANES:
-                ego_lane_id = self.effective_scenario - 10
+                # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
+                # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
+                # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
+                # vehicle's starting lane.
+                ego_lane_id = 1
+                if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
+                    draw = self.prng.random()
+                    if draw < 0.40:
+                        ego_lane_id = 0
+                    elif draw < 0.55:
+                        ego_lane_id = 4
+                    elif draw < 0.75:
+                        ego_lane_id = 5
+                    elif draw < 0.90:
+                        ego_lane_id = 3
+                    elif draw < 0.95:
+                        ego_lane_id = 2
+                else:
+                    ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
 
-            # Define the starting P coordinate - randomize throughout the length of the lane, but not real close to the end
-            lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
-            lane_length = self.roadway.get_total_lane_length(ego_lane_id)
-            ego_p = lane_begin + self.prng.random() * max(lane_length - 150.0, 1.0)
+                # Scenarios 10-19:  specify ego vehicle starting lane
+                if 10 <= self.effective_scenario < 10 + Roadway.NUM_LANES:
+                    ego_lane_id = self.effective_scenario - 10
 
-            if not self.training: #encourage it to start closer to beginning of the track for inference runs
-                ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
+                # Define the starting P coordinate - randomize throughout the length of the lane, but not real close to the end
+                lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
+                lane_length = self.roadway.get_total_lane_length(ego_lane_id)
+                ego_p = lane_begin + self.prng.random() * max(lane_length - 150.0, 1.0)
+
+                if not self.training: #encourage it to start closer to beginning of the track for inference runs
+                    ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
+
+                # Determine if the chosen location can reach a target
+                good_location = self._is_any_target_reachable_from(ego_lane_id, ego_p)
 
             # Randomly define the starting speed and initialize the vehicle data
             ego_speed = self.prng.random() * (Constants.MAX_SPEED - 10.0) + 10.0
@@ -583,8 +590,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-            #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}"
-            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count))
+            #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
+            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self._get_active_target_list()))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -668,9 +675,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Update states of all vehicles
         #
 
-        # Unscale the ego action inputs if ego is being trained (both cmd values are in [-1, 1])
+        # Unscale the ego action inputs (both cmd values are in [-1, 1])
         ego_action = [None]*2
-        #if 20 <= self.effective_scenario <= 29:
         ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
         raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
         ego_action[1] = int(math.floor(raw_lc_cmd + 0.5))
@@ -771,6 +777,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return_info["reward_detail"] = expl
         #print("***** step: {} step {}, returning reward of {:.4f}, {}".format(self.rollout_id, self.steps_since_reset, reward, expl))
         #print("      partial obs = ", self.all_obs[0, 0:20])
+        #print("***** step {}, cmd = {}, lane = {}, p = {:.1f}, rew = {:.4f}"
+        #      .format(self.steps_since_reset, cmd, self.vehicles[0].lane_id, self.vehicles[0].p, reward))
 
         if self.debug > 0:
             print("///// step {} complete. Returning obs (only first row for ego vehicle).".format(self.steps_since_reset))
@@ -938,6 +946,30 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.t_targets[t_idx].active = False
                 if t_idx in self.valid_targets:
                     self.t_targets[t_idx].active = True
+
+
+    def _get_active_target_list(self):
+        """Returns a list of the indexes of the active targets."""
+
+        at = []
+        for i, t in enumerate(self.t_targets):
+            if t.active:
+                at.append(i)
+
+        return at
+
+
+    def _is_any_target_reachable_from(self,
+                                      lane_id   : int,      #lane ID in question
+                                      p         : float,     #P coordinate in question, m
+                                     ) -> bool:             #returns True if at least 1 active target is reachable from here
+        """Determines if at least one active target is reachable from the given location."""
+
+        for t in self.t_targets:
+            if t.active  and  t.is_reachable_from(lane_id, p):
+                return True
+
+        return False
 
 
     def _decide_num_vehicles(self) -> int:
@@ -1202,12 +1234,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lc_desired = self.all_obs[0, ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
         des_max = max(lc_desired)
 
-        # Handle inactive ego vehicle
-        if not self.vehicles[0].active:
-            reward = -1.0
-            explanation = "Ego vehicle is not active!"
-            return reward, explanation
-
         # If the episode is done then
         if done:
 
@@ -1239,6 +1265,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     reward = -0.5
                     explanation = "Complete episode, but unable to reach a target from here."
 
+        # Handle inactive ego vehicle
+        elif not self.vehicles[0].active:
+            reward = -1.0
+            explanation = "Ego vehicle is not active!"
+            return reward, explanation
+
         # Else, episode still underway
         else:
 
@@ -1251,18 +1283,20 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
+                des = des * des
+                steps_since_lc = self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]
 
                 # If desirability is modestly high then
                 if des > 0.2:
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = 0.004*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    bonus = 0.004*(math.pow(des+1.0, (steps_since_lc + 50.0)/50.0) - 1.0)
                     #bonus = 0.01 * des*des
 
-                # Else, this is a terrible lane to be in, give a penalty
+                # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
-                    bonus = -0.01
+                    bonus = -0.02*(math.pow(2, (steps_since_lc + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
