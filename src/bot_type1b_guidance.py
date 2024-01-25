@@ -154,9 +154,12 @@ class BotType1bGuidance(VehicleGuidance):
 
             # Reduce our speed command gradually toward that vehicle's speed, to avoid a collision. Since there could be multiple
             # vehicles within the distance of concern, the limiter must account for the results of a previous iteration of this loop.
+            # Note that the min value must be less than the forward vehicle's speed, otherwise we could follow it at exactly the critical
+            # distance, then it suddenly slows, and our reaction lag will gradually eat iinto that critical distance until a crash becomes
+            # inevitable.
             if fwd_speed < self.my_vehicle.cur_speed:
                 f = (fwd_dist - CRITICAL_DISTANCE) / (DISTANCE_OF_CONCERN - CRITICAL_DISTANCE)
-                speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, fwd_speed), tgt_speed)
+                speed_cmd = min(max(f*(tgt_speed - fwd_speed) + fwd_speed, 5.0), tgt_speed)
             assert speed_cmd >= 0.0, \
                     "///// ERROR in BotType1bCtrl._acc_speed_ctrl: speed_cmd = {:.2f} is illegal. fwd_speed = {:.2f}, tgt_speed = {:.2f}, f = {:.2f}" \
                     .format(speed_cmd, fwd_speed, tgt_speed, f)

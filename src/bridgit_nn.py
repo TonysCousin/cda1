@@ -75,7 +75,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         self.fc2 = nn.Linear(NUM_FC1_NEURONS + self.NUM_PAVEMENT_NEURONS + self.NUM_VEHICLES_NEURONS, NUM_FC2_NEURONS)
         self.fc3 = nn.Linear(NUM_FC2_NEURONS, NUM_FC3_NEURONS)
         self.fc4 = nn.Linear(NUM_FC3_NEURONS, NUM_FC4_NEURONS)
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.1)
 
         self._actor_head = nn.Sequential(
             nn.Linear(NUM_FC4_NEURONS, self._num_actions)
@@ -154,7 +154,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         x = self.dropout(x)
         x = F.tanh(self.fc3(x))
         x = self.dropout(x)
-        x = self.fc4(x)
+        x = F.tanh(self.fc4(x))
 
         # Final layer for the actor output (action values)
         actions = self._actor_head(x)
