@@ -574,7 +574,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 1/23/24
 
-* Run C30
+* Run C30 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
 	* Restoring the tanh nonlinearity back to layer 4 of the BridgitNN.
 	* Changed NN dropout from 0.2 to 0.1.
 	* Reordered completion logic in get_rewards() to deal with dones before dealing with inactive
@@ -607,7 +607,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
   (probably because there are more opportunities to do so).
 	* May want to avoid lane 0 starts when only target 3 is active, since it is unreachable.
 
-* Run C31
+* Run C31 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
 	* Removed the artificial holding of all speed commands; allow NN to learn them again.
 	* Changed reward for LC des to be harsher on desirabilities < 1 by squaring it.
 	* Also made the penalty for a terrible choice to grow exponentially. Changed both exponential
@@ -616,6 +616,15 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Added reset() logic to prevent starting the ego vehicle in any location that is out of reach
 	  of at least one target.
 	* Checkpoints stored at 20240124-2038.
+	* Training completed, but no good. Mean ep len touched 90, but settled in the mid-80s.
+	  rmin ~-7, rmean ~-1.3, rmax ~0.9.
+	* Inference on checkpoint 30000: speed is usually really low. Lane changes are good from lanes
+	  3, 4, 5. Lane 0 starts will change lanes to 1 if in the merge zone before speed has dropped
+	  a lot, but if it starts near beginning, speed drops before reaching the merge zone, and it
+	  doesn't bother to change lanes. Even so, once in lane 1 it won't go to target in lane 2.
+		* Noted that the LC des penalty for terrible choice does not increase exponentially,
+		  as intended. Found that it is a function of steps since LC, which is capped at 60
+		  steps; needs to grow unlimited.
 
 
 
