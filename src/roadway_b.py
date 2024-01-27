@@ -1,109 +1,21 @@
 import math
 from typing import Tuple, Dict, List
 from constants import Constants
+from roadway import Roadway, PavementType
 from lane import Lane
+from target_destination import TargetDestination
 
 
-class PavementType:
-    """Enumeration to represent types of pavement."""
-    GRASS       = 0 #anything not driveable
-    ASPHALT     = 1 #everyday drivability
-    EXIT_RAMP   = 2 #only useful for vehicles aiming for a target on this ramp; currently not used
-
-
-class Roadway:
-    """Defines the geometry of the roadway lanes and their drivable connections.  All dimensions are
-        physical quantities, measured in meters from an arbitrary map origin and are in the map
-        coordinate frame.  The roadway being modeled is diagramed in the software requirements doc.
-        This class provides convertor methods to/from the parametric coordinate
-        frame, which abstracts it slightly to be more of a structural "schematic" for better
-        representation in our NN observation space. To that end, all lanes in the parametric frame are
-        considered parallel and physically next to each other (even though the boundary separating two
-        lanes may not be permeable, e.g. a jersey wall).
-
-        Traffic flows from left to right on the page, with travel direction being to the right. The coordinate
-        system is oriented so that the origin is at the left end of lane 3, with the X axis going to the right
-        and Y axis going upward on the page. Not all lanes have to begin at X = 0, but at least one does.
-        Others begin at X > 0. Y locations are only used for the graphics output; they are not needed for the
-        environment calculations.
-
-        Lane connectivities are defined by three parameters that define the adjacent lane, as shown in the following
-        series of diagrams.  These parameters work the same whether they describe a lane on the right or left of the
-        ego vehicle's lane, so we only show the case of an adjacent lane on the right side.  In this diagram, '[x]'
-        is the agent (ego) vehicle location.
-
-        Case 1, adjacent to on-ramp:
-                           |<...............rem....................>|
-                           |<................B.....................>|
-                           |<....A.....>|                           |
-                           |            |                           |
-            Ego lane  ----[x]---------------------------------------------------------------------------->
-                                        /---------------------------/
-            Adj lane  -----------------/
-
-        ==============================================================================================================
-
-        Case 2, adjacent to exit ramp:
-                           |<..................................rem.......................................>
-                           |<.........B..........>|
-                           | A < 0                |
-                           |                      |
-            Ego lane  ----[x]---------------------------------------------------------------------------->
-            Adj lane  ----------------------------\
-                                                  \------------------------------------------------------>
-
-        ==============================================================================================================
-
-        Case 3, adjacent to mainline lane drop:
-                           |<...............rem....................>|
-                           |<................B.....................>|
-                           | A < 0                                  |
-                           |                                        |
-            Ego lane  ----[x]---------------------------------------------------------------------------->
-            Adj lane  ----------------------------------------------/
-
-        ==============================================================================================================
-
-        Case 4, two parallel lanes indefinitely long:  no diagram needed, but A = 0, B = inf, rem = inf.
-
-        ==============================================================================================================
-
-        As a result of the definition constraints, we CANNOT represent the following:
-
-            * A lane that has more than one connecting lane (joining or separating) on the same side, such as
-
-                Lane 1  --------------------------------------------------------------------------------->
-                Lane 2  --------------/                   Lane 3 ----------------/
-
-            * A lane that joins, separates, then joins again, such as
-
-                Lane 1  --------------------------------------------------------------------------------->
-                Lane 2  ------------------\                         /------------------------------------>
-                                           \-----------------------/
-
-            * Two logical lanes connected end-to-end (e.g. to try getting around the previous constraints), such as
-
-                Lane 1  ---------------------------------->Lane 2---------------------------------------->
-
-
-        CAUTION: This is not a general container.  The code in __init__, param_to_map_frame() and map_to_param_frame()
-                 defines, and is dependent upon, the exact geometry of the highway.
-    """
-
-    NUM_LANES               = 6         #total number of unique lanes in the scenario
-    WIDTH                   = 30.0      #lane width, m; using a crazy large number so that grapics are pleasing
-    COS_RAMP_ANGLE          = 0.8660    #cosine of the angle of any ramp segment from the X axis
-    SIN_RAMP_ANGLE          = 0.5       #sine of the angle of ramp segments from the X axis
+class RoadwayB(Roadway):
+    """Defines a specific roadway model for the CDA agent operations.  It is 3 km long and contains 6 lanes with ramps."""
 
 
     def __init__(self,
                  debug      : int = 0   #debug printing level
                 ):
 
-        self.debug = debug
-        if self.debug > 1:
-            print("///// Entering Roadway.__init__")
-        self.lanes = [] #list of all the lanes in the scenario; list index is lane ID
+        super().__init__(debug)
+        self.name = "Roadway B"
 
         NORMAL_SL   = 29.1 #speed limit, m/s (65 mph)
         HIGH1_SL    = 31.3 #speed limit, m/s (70 mph)
@@ -117,7 +29,7 @@ class Roadway:
         #       x0          y0              x1          y1              len     speed limit
 
         # Lane 0 - entrance ramp, short merge segment, then exit ramp
-        L0_Y = 3*Roadway.WIDTH #the merge segment
+        L0_Y = 3*Roadway.LANE_WIDTH #the merge segment
         segs = [(1653.6,    L0_Y+0.5*400.0, 2000.0,     L0_Y,           400.0,  RAMP1_SL,   PavementType.ASPHALT),
                 (2000.0,    L0_Y,           2400.0,     L0_Y,           400.0,  NORMAL_SL,  PavementType.ASPHALT),
                 (2400.0,    L0_Y,           2573.2,     L0_Y+0.5*200.0, 200.0,  RAMP1_SL,   PavementType.ASPHALT)]
@@ -125,7 +37,7 @@ class Roadway:
         self.lanes.append(lane)
 
         # Lane 1 - short full-speed ramp, then straight to the end, with high speed final segment
-        L1_Y = L0_Y - Roadway.WIDTH
+        L1_Y = L0_Y - Roadway.LANE_WIDTH
         segs = [(626.8,     L1_Y+0.5*200.0, 800.0,      L1_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
                 (800.0,     L1_Y,           2400.0,     L1_Y,           1600.0, NORMAL_SL,  PavementType.ASPHALT),
                 (2400.0,    L1_Y,           3000.0,     L1_Y,           600.0,  HIGH2_SL,   PavementType.ASPHALT)]
@@ -134,7 +46,7 @@ class Roadway:
         self.lanes.append(lane)
 
         # Lane 2 - spawned from lane 3, then straight to the end
-        L2_Y = L1_Y - Roadway.WIDTH
+        L2_Y = L1_Y - Roadway.LANE_WIDTH
         segs = [(500.0,     L2_Y,           3000.0,     L2_Y,           2500.0, NORMAL_SL,  PavementType.ASPHALT)]
         lane = Lane(2, 500.0, 2500.0, segs, left_id = 1, left_join = 800.0, left_sep = 3000.0,
                     right_id = 3, right_join = 500.0, right_sep = 2200.0)
@@ -149,7 +61,7 @@ class Roadway:
         self.lanes.append(lane)
 
         # Lane 4 - entrance ramp with short merge area then exit ramp
-        L4_Y = L3_Y - Roadway.WIDTH #the merge segment
+        L4_Y = L3_Y - Roadway.LANE_WIDTH #the merge segment
         segs = [(953.6,     L4_Y-0.5*400.0, 1300.0,     L4_Y,           400.0,  RAMP2_SL,   PavementType.ASPHALT),
                 (1300.0,    L4_Y,           1500.0,     L4_Y,           200.0,  NORMAL_SL,  PavementType.ASPHALT),
                 (1500.0,    L4_Y,           1673.2,     L4_Y-0.5*200.0, 200.0,  RAMP1_SL,   PavementType.ASPHALT)]
@@ -159,11 +71,19 @@ class Roadway:
         self.lanes.append(lane)
 
         # Lane 5 - secondary entrance ramp
-        L5_Y = L4_Y - Roadway.WIDTH #the stubby merge segment
+        L5_Y = L4_Y - Roadway.LANE_WIDTH #the stubby merge segment
         segs = [(953.6,     L5_Y-0.5*400.0, 1300.0,     L5_Y,           400.0,  RAMP2_SL,   PavementType.ASPHALT),
                 (1300.0,    L5_Y,           1350.0,     L5_Y,           50.0,   RAMP2_SL,   PavementType.ASPHALT)]
         lane = Lane(5, 953.6, 450.0, segs, left_id = 4, left_join = origin_p, left_sep = 1350.0)
         self.lanes.append(lane)
+        self.NUM_LANES = len(self.lanes)
+
+        # Define the possible target destinations
+        self.targets.append(TargetDestination(self, 0, 2500.0))
+        self.targets.append(TargetDestination(self, 1, 2900.0))
+        self.targets.append(TargetDestination(self, 2, 2900.0))
+        self.targets.append(TargetDestination(self, 4, 1600.0))
+        self.NUM_TARGETS = len(self.targets)
 
 
     def map_to_param_frame(self,
@@ -177,7 +97,10 @@ class Roadway:
             CAUTION: this logic is specific to the roadway geometry defined in __init__().
         """
 
-        p = x
+        # Get the default conversion for all lanes that are completely straight
+        p = super().map_to_param_frame(x, lane)
+
+        # Override results for any lanes that involve angled sections
         if lane == 0:
             join_x = self.lanes[0].segments[0][2]
             sep_x = self.lanes[0].segments[2][0]
@@ -218,9 +141,10 @@ class Roadway:
             CAUTION: this logic is specific to the roadway geometry defined in __init__().
         """
 
-        # We need to use max() here to compensate for small round-off errors
-        x = p
-        y = self.lanes[lane].segments[0][1] #left end of the lane
+        # Get the default conversion for all lanes that are completely straight
+        x, y = super().param_to_map_frame(p, lane)
+
+        # Handle lanes with angled segments. We need to use max() here to compensate for small round-off errors.
         if lane == 0:
             join_x = self.lanes[0].segments[0][2]
             join_y = self.lanes[0].segments[0][3]
@@ -263,135 +187,4 @@ class Roadway:
                 x = max(join_x - (join_x - p)*self.COS_RAMP_ANGLE, self.lanes[5].start_x)
                 y = join_y - (join_x - p)*self.SIN_RAMP_ANGLE
 
-        else: #any remaining straight lanes
-            x = max(p, self.lanes[lane].start_x)
-
         return x, y
-
-
-    def get_current_lane_geom(self,
-                                lane_id         : int   = 0,    #ID of the lane in question
-                                p_loc           : float = 0.0   #P coordinate of the point in question, in the parametric frame, m
-                             ) -> Tuple[int, float, float, int, float, float]:
-
-        """Determines all of the variable roadway geometry relative to the given point.
-            Returns a tuple of (ID of left neighbor ln (or -1 if none),
-                                dist to left adjoin point A, m,
-                                dist to left adjoin point B, m,
-                                ID of right neighbor lane (or -1 if none),
-                                dist to right adjoin point A, m,
-                                dist to right adjoin point B, m,
-            If either adjoining lane doesn't exist, its return values will be 0, 0, inf.  All distances are in m.
-        """
-
-        # Ensure that the given location is not prior to beginning of the lane
-        assert self.param_to_map_frame(p_loc, lane_id)[0] >= self.lanes[lane_id].start_x, \
-                "///// Roadway.get_current_lane_geom: p_loc of {} is prior to beginning of lane {}".format(p_loc, lane_id)
-
-        if self.debug > 0:
-            print("///// Entering Roadway.get_current_lane_geom for lane_id = ", lane_id, ", p_loc = ", p_loc)
-
-        la = 0.0
-        lb = math.inf
-        left_id = self.lanes[lane_id].left_id
-        if left_id >= 0:
-            la = self.lanes[lane_id].left_join - p_loc
-            lb = self.lanes[lane_id].left_sep - p_loc
-
-        ra = 0.0
-        rb = math.inf
-        right_id = self.lanes[lane_id].right_id
-        if right_id >= 0:
-            ra = self.lanes[lane_id].right_join - p_loc
-            rb = self.lanes[lane_id].right_sep - p_loc
-
-        if self.debug > 1:
-            print("///// get_current_lane_geom complete. Returning")
-            print("      lid = {}, la = {:.2f}, lb = {:.2f}".format(left_id, la, lb))
-            print("      rid = {}, ra = {:.2f}, rb = {:.2f}".format(right_id, ra, rb))
-        return left_id, la, lb, right_id, ra, rb
-
-
-    def get_target_lane(self,
-                        lane        : int,  #ID of the given lane
-                        direction   : str,  #either "left" or "right"
-                        p           : float #P coordinate for the location of interest, m
-                       ) -> int:
-        """Returns the lane ID of the adjacent lane on the indicated side of the given lane, or -1 if there is none
-            currently adjoining.
-        """
-
-        if self.debug > 1:
-            print("///// Entering Roadway.get_target_lane. lane = ", lane, ", direction = ", direction, ", p = ", p)
-        assert 0 <= lane < len(self.lanes), "get_adjoining_lane_id input lane ID {} invalid.".format(lane)
-        if direction != "left"  and  direction != "right":
-            return -1
-
-        # Find the adjacent lane ID, then if one exists ensure that current location is between the join & separation points.
-        this_lane = self.lanes[lane]
-        tgt_id = -1
-        if direction == "left":
-            tgt_id = this_lane.left_id
-            if tgt_id >= 0:
-                if p < this_lane.left_join  or  p > this_lane.left_sep:
-                    tgt_id = -1
-
-        else: #right
-            tgt_id = this_lane.right_id
-            if tgt_id >= 0:
-                if p < this_lane.right_join  or  p > this_lane.right_sep:
-                    tgt_id = -1
-
-        if self.debug > 1:
-            print("///// get_target_lane complete. Returning ", tgt_id)
-        return tgt_id
-
-
-    def get_total_lane_length(self,
-                                lane    : int   #ID of the lane in question
-                             ) -> float:
-        """Returns the total length of the requested lane, m"""
-
-        assert 0 <= lane < len(self.lanes), "Roadway.get_total_lane_length input lane ID {} invalid.".format(lane)
-        return self.lanes[lane].length
-
-
-    def get_lane_start_p(self,
-                         lane   : int   #ID of the lane in question
-                        ) -> float:
-        """Returns the P coordinate of the beginning of the lane (in parametric frame)."""
-
-        assert 0 <= lane < len(self.lanes), "Roadway.get_lane_start_p input lane ID {} invalid.".format(lane)
-        return self.map_to_param_frame(self.lanes[lane].start_x, lane)
-
-
-    def get_speed_limit(self,
-                        lane    : int,  #ID of the lane in question
-                        p       : float,#P coordinate in question
-                       ) -> float:
-
-        """Returns the posted speed limit applicable to the given location."""
-
-        assert 0 <= lane < len(self.lanes), "Roadway.get_speed_limit input lane ID {} invalid.".format(lane)
-
-        x, _ = self.param_to_map_frame(p, lane)
-        for s in self.lanes[lane].segments:
-            if s[0] <= x <= s[2]:
-                return s[5]
-
-        raise ValueError("///// Roadway.get_speed_limit requested for illegal p = {} on lane {}".format(p, lane))
-
-
-    def get_pavement_type(self,
-                          lane    : int,    #ID of the lane in question
-                          p       : float,  #P coordinate in question
-                        ) -> PavementType:  #returns the type of pavement at the given location
-
-        """Returns the pavement type at the indicated lane & P coordinate."""
-
-        x, _ = self.param_to_map_frame(p, lane)
-        for s in self.lanes[lane].segments:
-            if s[0] <= x <= s[2]:
-                return s[6]
-
-        raise ValueError("///// Roadway.get_speed_pavement_type requested for illegal p = {} on lane {}".format(p, lane))

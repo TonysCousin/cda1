@@ -161,8 +161,6 @@ class EmbedModel(VehicleModel):
                 if lane_begin_p <= zone_ctr_p <= lane_end_p:
                     pvmt_idx = col_base_pvmt + zone_id #index of the pavement type data element for this zone
                     obs[pvmt_idx] = 1.0
-                    if self.roadway.get_pavement_type(col_lane, zone_ctr_p) == PavementType.EXIT_RAMP:
-                        obs[pvmt_idx] = 0.0
 
                     col_base_sl = ObsVec.BASE_SPD_LIMIT + col*ObsVec.NUM_ROWS
                     sl_idx = col_base_sl + zone_id

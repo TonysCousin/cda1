@@ -47,7 +47,8 @@ class Graphics:
     AVG_PIX_PER_CHAR_LARGE  = 7.5
 
     # Other graphics constants
-    LANE_WIDTH              = Roadway.WIDTH
+    WIDTH_SCALE             = 1.0       #for future use if Roadway and Graphics need to use different lane widths
+    LANE_WIDTH              = Roadway.LANE_WIDTH * WIDTH_SCALE
     WINDOW_SIZE_R           = 1800      #window width, pixels
     WINDOW_SIZE_S           = 800       #window height, pixels
     REAL_TIME_RATIO         = 5.0       #Factor faster than real time
@@ -155,8 +156,6 @@ class Graphics:
             self.prev_veh_r[v_idx] = int(self.scale*(self.env.roadway.lanes[0].segments[0][0] - self.roadway_center_x)) + self.display_center_r
             self.prev_veh_s[v_idx] = Graphics.WINDOW_SIZE_S - \
                                      int(self.scale*(self.env.roadway.lanes[0].segments[0][1] - self.roadway_center_y)) - self.display_center_s
-        #TODO: draw rectangles instead of circles, with length = vehicle length & width = 0.5*lane width
-        self.veh_radius = int(0.25 * Graphics.LANE_WIDTH * self.scale) #radius of icon in pixels
 
         # Initialize the alert display location
         self.alert_pos_r = 0
@@ -351,6 +350,7 @@ class Graphics:
         """
 
         while True:
+            time.sleep(0.5) #avoid using otherwise idle compute resources
             key = self.key_press_event()
             if key is not None:
                 return key
@@ -446,14 +446,11 @@ class Graphics:
             Only valid, active targets are used by the ego vehicle, and those are displayed differently.
         """
 
-        # Display the secondary ones first, as this may be a superset of the primary (active) targets
-        for tgt in self.env.b_targets:
-            self._display_target(tgt, self.target_secondary_image)
-
-        # Now display the primary targets, whose images will overlay any secondaries that coincide
-        for tgt in self.env.t_targets:
+        for tgt in self.env.roadway.targets:
             if tgt.active:
                 self._display_target(tgt, self.target_primary_image)
+            else:
+                self._display_target(tgt, self.target_secondary_image)
 
 
     def _display_target(self,

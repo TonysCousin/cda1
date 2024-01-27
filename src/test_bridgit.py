@@ -1,7 +1,7 @@
 import sys
 from obs_vec import ObsVec
 from hp_prng import HpPrng
-from roadway_b import Roadway
+from roadway_b import RoadwayB
 from vehicle import Vehicle
 from bridgit_model import BridgitModel
 from bridgit_guidance import BridgitGuidance
@@ -16,10 +16,9 @@ def main(argv):
     prng = HpPrng(17)
     debug = 0
 
-    roadway = Roadway(debug)
-    t_targets = []
-    t_targets.append(TargetDestination(roadway, 1, 2900.0))
-    t_targets.append(TargetDestination(roadway, 2, 2900.0))
+    roadway = RoadwayB(debug)
+    roadway.targets[1].active = True
+    roadway.targets[2].active = True
 
     # Instantiate model and controller objects for each vehicle, then use them to construct the vehicle objects
     num_vehicles = 11
@@ -33,11 +32,11 @@ def main(argv):
             if is_ego:
                 print("Building ego vehicle")
                 model = BridgitModel(roadway)
-                controller = BridgitGuidance(prng, roadway, t_targets)
+                controller = BridgitGuidance(prng, roadway)
             else:
                 print("Building a simple bot vehicle.")
                 model = BotType1Model(roadway, length = 5.0)
-                controller = BotType1aGuidance(prng, roadway, t_targets)
+                controller = BotType1aGuidance(prng, roadway)
             v = Vehicle(model, controller, prng, roadway, learning = is_ego, debug = debug)
         except AttributeError as e:
             print("///// Problem with config for vehicle ", i, " model or controller: ", e)

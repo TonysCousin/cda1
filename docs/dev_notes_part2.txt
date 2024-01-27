@@ -626,6 +626,12 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		  as intended. Found that it is a function of steps since LC, which is capped at 60
 		  steps; needs to grow unlimited.
 
+1/27/24
+
+* Created git branch update_roadway to generalize the Roadway class as a polymorphic interface.
+	* Created class RoadwayB to represent the heretofor used roadway geometry. Ensured the train
+	  and inference programs worked okay with this new refactoring.
+
 
 
 TODO:

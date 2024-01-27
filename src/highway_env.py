@@ -18,7 +18,7 @@ from ray.tune.logger import pretty_print
 
 from constants import Constants
 from obs_vec import ObsVec
-from roadway_b import Roadway
+from roadway_b import RoadwayB
 from vehicle import Vehicle
 from hp_prng import HpPrng
 from lane_change import LaneChange
@@ -162,15 +162,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Create the roadway geometry
-        self.roadway = Roadway(self.debug)
-
-        # Define the target destinations for the ego vehicle (T targets) and for the bot vehicles (B targets)
-        self.t_targets = []
-        self.t_targets.append(TargetDestination(self.roadway, 0, 2500.0))
-        self.t_targets.append(TargetDestination(self.roadway, 1, 2900.0))
-        self.t_targets.append(TargetDestination(self.roadway, 2, 2900.0))
-        self.t_targets.append(TargetDestination(self.roadway, 4, 1600.0))
-        self.b_targets = copy.deepcopy(self.t_targets) #bots can seek T targets also
+        self.roadway = RoadwayB(self.debug)
 
         #
         #..........Define the observation space
@@ -245,7 +237,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
             v = None
             spec = v_data[i]
-            targets = self.t_targets if is_learning  else  self.b_targets #list of all possible targets to navigate to
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
                                     max_jerk      = spec["max_jerk"],
@@ -253,7 +244,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, targets, is_learning, \
+                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, is_learning, \
                                                                             self.observation_space, self.action_space)
                 v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
             except AttributeError as e:
@@ -484,6 +475,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
                 # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
                 # vehicle's starting lane.
+                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+                """this block is specific to RoadwayB:
                 ego_lane_id = 1
                 if self.training  and  self.episode_count < EARLY_EPISODES  and  self.roadway.NUM_LANES == 6: #give preference to lanes 0, 4 & 5 in early episodes
                     draw = self.prng.random()
@@ -499,9 +492,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         ego_lane_id = 2
                 else:
                     ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+                """
 
                 # Scenarios 10-19:  specify ego vehicle starting lane
-                if 10 <= self.effective_scenario < 10 + Roadway.NUM_LANES:
+                if 10 <= self.effective_scenario < 10 + self.roadway.NUM_LANES:
                     ego_lane_id = self.effective_scenario - 10
 
                 # Define the starting P coordinate - randomize throughout the length of the lane, but not real close to the end
@@ -513,7 +507,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
 
                 # Determine if the chosen location can reach a target
-                good_location = self._is_any_target_reachable_from(ego_lane_id, ego_p)
+                good_location = self.roadway.is_any_target_reachable_from(ego_lane_id, ego_p)
 
             # Randomly define the starting speed and initialize the vehicle data
             ego_speed = self.prng.random() * (Constants.MAX_SPEED - 10.0) + 10.0
@@ -591,7 +585,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
 
             #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
-            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self._get_active_target_list()))
+            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined.")
@@ -716,7 +710,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If the ego vehicle has reached one of its target destinations, it is a successful episode
             if i == 0:
-                for t in self.t_targets:
+                for t in self.roadway.targets:
                     if t.active  and  self.vehicles[0].lane_id == t.lane_id  and  self.vehicles[0].p >= t.p:
                         reached_tgt = True
                         break
@@ -927,8 +921,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Loop through each target marked valid and decide if it will be active. Use a random threshold > 0.5
             # to limit the total number of active targets (prefer to not have all of them active very often).
             at_least_one_active = False
-            for t_idx in range(Constants.NUM_TARGETS):
-                tgt = self.t_targets[t_idx]
+            for t_idx in range(self.roadway.NUM_TARGETS):
+                tgt = self.roadway.targets[t_idx]
                 tgt.active = False
                 if t_idx in self.valid_targets  and  self.prng.random() > 0.75:
                     tgt.active = True
@@ -936,40 +930,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If no target was marked active, then randomly choose one of the valid ones (not all targets are valid for this run)
             if not at_least_one_active:
-                choice = int(self.prng.random() * min(len(self.valid_targets), Constants.NUM_TARGETS))
+                choice = int(self.prng.random() * min(len(self.valid_targets), self.roadway.NUM_TARGETS))
                 t_idx = self.valid_targets[choice]
-                self.t_targets[t_idx].active = True
+                self.roadway.targets[t_idx].active = True
 
         # Else, mark all valid targets active
         else:
-            for t_idx in range(Constants.NUM_TARGETS):
-                self.t_targets[t_idx].active = False
+            for t_idx in range(self.roadway.NUM_TARGETS):
+                self.roadway.targets[t_idx].active = False
                 if t_idx in self.valid_targets:
-                    self.t_targets[t_idx].active = True
-
-
-    def _get_active_target_list(self):
-        """Returns a list of the indexes of the active targets."""
-
-        at = []
-        for i, t in enumerate(self.t_targets):
-            if t.active:
-                at.append(i)
-
-        return at
-
-
-    def _is_any_target_reachable_from(self,
-                                      lane_id   : int,      #lane ID in question
-                                      p         : float,     #P coordinate in question, m
-                                     ) -> bool:             #returns True if at least 1 active target is reachable from here
-        """Determines if at least one active target is reachable from the given location."""
-
-        for t in self.t_targets:
-            if t.active  and  t.is_reachable_from(lane_id, p):
-                return True
-
-        return False
+                    self.roadway.targets[t_idx].active = True
 
 
     def _decide_num_vehicles(self) -> int:
@@ -978,7 +948,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             favored band to the highest level.
         """
 
-        MANY_EPISODES = 10000
+        MANY_EPISODES = 10000 #TODO: can this be combined with a similar constant defined in reset()?
         #if self.episode_count == MANY_EPISODES:
         #    print("//    Running episode {}".format(self.episode_count))
 

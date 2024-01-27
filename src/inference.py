@@ -134,7 +134,7 @@ def main(argv):
 
     # Wait for user to indicate okay to begin animation
     tgt_list = []
-    for i, t in enumerate(env.t_targets):
+    for i, t in enumerate(env.roadway.targets):
         if t.active:
             tgt_list.append(i)
     print("\n///// Beginning episode with env {} and active targets are: {}".format(env.rollout_id, tgt_list))
