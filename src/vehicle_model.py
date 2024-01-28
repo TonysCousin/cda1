@@ -9,7 +9,6 @@ class VehicleModel(ABC):
     """
 
     def __init__(self,
-                 roadway    : Roadway,      #roadway geometry model
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
                  max_accel  : float = 2.0,  #forward & backward, m/s^2
                  length     : float = 5.0,  #length of the vehicle, m
@@ -17,10 +16,10 @@ class VehicleModel(ABC):
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
-        self.roadway = roadway
         self.max_jerk = max_jerk
         self.max_accel = max_accel
         self.veh_length = length
+        self.roadway = None #this must be defined in reset, before anything else is called
 
         # Ensure lane change attributes are reasonable
         rsteps = lc_duration/time_step
@@ -30,6 +29,14 @@ class VehicleModel(ABC):
                              .format(lc_duration, time_step, rsteps))
         self.lc_compl_steps = nsteps    #num time steps required to complete a lane change maneuver
         self.lc_half_steps = nsteps//2  #num time steps for the vehicle to go exactly half way to the new lane (equally straddling the line)
+
+
+    def reset(self,
+              roadway       : Roadway,  #the roadwaay geometry to be used for this episode
+             ):
+        """Resets the model for a new episode."""
+
+        self.roadway = roadway
 
 
     @abstractmethod

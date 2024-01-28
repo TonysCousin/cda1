@@ -160,13 +160,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("/////                  OBS_SIZE = ", ObsVec.OBS_SIZE)
 
         #
-        #..........Roadway
-        #
-
-        # Create the roadway geometry
-        self.roadway = RoadwayD(self.debug)
-
-        #
         #..........Define the observation space
         #
 
@@ -240,15 +233,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             v = None
             spec = v_data[i]
             try:
-                model = getattr(sys.modules[__name__], spec["model"])(self.roadway,
+                model = getattr(sys.modules[__name__], spec["model"])(
                                     max_jerk      = spec["max_jerk"],
                                     max_accel     = spec["max_accel"],
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, self.roadway, is_learning, \
+                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
                                                                             self.observation_space, self.action_space)
-                v = Vehicle(model, guidance, self.prng, self.roadway, is_learning, self.time_step_size, self.debug)
+                v = Vehicle(model, guidance, self.prng, is_learning, self.time_step_size, self.debug)
             except AttributeError as e:
                 print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
                 raise e
@@ -272,6 +265,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self._verify_obs_limits("init after space defined")
 
         # Other persistent data
+        self.roadway = None         #defined in reset()
         self.total_steps = 0        #num time steps for this trial (worker), across all episodes; NOTE that this is different from the
                                     # total steps reported by Ray tune, which is accumulated over all rollout workers
         self.steps_since_reset = 0  #length of the current episode in time steps
@@ -343,12 +337,22 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # options may be a dict that can specify additional configurations - unique to each particular env
         if options is not None and len(options) > 0:
             print("\n///// HighwayEnv.reset: incoming options is: ", options)
-            raise ValueError("reset() called with options, but options are not used in this environment.")
+            raise ValueError("///// reset() called with options, but options are not used in this environment.")
 
         # Copy the user-desired scenario to an effective value that can be changed just for this episode
         self.effective_scenario = self.scenario
 
-        # Decide which targets will be activated for this episode
+        #
+        #..........Roadway
+        #
+
+        # Create the roadway geometry
+        if self.prng.random() < 0.5:
+            self.roadway = RoadwayC(self.debug)
+        else:
+            self.roadway = RoadwayD(self.debug)
+
+        # Decide which targets will be activated for this episode - needs to happen before vehicle reset
         self._choose_active_targets()
 
         #
@@ -360,7 +364,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Reset the states of all vehicles to get them out of the way for the random placement below
         for i in range(self.num_vehicles):
-            self.vehicles[i].reset()
+            self.vehicles[i].reset(self.roadway)
 
         # All inference - this doesn't train anything, so vehicle 0 is in inference mode, but is still the center
         # of attention here, so we can call it the ego vehicle. These scenarios are used for embedding data
@@ -383,7 +387,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Randomly define the starting speed and initialize the vehicle data
             speed = self.prng.random() * Constants.MAX_SPEED
-            self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
             if self.debug > 0:
                 print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, speed))
 
@@ -452,7 +456,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 # Pick a speed, then initialize this vehicle
                 speed = self.prng.random() * Constants.MAX_SPEED
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
-                self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
+                self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
 
         # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
         elif self.effective_scenario >= 90:
@@ -464,7 +468,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             lane_id = self.effective_scenario - 90
             p = self.roadway.get_lane_start_p(lane_id)
-            self.vehicles[1].reset(init_lane_id = lane_id, init_p = p, init_speed = self.roadway.lanes[lane_id].segments[0][5])
+            self.vehicles[1].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = self.roadway.lanes[lane_id].segments[0][5])
 
         # All other scenarios: trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
         else:
@@ -513,7 +517,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Randomly define the starting speed and initialize the vehicle data
             ego_speed = self.prng.random() * (Constants.MAX_SPEED - 10.0) + 10.0
-            self.vehicles[0].reset(init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
                 print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
 
@@ -584,13 +588,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                     speed = min(speed, 1.1*self.vehicles[0].cur_speed)
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
-                self.vehicles[i].reset(init_lane_id = lane_id, init_p = p, init_speed = speed)
+                self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
 
             #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
             #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
 
         if self.debug > 0:
-            print("///// HighwayEnv.reset: all vehicle starting configs defined.")
+            print("///// HighwayEnv.reset: all vehicle starting configs defined using roadway {}.".format(self.roadway.name))
 
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
@@ -612,7 +616,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.steps_since_reset = 0
         self.episode_count += 1
 
-        if self.debug > 0:
+        if self.debug > 1:
             print("///// End of reset(). Returning obs ", self.all_obs[0, :])
         return self.all_obs[0, :], {} #only return the row for the ego vehicle
 

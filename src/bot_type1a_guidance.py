@@ -18,13 +18,12 @@ class BotType1aGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 roadway    : Roadway,
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "BotType1aGuidance"
                 ):
-        super().__init__(prng, roadway, is_learning, obs_space, act_space, name)
+        super().__init__(prng, is_learning, obs_space, act_space, name)
 
         # Pick an offset from whatever the posted speed limit
         self.speed_offset = 0.0 #follow the speed limit exactly

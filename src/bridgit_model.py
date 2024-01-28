@@ -11,7 +11,6 @@ class BridgitModel(VehicleModel):
     """Realizes a concrete model for the Bridgit RL agent vehicle."""
 
     def __init__(self,
-                 roadway    : Roadway,      #roadway geometry model
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
                  max_accel  : float = 2.0,  #forward & backward, m/s^2
                  length     : float = 5.0,  #length of the vehicle, m
@@ -19,7 +18,15 @@ class BridgitModel(VehicleModel):
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
-        super().__init__(roadway, max_jerk = max_jerk, max_accel = max_accel, length = length, lc_duration = lc_duration, time_step = time_step)
+        super().__init__(max_jerk = max_jerk, max_accel = max_accel, length = length, lc_duration = lc_duration, time_step = time_step)
+
+
+    def reset(self,
+              roadway       : Roadway,  #the roadwaay geometry to be used for this episode
+             ):
+        """Resets the model for a new episode."""
+
+        super().reset(roadway)
 
 
     def get_obs_vector(self,

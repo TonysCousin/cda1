@@ -17,7 +17,6 @@ class Vehicle:
                     model       : VehicleModel, #describes the specific capabilities of the vehicle type
                     guidance    : VehicleGuidance, #provides the guidance algos that determines actions for this vehicle
                     prng        : HpPrng,       #the pseudo-random number generator to be used
-                    roadway     : Roadway,      #the roadway geometry object for this scenario
                     learning    : bool = False, #is this vehicle going to be learning from the experience? #TODO remove this if not used in part 2
                     step_size   : float = 0.1,  #duration of a time step, s
                     debug       : int   = 0     #debug printing level
@@ -27,10 +26,10 @@ class Vehicle:
         self.model = model
         self.guidance = guidance
         self.prng = prng
-        self.roadway = roadway
         self.learning = learning
         self.time_step_size = step_size
         self.debug = debug
+        self.roadway = None #must be defined in reset() before any other method is called
 
         # State info that we need to maintain
         self.cur_speed = 0.0                    #current forward speed, m/s
@@ -49,6 +48,7 @@ class Vehicle:
 
 
     def reset(self,
+              roadway           : Roadway,      #the roadway geometry model for this episode
               init_lane_id      : int   = -1,   #initial lane assignment; if -1 then will be randomized
               init_p            : float = None, #initial P coordinate, m; if None then will be randomized
               init_speed        : float = 0.0,  #initial speed of the vehicle, m/s
@@ -61,7 +61,8 @@ class Vehicle:
             This method does not return anything.
         """
 
-        # Determine initial lane and P location
+        # Determine roadway geometry and initial lane and P location
+        self.roadway = roadway
         self.lane_id = init_lane_id
         self.p = init_p
 
@@ -77,9 +78,13 @@ class Vehicle:
         self.stopped_count = 0
         self.stopped = False
 
-        # If the location appears valid, then inform the guidance object of the new location
-        if init_lane_id > -1  and  init_p is not None:
-            self.guidance.reset(self.lane_id, self.p)
+        # If the location appears valid, then inform the model & guidance objects of the new location
+        if roadway is not None  and  init_lane_id > -1  and  init_p is not None:
+            self.model.reset(self.roadway)
+            self.guidance.reset(self.roadway, self.lane_id, self.p)
+
+        elif roadway is None:
+            raise ValueError("///// ERROR in Vehicle.reset: roadway undefined. lane = {}, p = {}".format(init_lane_id, init_p))
 
 
     def advance_vehicle_spd(self,

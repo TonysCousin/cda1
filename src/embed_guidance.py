@@ -41,16 +41,12 @@ class EmbedGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 roadway    : Roadway,
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "EmbedGuidance"
                 ):
-        super().__init__(prng, roadway, is_learning, obs_space, act_space, name)
-
-        self.prng = prng
-        self.roadway = roadway
+        super().__init__(prng, is_learning, obs_space, act_space, name)
 
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
         self.positions = [self.PosInfo() for each in range(3)]
@@ -73,13 +69,14 @@ class EmbedGuidance(VehicleGuidance):
 
 
     def reset(self,
+              roadway       : Roadway,  #the roadway geometry used for this episode
               init_lane     : int,      #the lane the vehicle is starting in
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
 
         """Resets the target that the vehicle will navigate to, which dictates its lane change behavior."""
 
-        super().reset(init_lane, init_p)
+        super().reset(roadway, init_lane, init_p)
         self.target_id = None
 
         # Pick an initial offset from whatever the posted speed limit is, m/s (will be +/- 20% of the speed limit)

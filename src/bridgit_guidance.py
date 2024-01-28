@@ -39,13 +39,12 @@ class BridgitGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 roadway    : Roadway,
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "BridgitGuidance"
                 ):
-        super().__init__(prng, roadway, is_learning, obs_space, act_space, name)
+        super().__init__(prng, is_learning, obs_space, act_space, name)
 
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
         self.positions = [self.PosInfo() for each in range(3)]
@@ -59,6 +58,7 @@ class BridgitGuidance(VehicleGuidance):
 
 
     def reset(self,
+              roadway       : Roadway,  #the roadway geometry used for this episode
               init_lane     : int,      #the lane the vehicle is starting in
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
@@ -67,7 +67,7 @@ class BridgitGuidance(VehicleGuidance):
             defined in the constructor, but the logic doesn't need to be run every time step.
         """
 
-        super().reset(init_lane, init_p)
+        super().reset(roadway, init_lane, init_p)
 
         # Initialize the relative position info
         self._set_relative_lane_pos()

@@ -11,7 +11,6 @@ class VehicleGuidance(ABC):
 
     def __init__(self,
                  prng       : HpPrng,       #pseudo-random number generator
-                 roadway    : Roadway,      #the roadway geometry
                  is_learning: bool = True,  #is the guidance algorithm an RL agent under training?
                  obs_space  : Box = None,   #the observation space used by the environment model
                  act_space  : Box = None,   #the action space used by the environment model
@@ -19,11 +18,11 @@ class VehicleGuidance(ABC):
                 ):
 
         self.prng = prng
-        self.roadway = roadway
-        self.targets = roadway.targets
         self.my_vehicle = None
         self.is_learning = is_learning
         self.name = name
+        self.roadway = None #this must be defined in reset() before any other methods are called
+        self.targets = None #this must be defined in reset() before any other methods are called
 
         # Environment obs/action spaces that are needed by objects used for inference only
         self.obs_space = obs_space
@@ -39,13 +38,17 @@ class VehicleGuidance(ABC):
 
 
     def reset(self,
+              roadway       : Roadway,  #the roadway geometry used for this episode
               init_lane     : int,      #the lane the vehicle is starting in
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
 
-        """Makes vehicle's initial location info available in case the instantiated guidance wants to use it."""
+        """Makes vehicle's roadway and initial location info available in case the instantiated guidance wants to use it."""
 
-        pass #don't force the inherited class to implement this method
+        self.roadway = roadway
+        self.targets = roadway.targets
+
+        # Leave it up to implementing classes whether they want to use location data.
 
 
     @abstractmethod

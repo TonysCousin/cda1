@@ -18,13 +18,12 @@ class BotType1bGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 roadway    : Roadway,
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "BotType1bGuidance"
                 ):
-        super().__init__(prng, roadway, is_learning, obs_space, act_space, name)
+        super().__init__(prng, is_learning, obs_space, act_space, name)
 
         # Pick an offset from the posted speed limit that will define the target speed
         self.speed_offset = (self.prng.random() - 0.5) * 0.2*Constants.MAX_SPEED #gives +/- 10%
@@ -37,13 +36,14 @@ class BotType1bGuidance(VehicleGuidance):
 
 
     def reset(self,
+              roadway       : Roadway,  #the roadway geometry used for this episode
               init_lane     : int,      #the lane the vehicle is starting in
               init_p        : float,    #vehicle's initial P coordinate, m
              ):
 
         """Resets the target that the vehicle will navigate to, which dictates its lane change behavior."""
 
-        super().reset(init_lane, init_p)
+        super().reset(roadway, init_lane, init_p)
         self.target_id = None
 
         # Choose one of the targets to drive to, but verify that it is reachable first
