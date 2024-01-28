@@ -4,7 +4,7 @@ from constants import Constants
 from vehicle_model import VehicleModel
 from vehicle_guidance import VehicleGuidance
 from hp_prng import HpPrng
-from roadway_b import Roadway
+from roadway import Roadway
 from lane_change import LaneChange
 
 class Vehicle:

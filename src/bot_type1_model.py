@@ -2,7 +2,7 @@ import numpy as np
 
 from constants import Constants
 from obs_vec import ObsVec
-from roadway_b import Roadway
+from roadway import Roadway
 from vehicle_model import VehicleModel
 
 class BotType1Model(VehicleModel):

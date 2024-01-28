@@ -3,7 +3,7 @@ import numpy as np
 
 from constants import Constants
 from obs_vec import ObsVec
-from roadway_b import Roadway, PavementType
+from roadway import Roadway, PavementType
 from vehicle_model import VehicleModel
 
 class EmbedModel(VehicleModel):

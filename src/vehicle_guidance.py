@@ -4,7 +4,7 @@ import numpy as np
 from gymnasium.spaces import Box
 
 from hp_prng import HpPrng
-from roadway_b import Roadway
+from roadway import Roadway
 
 class VehicleGuidance(ABC):
     """Abstract base class for vehicle guidance algorithms that map observations to action commands for a vehicle."""

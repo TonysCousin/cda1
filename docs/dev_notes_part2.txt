@@ -631,11 +631,16 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Created git branch update_roadway to generalize the Roadway class as a polymorphic interface.
 	* Created class RoadwayB to represent the heretofor used roadway geometry. Ensured the train
 	  and inference programs worked okay with this new refactoring.
+	* Created class RoadwayC defining a brand-new track with 6 parallel lanes that each have several
+	  speed limits along their length. It is symmetrical to avoid any preference for right- vs left-
+	  turn learning. Adjusted the graphics somewhat to make a pleasing display of this one also.
+	* Created class RoadwayD defining a brand-new track with 7 parallel lanes that each has a
+	  different speed limit, but is constant through its length. Speed limits vary symmetrically
+	  right and left.
 
 
 
 TODO:
-- training rewards (per Kevin email): exponentially increase reward for staying close, but also penalize for leaving the zone.
 - retrace NN size expansion and addition of dropouts once success is found.
 - reconsider turning noise off
 
@@ -651,13 +656,13 @@ TODO:
 	b) Intersperse imitation episodes with normal episodes in SAC RL training. ~10% of episodes would use the 1c bot
 	   to produce the expert actions for a given time step, then adjust the full ego state to that result and repeat.
 - consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
-- make Roadway an abstract interface, and allow multiple realizations of it to be chosen during training; add a 5-lane highwaay.
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
 - Refactor the vehicle configs to specify each vehicle type and the number of them.
 
 - Review TODOs in graphics.py
+- graphics display the name of the roadway
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Investigate target markers initially having white border, then losing it after a car passes through.

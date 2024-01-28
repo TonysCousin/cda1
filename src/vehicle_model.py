@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from roadway_b import Roadway, PavementType
+from roadway import Roadway, PavementType
 
 class VehicleModel(ABC):
     """Abstract base class defining the interface for models that describe specific vehicle type capabilities, including

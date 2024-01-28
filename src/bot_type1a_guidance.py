@@ -6,7 +6,7 @@ from gymnasium.spaces import Box
 from constants import Constants
 from obs_vec import ObsVec
 from hp_prng import HpPrng
-from roadway_b import Roadway
+from roadway import Roadway
 from lane_change import LaneChange
 
 

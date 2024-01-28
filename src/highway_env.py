@@ -19,6 +19,8 @@ from ray.tune.logger import pretty_print
 from constants import Constants
 from obs_vec import ObsVec
 from roadway_b import RoadwayB
+from roadway_c import RoadwayC
+from roadway_d import RoadwayD
 from vehicle import Vehicle
 from hp_prng import HpPrng
 from lane_change import LaneChange
@@ -162,7 +164,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Create the roadway geometry
-        self.roadway = RoadwayB(self.debug)
+        self.roadway = RoadwayD(self.debug)
 
         #
         #..........Define the observation space

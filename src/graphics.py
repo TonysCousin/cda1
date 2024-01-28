@@ -297,13 +297,13 @@ class Graphics:
                 y_max = max(y_max, seg[1], seg[3])
 
         # Add a buffer all around to ensure we have room to draw the edge lines, which are 1/2 lane width away
-        x_min -= 0.5*Graphics.LANE_WIDTH
-        y_min -= 0.5*Graphics.LANE_WIDTH
-        x_max += 0.5*Graphics.LANE_WIDTH
-        y_max += 0.5*Graphics.LANE_WIDTH
+        x_min -= Graphics.LANE_WIDTH
+        y_min -= Graphics.LANE_WIDTH
+        x_max += Graphics.LANE_WIDTH
+        y_max += Graphics.LANE_WIDTH
 
         # Define the transform between roadway coords (x, y) and display viewport pixels (r, s).  Note that
-        # viewport origin is at upper left, with +s pointing downward.  Leave a few pixels of buffer on all sides
+        # viewport origin is at lower left, with +s pointing upward.  Leave a few pixels of buffer on all sides
         # of the display so the lines don't bump the edge.
         buffer = 8 #pixels
         display_width = Graphics.WINDOW_SIZE_R - 2*buffer
@@ -318,7 +318,8 @@ class Graphics:
         self.roadway_center_x = x_min + 0.5*roadway_width
         self.roadway_center_y = y_min + 0.5*roadway_height
         self.display_center_r = Graphics.WINDOW_SIZE_R // 2
-        self.display_center_s = int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - 2*buffer #set the roadway as high in the window as possible
+        self.display_center_s = min(int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - buffer, \
+                                    int(0.75*Graphics.WINDOW_SIZE_S) - buffer)
         print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
                 .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
 
