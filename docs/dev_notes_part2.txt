@@ -661,6 +661,7 @@ TODO:
   independent of model logic.
 - Refactor the vehicle configs to specify each vehicle type and the number of them.
 
+- update readme to reflect the multiple tracks
 - Review TODOs in graphics.py
 - graphics display the name of the roadway
 - Display lane change as a gradual motion

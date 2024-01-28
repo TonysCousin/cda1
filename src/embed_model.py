@@ -118,7 +118,12 @@ class EmbedModel(VehicleModel):
         obs[ObsVec.LEFT_OCCUPIED] = 0.0
         obs[ObsVec.RIGHT_OCCUPIED] = 0.0
         for i in range(len(vehicles)):
+            if i == my_id:
+                continue
             v = vehicles[i]
+            if not v.active:
+                continue
+
             if v.lane_id == host_lane_id - 1: #it is to our left
                 if abs(v.p - host_p) < 4.5*ObsVec.OBS_ZONE_LENGTH:
                     obs[ObsVec.LEFT_OCCUPIED] = 1.0

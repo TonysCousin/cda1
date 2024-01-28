@@ -54,24 +54,16 @@ class Vehicle:
               init_speed        : float = 0.0,  #initial speed of the vehicle, m/s
              ):
 
-        """Reinitializes the vehicle for a new episode.
+        """Reinitializes the vehicle for a new episode.  Before the vehicle can be used this method must be called with valid
+            location data. However, it may be called with invalid data in order to clear out historical garbage from the object
+            attributes, without intention to run the model yet.
             NOTE: this is not the same as the reset() method in an environment class, which is required to return observations.
             This method does not return anything.
         """
 
         # Determine initial lane and P location
         self.lane_id = init_lane_id
-        if init_lane_id == -1:
-            self.lane_id = int(self.prng.random()*self.roadway.NUM_LANES)
-
-        lane_len = self.roadway.get_total_lane_length(self.lane_id)
-        p = init_p
-        if init_p is None:
-            p = self.prng.random()*(lane_len - Constants.CONSERVATIVE_LC_DIST) + self.roadway.get_lane_start_p(self.lane_id)
-        self.p = p
-
-        # Inform the guidance object of the new location
-        self.guidance.reset(self.lane_id, self.p)
+        self.p = init_p
 
         # Reset other stuff to start the episode with a clean slate
         self.cur_speed = init_speed
@@ -84,6 +76,10 @@ class Vehicle:
         self.off_road = False
         self.stopped_count = 0
         self.stopped = False
+
+        # If the location appears valid, then inform the guidance object of the new location
+        if init_lane_id > -1  and  init_p is not None:
+            self.guidance.reset(self.lane_id, self.p)
 
 
     def advance_vehicle_spd(self,

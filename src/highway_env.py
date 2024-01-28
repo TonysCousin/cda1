@@ -1005,7 +1005,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
 
     def _verify_safe_location(self,
-                              n         : int,  #neighbor ID
+                              n         : int,  #neighbor ID we are attempting to place in this location
                               lane_id   : int,  #desired lane ID for the neighbor
                               p         : float,#desired P coordinate for the neighbor (m in paremetric frame)
                              ) -> bool:         #returns true if the indicated location is safe
@@ -1028,8 +1028,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         SAFE_SEPARATION = 113.0 / 2.0
         safe = True
 
-        # Loop through all active vehicles
+        # Loop through all active vehicles except the one being placed
         for o in range(self.num_vehicles):
+            if o == n:
+                continue
             other = self.vehicles[o]
             if not other.active:
                 continue
@@ -1039,6 +1041,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if other.lane_id == lane_id:
                 if 0.0 <= abs(other.p - p) < SAFE_SEPARATION:
                     safe = False
+                    break
 
         return safe
 
