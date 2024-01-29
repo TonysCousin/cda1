@@ -75,7 +75,7 @@ class Graphics:
     PLOT_STEPS      = 600       #max num time steps that can be plotted
 
     # Visual controls
-    USE_VEHICLE_IMAGES  = True  #should bitmap images be used to represent vehicles? (if false, then circles)
+    USE_VEHICLE_IMAGES  = True  #should bitmap images be used to represent vehicles? (if false, then circles) #TODO obsolete
 
     #TODO: revise this whole class to generalize the color & icon for each vehicle, and plot any data for any vehicle; there is no "ego" known here.
 
@@ -95,6 +95,22 @@ class Graphics:
         self.display_freq = Graphics.REAL_TIME_RATIO / env.time_step_size
         self.set_up_geometry(env)
 
+        # Create an image & draw the roadway geometry on it. This will get sampled as background to reset a dirty display area.
+        self.background_image = pygame.Surface((Graphics.WINDOW_SIZE_R, Graphics.WINDOW_SIZE_S))
+        self.background_image.fill(Graphics.BACKGROUND_COLOR)
+
+        # Loop through the lane segments and draw the left and right edge lines of each
+        for lane in env.roadway.lanes:
+            for seg in lane.segments:
+                self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
+
+        # Copy the background image to the display surface
+        self.window_surface.blit(self.background_image, (0, 0))
+
+        # Display the window legend & other footer text
+        self._write_legend(0, Graphics.WINDOW_SIZE_S)
+
+        """
         # If we're only doing a background display, then
         if background_only:
 
@@ -117,6 +133,7 @@ class Graphics:
             # Load the canned background image that shows the track, empty data plots and legend info
             self.background_image = pygame.image.load(Graphics.IMAGE_PATH + Graphics.BACKGROUND_IMAGE).convert_alpha()
             self.window_surface.blit(self.background_image, (0, 0))
+        """
 
         # Initialize images - use convert_alpha to enable the transparent areas of the bitmaps
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH +              "/crash16.bmp").convert_alpha()
@@ -138,7 +155,7 @@ class Graphics:
         # Display the training targets (primary) and bot targets (secondary)
         self._display_targets()
 
-        # Set up lists of previous screen coords and display images for each vehicle
+        # Set up lists of previous screen coords and icons for each vehicle
         vehicles = env.get_vehicle_data()
         self.prev_veh_r = [0] * len(vehicles)
         self.prev_veh_s = [0] * len(vehicles)
@@ -296,7 +313,7 @@ class Graphics:
                 x_max = max(x_max, seg[0], seg[2])
                 y_max = max(y_max, seg[1], seg[3])
 
-        # Add a buffer all around to ensure we have room to draw the edge lines, which are 1/2 lane width away
+        # Add a buffer all around to ensure we have room to draw edge lines, which are 1 lane width away
         x_min -= Graphics.LANE_WIDTH
         y_min -= Graphics.LANE_WIDTH
         x_max += Graphics.LANE_WIDTH
@@ -312,12 +329,13 @@ class Graphics:
         roadway_height = y_max - y_min
         ar_display = display_width / display_height
         ar_roadway = roadway_width / roadway_height
-        self.scale = display_height / roadway_height     #pixels/meter (on Tensorbook this is 0.588)
+        self.scale = display_height / roadway_height     #pixels/meter (this is approx 0.58)
         if ar_roadway > ar_display:
             self.scale = display_width / roadway_width
         self.roadway_center_x = x_min + 0.5*roadway_width
         self.roadway_center_y = y_min + 0.5*roadway_height
         self.display_center_r = Graphics.WINDOW_SIZE_R // 2
+        # If the roadway is skinny, don't cram it all the way to the top of the window
         self.display_center_s = min(int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - buffer, \
                                     int(0.75*Graphics.WINDOW_SIZE_S) - buffer)
         print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
@@ -364,7 +382,7 @@ class Graphics:
                       y1        : float,
                       w         : float
                      ):
-        """Draws a single lane segment on the display, which consists of the left and right edge lines.
+        """Draws a single lane segment on the background image, which consists of the left and right edge lines.
             ASSUMES that all segments are oriented with headings between 0 and 180 deg for simplicity.
         """
 
@@ -380,20 +398,20 @@ class Graphics:
         cos_a = math.cos(angle)
 
         # Find the screen coords of the left edge line
-        left_r0 = r0 - ws*sin_a
-        left_r1 = r1 - ws*sin_a
-        left_s0 = s0 - ws*cos_a
-        left_s1 = s1 - ws*cos_a
+        left_r0 = int(r0 - ws*sin_a + 0.5)
+        left_r1 = int(r1 - ws*sin_a + 0.5)
+        left_s0 = int(s0 - ws*cos_a + 0.5)
+        left_s1 = int(s1 - ws*cos_a + 0.5)
 
         # Find the screen coords of the right edge line
-        right_r0 = r0 + ws*sin_a
-        right_r1 = r1 + ws*sin_a
-        right_s0 = s0 + ws*cos_a
-        right_s1 = s1 + ws*cos_a
+        right_r0 = int(r0 + ws*sin_a + 0.5)
+        right_r1 = int(r1 + ws*sin_a + 0.5)
+        right_s0 = int(s0 + ws*cos_a + 0.5)
+        right_s1 = int(s1 + ws*cos_a + 0.5)
 
         # Draw the edge lines
-        pygame.draw.line(self.window_surface, Graphics.LANE_EDGE_COLOR, (left_r0, left_s0), (left_r1, left_s1))
-        pygame.draw.line(self.window_surface, Graphics.LANE_EDGE_COLOR, (right_r0, right_s0), (right_r1, right_s1))
+        pygame.draw.line(self.background_image, Graphics.LANE_EDGE_COLOR, (left_r0, left_s0), (left_r1, left_s1))
+        pygame.draw.line(self.background_image, Graphics.LANE_EDGE_COLOR, (right_r0, right_s0), (right_r1, right_s1))
 
 
     def _get_vehicle_coords(self,

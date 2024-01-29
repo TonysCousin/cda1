@@ -51,7 +51,7 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
-                    "valid_targets":            [2], #list can include 0, 1, 2, 3 (no duplicates)
+                    "valid_targets":            "all", #list can include 0, 1, 2, 3 (no duplicates)
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "episode_length":           episode_len,
@@ -62,12 +62,7 @@ def main(argv):
     env = HighwayEnvWrapper(env_config)
     #print("///// Environment configured. Params are:")
     #print(pretty_print(cfg.to_dict()))
-    env.reset()
-
-    # Set up a local copy of all vehicles that have been configured
-    vehicles = env.get_vehicle_data()
-    #print("///// inference: vehicle[1] = ")
-    #vehicles[1].print()
+    #env.reset() #TODO can remove this?
 
     # If we are reading a training checkpoint for the ego guidance model, then start up rllib to run it
     algo = None
@@ -111,26 +106,31 @@ def main(argv):
     else:
         print("\n///// No checkpoint loaded! Assuming that the ego vehicle provides all guidance logic.\n")
 
-    # Set up the graphic display & user interaction
-    graphics = Graphics(env)
-    PAUSE_KEY = pygame.locals.K_SPACE
-    RESUME_KEY = pygame.locals.K_SPACE
-    END_KEY = pygame.locals.K_ESCAPE
-
     # Prepare for a complete episode
     episode_reward = 0
     done = False
     action_list = [0, 0]
     raw_obs, _ = env.unscaled_reset()
+
+    # Set up a local copy of all vehicles that have been configured
+    vehicles = env.get_vehicle_data()
     if scenario >= 90:
         vehicles[0].active = False
+    print("///// inference: after env.reset: vehicle[0] = ")
+    vehicles[0].print()
 
-    print("///// inference: graphic background complete.")
-    vehicles[0].print("Ego")
+    # Set up the graphic display & user interaction
+    graphics = Graphics(env) #environment must have been reset prior to this call!
+    PAUSE_KEY = pygame.locals.K_SPACE
+    RESUME_KEY = pygame.locals.K_SPACE
+    END_KEY = pygame.locals.K_ESCAPE
 
     graphics.update(action_list, raw_obs, vehicles)
     obs = env.scale_obs(raw_obs)
     step = 0
+
+    print("///// inference: graphic background complete.")
+    vehicles[0].print("Ego")
 
     # Wait for user to indicate okay to begin animation
     tgt_list = []

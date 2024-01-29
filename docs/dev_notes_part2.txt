@@ -638,12 +638,31 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  different speed limit, but is constant through its length. Speed limits vary symmetrically
 	  right and left.
 
+1/28/24
+
+* Completed enhancement to make roadway randomly selectable (between C and D) during setup of each
+  episode.
+* Fixed an apparent problem in the HpPrng where it tended to provide correlated sequences. Each time
+  it was called by reset() to select a roadway model it alternated very regularly between the two
+  choices. I added an occasional extra iteration of seed calculation within the Prng to avoid this.
+
+* Run C32 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
+	* Running 50/50 on roadways C and D only.
+	* Includes updated PRNG, per previous bullet.
+	* Checkpoints stored in 20240128-1315.
+
+* Fixed HighwayEnv reset() to properly manage Roadway objects when it is called multiple times.
+  This was causing a graphic display problem when inference would make multiple reset() calls and it
+  chose to select a different roadway type in each call (map coordinate frames are different).
+	* This error possibly screws up results of C32 training, which was underway at the time.
+
 
 
 TODO:
 - retrace NN size expansion and addition of dropouts once success is found.
 - reconsider turning noise off
 
+- Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
 - consider adding logic to abort a LC mvr.
 - make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).

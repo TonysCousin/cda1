@@ -346,11 +346,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Roadway
         #
 
+        # If there was a Roadway object previously defined (e.g. a previous call to this method), then erase it
+        if self.roadway is not None:
+            del self.roadway
+
         # Create the roadway geometry
-        if self.prng.random() < 0.5:
+        d5 = self.prng.random()
+        if d5 < 0.5:
             self.roadway = RoadwayC(self.debug)
+            #print("///// reset initializing RoadwayC. d5 = {:.4f}, uses = {}".format(d5, self.prng.uses_since()))
         else:
             self.roadway = RoadwayD(self.debug)
+            #print("///// reset initializing RoadwayD. d5 = {:.4f}, uses = {}".format(d5, self.prng.uses_since()))
 
         # Decide which targets will be activated for this episode - needs to happen before vehicle reset
         self._choose_active_targets()
@@ -894,18 +901,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         except KeyError as e:
             pass
 
-        self.valid_targets = [0, 1, 2, 3] #list of the 4 defined targest that are valid for this run (not all will necessarily be used in each episode)
+        self.valid_targets = [0] #list of the defined targest that are valid for this run (not all will necessarily be used in each episode)
+        self.all_targets_valid = True
         try:
             vt = config["valid_targets"]
-            if type(vt) == list  and  len(vt) > 0:
-                legal = True
-                for item in vt:
-                    if item < 0  or  item >= 4:
-                        print("///// WARNING: illegal target list specified. All must be 0, 1, 2 or 3. Ignoring.")
-                        legal = False
-                        break
-                if legal:
-                    self.valid_targets = vt
+            if vt != "all":
+                self.all_targets_valid = False
+                if type(vt) == list  and  len(vt) > 0:
+                    legal = True
+                    for item in vt:
+                        if item < 0  or  item >= 4:
+                            print("///// WARNING: illegal target list specified. All must be 0, 1, 2 or 3. Ignoring.")
+                            legal = False
+                            break
+                    if legal:
+                        self.valid_targets = vt
         except Exception:
             pass
 
@@ -919,6 +929,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
     def _choose_active_targets(self):
         """Makes random choices, where appropriate, and marks target destinations as active or inactive for the episode."""
+
+        # If "all" targets were indicated valid (in the config params), then ensure that everything in the current roadway
+        # is included in the valid list. Otherwise, use the list as provided in the config param.
+        if self.all_targets_valid:
+            self.valid_targets = [i for i in range(len(self.roadway.targets))]
 
         # If we are to randomize the target destinations then
         #print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)

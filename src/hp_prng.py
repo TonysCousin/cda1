@@ -23,12 +23,22 @@ class HpPrng:
         elif seed != None:
             raise TypeError("HpPrng requires an integer seed >= 0. Given type & value was: {}, {}".format(type(seed), seed))
 
+        self.counter = 0
+
 
     def random(self) -> float:
         """Returns a pseudo-random value in [0, 1)"""
 
-        rn = 9821.0*(self._seed + 0.211327)
-        self._seed = rn - int(rn)
+        self.counter += 1
+        irn = self._new_irn()
+
+        # Pull out the second digit of the irn; if it is a particular value, do an additional draw. This helps to prevent
+        # a correlated sequence.
+        div10 = irn//10
+        div100 = irn//100
+        dig2 = div10 - 10*div100
+        if dig2 == 3:
+            self._new_irn()
         return self._seed
 
 
@@ -39,12 +49,29 @@ class HpPrng:
         """Returns a pseudo-random value from a Guassian distribution with mean and stddev."""
 
         sum = 0.0
-        for j in range(6):
+        for _ in range(6):
             sum += self.random()
 
         return stddev*(sum - 3.0) + mean
 
 
+    def _new_irn(self) -> int:
+        """Returns a new integer rn and sets a new seed."""
+
+        rn = 9821.0*(self._seed + 0.211327)
+        irn = int(rn)
+        self._seed = rn - irn
+
+        return irn
+
     def _get_seed(self):
         """FOR TESTING ONLY!"""
         return self._seed
+
+
+    def uses_since(self) -> int:
+        """Returns the count of calls to random() since initializing or since the previous call to this method."""
+
+        c = self.counter
+        self.counter = 0
+        return c

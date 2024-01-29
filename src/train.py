@@ -45,7 +45,7 @@ def main(argv):
     env_config["time_step_size"]                = 0.2
     env_config["episode_length"]                = 100 #80 steps gives roughly 470 m of travel @29 m/s
     env_config["debug"]                         = 0
-    env_config["valid_targets"]                 = [0, 1, 2, 3]
+    env_config["valid_targets"]                 = "all"
     env_config["randomize_targets"]             = True
     env_config["crash_report"]                  = False
     env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_ego_training.yaml"
