@@ -650,11 +650,55 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Running 50/50 on roadways C and D only.
 	* Includes updated PRNG, per previous bullet.
 	* Checkpoints stored in 20240128-1315.
+	* Inference on checkpoint 25000 for a couple episodes. Besides being really slow, it doesn't
+	  seem to know how to steer toward a target.
 
 * Fixed HighwayEnv reset() to properly manage Roadway objects when it is called multiple times.
   This was causing a graphic display problem when inference would make multiple reset() calls and it
   chose to select a different roadway type in each call (map coordinate frames are different).
 	* This error possibly screws up results of C32 training, which was underway at the time.
+
+* Run C33 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots.
+	* Increased reward multiplier for speed deviation from 0.06 to 0.25, reversing the change
+	  made in run C24 to allow focus on lane changes. Now that the two new straight roadways
+	  are in place, and provide richer training ground for speed control, and a symmetrical
+	  place to learn lane changes, there is no reason to ignore speed control.
+	* Fixed reset() to properly handle memory of the roadway object when called multiple times
+	  (see above bullet), which probably screwed up results for C32.
+	* Checkpoints are stored at 20240128-2320.
+	* Training completed. From ~10k iters onward mean ep len was in mid-90s, but tailed off to
+	  ~90 at the very end. rmax rose quickly to ~1 and stayed there until ~10k iters, then
+	  slowly wavered, but reached consistent ~1.4 around iter 27k, then dropped into negatives.
+	  rmean wavered in [-3, -1] and rmin never exceeded -6.
+	* Inference on checkpoint 16000: no lane changes, but speed control is quite steady, just
+	  slow.
+
+2/1/24
+
+*** Realized that training has been discouraging a couple key behaviors, namely following the LC
+  desirability inputs, and driving as fast as the speed limit suggests. For the lane changes,
+  the reward is spread across the full 15 steps of the LC maneuver, using the reward value earned
+  just before the LC, which is low enough to push the agent away from it; it has to look 15 steps
+  into the future to realize the improved reward for initiating the maneuver, which is a lot to
+  learn without a recurrent layer.  For the speed problem, the training episodes have been allowed
+  to begin up to 150 m in front of the end of lanes, which means that many of the episodes will
+  either run off the end of the lane (big penalty), or it learns to slow way down to get its 100
+  steps in before hitting the end!
+
+* Run C34 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed reset() to set ego initial speed as a Gaussian distro around where it is normally
+	  expected to operate (near 29 m/s), in order to get it used to driving that fast right
+	  away, giving it a better chance of success. Sometimes speed will be initialized lower,
+	  to give it a full range of experiences, however.
+	* Changed reset() to limit initial location to be no closer to the end of a lane than 700 m
+	  (for lanes that are long enough), so that it isn't forced to run off the end early in
+	  training, thus learning to simply slow down as a preventive measure.
+	* Increased termiinal reward for completing episode with a decent LC desirability from
+	  0.1 to 0.5.
+	* LC desirability reward already seems to be assigning the to-be lane's bonus, so no
+	  change for now.
+	* Checkpoints are in 20240201-1955.
 
 
 
@@ -679,7 +723,9 @@ TODO:
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
 - Refactor the vehicle configs to specify each vehicle type and the number of them.
+- Try initializing NN weights for layer 1 where the most important inputs are to large values.
 
+- Update plot for lane ID to show all lanes for roadway D
 - update readme to reflect the multiple tracks
 - Review TODOs in graphics.py
 - graphics display the name of the roadway

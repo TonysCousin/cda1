@@ -351,8 +351,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             del self.roadway
 
         # Create the roadway geometry
-        d5 = self.prng.random()
-        if d5 < 0.5:
+        if self.prng.random() < 0.5:
             self.roadway = RoadwayC(self.debug)
             #print("///// reset initializing RoadwayC. d5 = {:.4f}, uses = {}".format(d5, self.prng.uses_since()))
         else:
@@ -511,10 +510,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if 10 <= self.effective_scenario < 10 + self.roadway.NUM_LANES:
                     ego_lane_id = self.effective_scenario - 10
 
-                # Define the starting P coordinate - randomize throughout the length of the lane, but not real close to the end
+                # Define the starting P coordinate - randomize throughout the length of the lane, but far enough from the end
+                # that it will be rare for it to drive off the end of the lane within a 100 step episode (at 35 m/s and 0.2 s/step
+                # that's 700 m)
                 lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
                 lane_length = self.roadway.get_total_lane_length(ego_lane_id)
-                ego_p = lane_begin + self.prng.random() * max(lane_length - 150.0, 1.0)
+                ego_p = lane_begin + self.prng.random() * max(lane_length - 700.0, 1.0)
 
                 if not self.training: #encourage it to start closer to beginning of the track for inference runs
                     ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
@@ -523,7 +524,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 good_location = self.roadway.is_any_target_reachable_from(ego_lane_id, ego_p)
 
             # Randomly define the starting speed and initialize the vehicle data
-            ego_speed = self.prng.random() * (Constants.MAX_SPEED - 10.0) + 10.0
+            ego_speed = None
+            if self.prng.random() > 0.1:
+                ego_speed = min(self.prng.gaussian(29.0, 3.0), Constants.MAX_SPEED) #mostly in [23, 35]
+            else:
+                ego_speed = self.prng.random() * 15.0 + 10.0 #in [10, 25]
+
             self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
                 print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
@@ -1251,7 +1257,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 # If there is still a lane desirability of 1, it indicates a target is still reachable if the trajectory were to continue,
                 # so give it a bonus.
                 if des_max > 0.5:
-                    reward = 0.1
+                    reward = 0.5
                     explanation = "Complete episode headed toward an active target!"
 
                 # Else, the agent wouldn't be able to reach an active target if the trajectory were allowed to continue, so assign a penalty.
@@ -1309,7 +1315,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.06
+            speed_mult = 0.25
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
