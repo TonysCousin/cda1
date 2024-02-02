@@ -63,7 +63,7 @@ def main(argv):
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
     explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
-    explore_config["random_timesteps"]          = 1_000_000 #provides random experiences to pre-populate the experience buffer
+    explore_config["random_timesteps"]          = 10_000 #provides random experiences to pre-populate the experience buffer
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.1
     explore_config["scale_timesteps"]           = 50_000_000
@@ -122,7 +122,7 @@ def main(argv):
 
     replay_config = cfg_dict["replay_buffer_config"]
     replay_config["type"]                       = "MultiAgentPrioritizedReplayBuffer"
-    replay_config["capacity"]                   = 1000000 #1M seems to be the max allowable
+    replay_config["capacity"]                   = 100_000 #1M seems to be the max allowable
     replay_config["prioritized_replay"]         = True
 
     cfg.training(   twin_q                      = True,

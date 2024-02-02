@@ -699,6 +699,31 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* LC desirability reward already seems to be assigning the to-be lane's bonus, so no
 	  change for now.
 	* Checkpoints are in 20240201-1955.
+	* Run died after 11200 iters. Rebooted then started a new job from checkpoint 11000, which
+	  gives an error about priority = 0 in the prioritized_replay_buffer, even though the
+	  checkpoint was successfully loaded. Started a new job from checkpoint 10000.
+		* Continuing checkpoints stored in 20240202-0103.
+	* Training completed the new set of 30k iters. Typical rmax ~1.6, but rmean varied slowly
+	  in [-1, +0.8] and rmin in [-12, -3]. Mean ep len consistently ~98.
+	* Inference on checkpoint 9000 showed no lane changes, and speed mostly held ~20 m/s.
+	* Inference on checkpoint 28000: speed control follows speed limits fairly well now, with
+	  a bit of positive bias, but penatlies aren't very big. It slows to avoid rear-ending bots
+	  in front. Lane changes happen sometime, and sometimes not good choices.
+
+2/2/24
+
+* Verified through added logging, that the replay buffer seems to be working as expected, taking in
+  random steps until the Exploration object is done randomizing, then serving up experiences when
+  asked.
+
+* Run C35 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Fixed a defect in BridgitGuidance that was allowing possibly incorrect LC des calcuations
+	  for the first 5 time steps of each episode.
+	* Adjusted replay buffering: reduced capacity from 1M to 100k, and reduced exploration
+	  initial random timesteps from 1M to 10k so that it can more quickly start learning from
+	  some positive examples.
+	* Checkpoints stored in 20240202-1331.
 
 
 

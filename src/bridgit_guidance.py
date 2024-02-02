@@ -46,8 +46,7 @@ class BridgitGuidance(VehicleGuidance):
                 ):
         super().__init__(prng, is_learning, obs_space, act_space, name)
 
-        self.steps_since_plan = self.PLAN_EVERY_N_STEPS
-        self.positions = [self.PosInfo() for each in range(3)]
+        self.positions = None
 
         # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
         # model here so that it can be executed.
@@ -69,10 +68,15 @@ class BridgitGuidance(VehicleGuidance):
 
         super().reset(roadway, init_lane, init_p)
 
+        # Redefine the relative position objects
+        if self.positions is not None:
+            del self.positions
+        self.positions = [self.PosInfo() for _ in range(3)]
+
         # Initialize the relative position info
         self._set_relative_lane_pos()
 
-        # Ensure the planning method will get called on the first step of the episode
+        # Ensure the strategic planning method will get executed on the first step of the episode
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
 
         # Get all of the active targets and the starting points for each possible target destination and merge them, taking the
@@ -180,7 +184,7 @@ class BridgitGuidance(VehicleGuidance):
                 else:
                     pos.prob = min(0.04 * math.sqrt(pos.delta_p), 0.9)
 
-            # If this position is the lane to the left, then zero it out if a lane change is not possible before the next planning cycle
+            # If this position is the lane to the left, then zero it out if a lane change is physically prohibited before the next planning cycle
             # (vehicle will traverse approx 6 sensor zones, or 2 boundary regions, during that time).
             if i == self.LEFT:
                 for j in range(2):
