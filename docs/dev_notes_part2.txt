@@ -724,6 +724,19 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  initial random timesteps from 1M to 10k so that it can more quickly start learning from
 	  some positive examples.
 	* Checkpoints stored in 20240202-1331.
+	* Training completed. Mean ep len quickly reached 98-100 and stayed there. Similarly, rmax
+	  reached ~1.8 and stayed there. However, rmax grew to ~0.3, maxing out at 0.5 at 12k iters,
+	  then dropped to < 0 for the remainder. rmin started ~-4, but gradually moved down to ~-10.
+	* Inference on checkpoint 12000: never a lane change, regardless of desirability. Speeds
+	  were mostly in [20, 22] regardless of speed limit, but it was very smooth.
+	* Inference on checkpoint 30000: similar behavior, only speeds tended to be even slower,
+	  sometimes < 9 m/s for a whole episode.
+
+2/3/24
+
+* Run C36
+	* Changed exploration initial random timesteps from 10k to 100k so it fills the buffer.
+
 
 
 
