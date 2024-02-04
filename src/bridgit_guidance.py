@@ -204,14 +204,12 @@ class BridgitGuidance(VehicleGuidance):
             if pos.prob > max_prob:
                 max_prob = pos.prob
 
-        # Scale the probabilities. However, if all are zero (no hope of reaching any target), then we want to follow center lane, but
+        # If all probs are zero (no hope of reaching any target), then we want to follow center lane, but
         # with a low probability, since this value is used by the environment to reward lane choice behavior; it is in this pickle
-        # because of poor choices upstream, so don't want to scoop up reward points now.
+        # because of poor choices upstream, so don't want to scoop up reward points now. With this adjustment, we don't want to
+        # normalize the values; 1.0 should only be used if a target is straight ahead.
         if max_prob < 0.01:
             self.positions[self.CENTER].prob = 0.01
-        else:
-            for pos in self.positions:
-                pos.prob /= max_prob
 
         # Update the obs vector with the new desirability info
         obs[ObsVec.DESIRABILITY_LEFT]   = self.positions[self.LEFT].prob

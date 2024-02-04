@@ -22,10 +22,11 @@ def main(argv):
         0:  (default) everything randomized.
         1:  all neighbor vehicles in same lane.
         2:  no neighbor vehicles in ego's lane.
-    10-15:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.
-    20-25*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).
+    10-18:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.
+    20-28*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).
        29*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in a random location.
-    90-95*: no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing).
+    80-89:  special test configurations.
+    90-98*: no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing).
     '''
     epilog = "If a non-learning scenario (*) is chosen then any checkpoint specified is ignored."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = epilog, formatter_class = argparse.RawTextHelpFormatter)
@@ -39,7 +40,7 @@ def main(argv):
 
     # Verify that checkpoint & scenario are telling the same story. If we are going inference-only then erase the checkpoint.
     inference_only = False
-    if scenario >= 20:
+    if 20 <= scenario <= 29  or  scenario >= 90:
         checkpoint = None
         inference_only = True
     else:
@@ -51,7 +52,7 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
-                    "valid_targets":            "all", #list can include 0, 1, 2, 3 (no duplicates)
+                    "valid_targets":            "all", #either "all" or comma-separated sequence of IDs (no brackets)
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "episode_length":           episode_len,

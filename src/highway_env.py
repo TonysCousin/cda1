@@ -355,13 +355,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.roadway is not None:
             del self.roadway
 
-        # Create the roadway geometry
-        if self.prng.random() < 0.5:
+        # If a special scenario is used, assign its designated roadway
+        if self.effective_scenario == 80:
             self.roadway = RoadwayC(self.debug)
-            #print("///// reset initializing RoadwayC. d5 = {:.4f}, uses = {}".format(d5, self.prng.uses_since()))
+
+        # Else create the roadway geometry by random draw
         else:
-            self.roadway = RoadwayD(self.debug)
-            #print("///// reset initializing RoadwayD. d5 = {:.4f}, uses = {}".format(d5, self.prng.uses_since()))
+            if self.prng.random() < 0.5:
+                self.roadway = RoadwayC(self.debug)
+            else:
+                self.roadway = RoadwayD(self.debug)
 
         # Decide which targets will be activated for this episode - needs to happen before vehicle reset
         self._choose_active_targets()
@@ -377,10 +380,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         for i in range(self.num_vehicles):
             self.vehicles[i].reset(self.roadway)
 
+        randomize_neighbors = True
+        ego_p = None
+        ego_lane_id = None
+
         # All inference - this doesn't train anything, so vehicle 0 is in inference mode, but is still the center
         # of attention here, so we can call it the ego vehicle. These scenarios are used for embedding data
         # collection, but can be used for any general-purpose inference runs.
         if 20 <= self.effective_scenario <= 29:
+
+            randomize_neighbors = False
+
             if self.effective_scenario != 29  and  self.effective_scenario - 20 >= self.roadway.NUM_LANES:
                 raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
 
@@ -469,8 +479,17 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
 
+        # Special test case 80 for debugging LC desirability
+        elif self.effective_scenario == 80:
+            ego_lane_id = 2
+            ego_p = 550.0
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = 30.9)
+
         # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
         elif self.effective_scenario >= 90:
+
+            randomize_neighbors = False
+
             if self.effective_scenario - 90 >= self.roadway.NUM_LANES:
                 raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
 
@@ -538,6 +557,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
                 print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
+
+        # Define the neighbor vehicles, if desired
+        if randomize_neighbors:
 
             # Choose how many vehicles will participate
             episode_vehicles = self._decide_num_vehicles()
@@ -608,8 +630,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
                 self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
 
-            #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
-            #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
+        #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
+        #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined using roadway {}.".format(self.roadway.name))
@@ -920,19 +942,20 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.valid_targets = [0] #list of the defined targest that are valid for this run (not all will necessarily be used in each episode)
         self.all_targets_valid = True
         try:
-            vt = config["valid_targets"]
-            if vt != "all":
+            vts = config["valid_targets"]
+            if vts != "all":
                 self.all_targets_valid = False
-                if type(vt) == list  and  len(vt) > 0:
+                vt = [int(item) for item in vts.split(',')]
+                if len(vt) > 0:
                     legal = True
                     for item in vt:
-                        if item < 0  or  item >= 4:
-                            print("///// WARNING: illegal target list specified. All must be 0, 1, 2 or 3. Ignoring.")
+                        if item < 0  or  item >= 8: #Roadway is not yet defined, so we can only guess at the upper limit here
+                            print("///// WARNING: illegal target list specified. Ignoring: ", vt)
                             legal = False
                             break
                     if legal:
                         self.valid_targets = vt
-        except Exception:
+        except Exception as e:
             pass
 
         self.randomize_targets = True #should each episode have its active targets randomly selected?
@@ -950,6 +973,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # is included in the valid list. Otherwise, use the list as provided in the config param.
         if self.all_targets_valid:
             self.valid_targets = [i for i in range(len(self.roadway.targets))]
+
+        # Else, a specific list of target IDs was provided. Check that they are valid, now that the roadway is defined
+        # (the config processor didn't have that info available when it was run).
+        else:
+            for t_idx in self.valid_targets:
+                if t_idx < 0  or  t_idx >= self.roadway.NUM_TARGETS:
+                    raise ValueError("///// ERROR: Config valid_targets contains illegal entry. Items must be between 0 and {}"
+                                     .format(self.roadway.NUM_TARGETS))
 
         # If we are to randomize the target destinations then
         #print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
@@ -1327,19 +1358,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
                 des = des * des
-                steps_since_lc = self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]
 
                 # If desirability is modestly high then
                 if des > 0.2:
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = 0.004*(math.pow(des+1.0, (steps_since_lc + 50.0)/50.0) - 1.0)
+                    bonus = 0.004*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
                     #bonus = 0.01 * des*des
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
-                    bonus = -0.02*(math.pow(2, (steps_since_lc + 50.0)/50.0) - 1.0) #TODO: this stops growing after 60 steps
+                    bonus = -0.02*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
@@ -1358,7 +1388,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.25
+            speed_mult = 0.5
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

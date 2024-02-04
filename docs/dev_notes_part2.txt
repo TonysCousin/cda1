@@ -753,6 +753,26 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  path of a fast-moving neighbor that ego couldn't see. It also gives -3 points for
 	  any undetermined crash reason.
 	* Checkpoints stored in 20240203-2301.
+	* Training completed. Similar story as recent runs, with mean ep len ~98 early, rmax
+	  ~1.7 early, but rmean barely reached > 0.
+	* Inference on checkpoint 30000: speeds are typically very slow, and sometimes change
+	  inexplicably. Never see a lane change.
+	* Inference on checkpoint 10000: similar performance. Agent rear-ended a bot without
+	  even attempting to slow down a bit.
+	* Realized that LC des bonuses being keyed to steps since LC are encouraging agent to
+	  stay in lane, since bonuses are bigger there than when a change occurs.
+
+2/4/24
+
+* Run C37 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed BridgitGuidance route planning to not normalize the LC desirabilities. In
+	  cases where none of the 3 lanes hold a target, it needs to see desirabilities < 1
+	  so it knows to get out of there.
+	* Changed reward for LC desirability to grow exponentially from beginning of episode,
+	  regardless of LC activity (was resetting the exponential growth aftere each LC).
+	* Doubled speed deviation penalty multiplier from 0.25 to 0.5.
+	* Checkpoints stored at 20240204-1822.
 
 
 
