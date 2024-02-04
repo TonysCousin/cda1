@@ -273,6 +273,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.episode_count = 0      #number of training episodes (number of calls to reset())
         self.reward_lc_progress_points = 0 #bonus points to be awarded during a lane change in progress
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
+        self.crash_neighbor = -1    #ID of the vehicle that crashed into the ego vehicle
+        self.crash_same_lane = False#Was the crash between two vehicles in the same lane?
+        self.crash_n_speed = 0.0    #speed of the neighbor vehicle involved in the crash, m/s
+        self.crash_n_lc_status = "UNDEF" #LC status of the neighbor vehicle involved in the crash
+        self.crash_p_dist_fwd = 0.0 #distance that the neighbor vehicle is in front of the ego vehicle at time of crash, m
         print("///// Initializing env environment ID {} with configuration: {}".format(self.rollout_id, vc["title"]))
 
         """
@@ -628,6 +633,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Other persistent data
         self.steps_since_reset = 0
         self.episode_count += 1
+        self.crash_neighbor = -1
+        self.crash_same_lane = False
+        self.crash_n_speed = 0.0
+        self.crash_n_lc_status = "UNDEF"
+        self.crash_p_dist_fwd = 0.0
 
         if self.debug > 1:
             print("///// End of reset(). Returning obs ", self.all_obs[0, :])
@@ -1114,11 +1124,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                         if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                             crash = True
+                            k = max(i, j)
+
+                            # Store crash lane details for reward assignment
+                            self.crash_same_lane = True
+
+                            # Log it if desired
                             if self.crash_report:
                                 print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
                                         .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
                                                 self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                                k = max(i, j)
                                 print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
                                                                                                         self.vehicles[k].lane_change_status,
                                                                                                         self.vehicles[k].lane_change_count))
@@ -1148,17 +1163,27 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                                 if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
                                     crash = True
+                                    k = max(i, j)
+
+                                    # Store crash lane details for reward assignment
+                                    self.crash_same_lane = False
+
+                                    # Log it if desired
                                     if self.crash_report:
                                         print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
                                               .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
                                                       self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                                        k = max(i, j)
                                         print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
                                                                                                                self.vehicles[k].lane_change_status,
                                                                                                                self.vehicles[k].lane_change_count))
                                     break
 
             if crash: #the previous break stmts only break out of the inner loop, so we need to break again
+                # Store crash details for reward assignment
+                self.crash_neighbor = k
+                self.crash_n_speed = self.vehicles[k].cur_speed
+                self.crash_n_lc_status = self.vehicles[k].lane_change_status
+                self.crash_p_dist_fwd = self.vehicles[k].p - self.vehicles[0].p
                 break
 
         if self.debug > 0:
@@ -1237,10 +1262,28 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # If the episode is done then
         if done:
 
-            # If there was a crash into another car then set a large penalty.
+            # If there was a crash into another car then set a penalty based on the details of how it happened
             if crash:
-                reward = -1.5
-                explanation = "Crashed into a vehicle. "
+                if self.crash_same_lane:
+                    if self.crash_p_dist_fwd >= 0.0:
+                        reward = -3.0
+                        explanation = "Rear-ended vehicle {}. ".format(self.crash_neighbor)
+                    else:
+                        reward = 0.0
+                        explanation = "Neighbor {} rear-ended ego. ".format(self.crash_neighbor)
+
+                elif self.vehicles[0].lane_change_status == "none":
+                    reward = 0.0
+                    explanation = "Neighbor moved laterally into ego. "
+
+                elif self.crash_p_dist_fwd < 0.0  and  \
+                     self.crash_n_speed >= self.vehicles[0].cur_speed + max(4.0 - self.vehicles[0].lane_change_count, 0.0):
+                    reward = 0.0
+                    explanation = "Ego moved into fast-moving neighbor's lane & got rear-ended."
+                else:
+                    reward = -3.0
+                    explanation = "Crash for unclear reasons (neighbor {} speed {:.1f}, same lane = {}, LC status = {}, dist fwd = {:.1f})" \
+                                .format(self.crash_neighbor, self.crash_n_speed, self.crash_same_lane, self.crash_n_lc_status, self.crash_p_dist_fwd)
 
             # Else if ran off road, set a penalty
             elif off_road:

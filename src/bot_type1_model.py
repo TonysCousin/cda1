@@ -33,12 +33,11 @@ class BotType1Model(VehicleModel):
                        vehicles : list,     #list of all Vehicles in the scenario
                        actions  : list,     #list of action commands for this vehicle
                        obs      : np.array, #array of observations from the previous time step
-                      ) -> np.array:
+                      ) -> np.array:        #returns a new observation vector for this vehicle
 
         """Produces the observation vector for this vehicle object if it is still active. An inactive vehicle produces all 0s.
 
-            CAUTION: the returned observation vector is at actual world scale and needs to be
-                     preprocessed before going into a NN!
+            CAUTION: the returned observation vector is at actual world scale and needs to be preprocessed before going into a NN!
 
             NOTE: we use Vehicle objects here, but there is no import statment for that type in this class or in the base class, since it
             creates a circular reference during construction. But Python seems to give us full knowledge of those objects' structures
@@ -72,7 +71,8 @@ class BotType1Model(VehicleModel):
             steps_since_lc = self.lc_compl_steps - 1
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
-        # Identify the closest neighbor downtrack of this vehicle in the same lane
+        # Identify the closest neighbor downtrack of this vehicle; could be a vehicle in the same lane, or in adjacent lane and is
+        # maneuvering to get into this lane
         closest_id = None
         closest_dist = Constants.REFERENCE_DIST #we don't need to worry about anything farther than this
         for i in range(len(vehicles)):
@@ -83,7 +83,9 @@ class BotType1Model(VehicleModel):
             if not v.active:
                 continue
 
-            if v.lane_id == me.lane_id:
+            if v.lane_id == me.lane_id  or  \
+              (v.lane_id == me.lane_id + 1  and  v.lane_change_status == "left")  or  \
+              (v.lane_id == me.lane_id - 1  and  v.lane_change_status == "right"): #this works even for v.lane_id = -1, since it will never change lanes
                 fwd_dist = v.p - me.p
                 if fwd_dist > 0.0  and  fwd_dist < closest_dist:
                     closest_dist = fwd_dist

@@ -95,8 +95,8 @@ class ObsVec:
     FWD_DIST            =  8 #distance to nearest downtrack vehicle in same lane, m
     FWD_DIST_PREV       =  9 #distance to downtrack vehicle from previous time step, m
     FWD_SPEED           = 10 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
-    LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
-    RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 1 zone longitudinally)? (0 = false, 1 = true)
+    LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
+    RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
 
     # Elements specific to bots running ACC & changing lanes to reach a target destination
     # --there are none at this time

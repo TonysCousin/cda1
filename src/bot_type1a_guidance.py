@@ -12,8 +12,8 @@ from lane_change import LaneChange
 
 class BotType1aGuidance(VehicleGuidance):
 
-    """Defines the guidance algorithm for the Type 1 bot vehicle, which tries to drive at the speed limit at all times,
-        but uses crude Adaptive Cruise Control (ACC).
+    """Defines a tactical guidance algorithm for the Type 1 bot vehicle, which tries to drive at the speed limit at all times,
+        but uses crude Adaptive Cruise Control (ACC). It also stays in its assigned lane always.
     """
 
     def __init__(self,

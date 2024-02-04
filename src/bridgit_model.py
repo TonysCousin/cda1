@@ -93,7 +93,8 @@ class BridgitModel(VehicleModel):
         #..........Common observations that require non-trivial computation
         #
 
-        # Identify the closest neighbor downtrack of this vehicle in the same lane
+        # Identify the closest neighbor downtrack of this vehicle; could be a vehicle in the same lane, or in adjacent lane and is
+        # maneuvering to get into this lane
         closest_id = None
         closest_dist = Constants.REFERENCE_DIST #we don't need to worry about anything farther than this
         for i in range(len(vehicles)):
@@ -104,7 +105,9 @@ class BridgitModel(VehicleModel):
             if not v.active:
                 continue
 
-            if v.lane_id == host_lane_id:
+            if v.lane_id == host_lane_id  or  \
+              (v.lane_id == host_lane_id + 1  and  v.lane_change_status == "left")  or  \
+              (v.lane_id == host_lane_id - 1  and  v.lane_change_status == "right"): #this works even for v.lane_id = -1, since it will never change lanes
                 fwd_dist = v.p - host_p
                 if fwd_dist > 0.0  and  fwd_dist < closest_dist:
                     closest_dist = fwd_dist

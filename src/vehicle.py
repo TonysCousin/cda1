@@ -154,6 +154,7 @@ class Vehicle:
         #
         #..........Update lateral motion
         #
+        expl = "A " #TODO delete all uses of this var - for debug only
 
         # Determine if we are beginning or continuing a lane change maneuver.
         # Accept a lane change command that lasts for several time steps or only one time step.  Once the first
@@ -167,7 +168,9 @@ class Vehicle:
         # classes or vehicle objects that need to observe this vehicle's lateral motion, so that they can simply
         # and consistently figure out the origin and target lanes, regardless of where it is in the maneuver.
         if new_lc_cmd != LaneChange.STAY_IN_LANE  or  self.lane_change_status != "none":
+            expl += "B "
             if self.lane_change_status == "none": #count should always be 0 in this case, so initiate a new maneuver
+                expl += "C "
                 if new_lc_cmd == LaneChange.CHANGE_LEFT:
                     self.lane_change_status = "left"
                 else:
@@ -178,39 +181,47 @@ class Vehicle:
                             .format(new_lc_cmd, self.lane_change_status))
             else: #once a lane change is underway, continue until complete, regardless of new commands
                 self.lane_change_count += 1
+                expl += "D "
 
         # Check that an adjoining lane is available in the direction commanded until maneuver is complete
         new_lane = int(self.lane_id) #TODO: still need the int call?
         tgt_lane = new_lane
+        expl += "E:new_lane={},tgt_lane={} ".format(new_lane, tgt_lane)
         if self.lane_change_count > 0:
 
             # Ensure that there is a lane to change into and get its ID
-            tgt_lane = self.roadway.get_target_lane(int(self.lane_id), self.lane_change_status, new_p)
+            tgt_lane = self.roadway.get_target_lane(new_lane, self.lane_change_status, new_p)
+            expl += "F:count={},status={},tgt_lane={} ".format(self.lane_change_count, self.lane_change_status, tgt_lane)
             if tgt_lane < 0:
                 self.off_road = True
                 reason = "Ran off road; illegal lane change"
                 if self.debug > 1:
                     print("      DONE!  illegal lane change commanded.")
                 #print("/////+ step: {} step {}, illegal lane change".format(self.rollout_id, self.total_steps))
+                expl += "G "
 
             if self.debug > 0:
                 print("      Vehicle.advance_vehicle_accel: bottom of lane change. underway = {}, new_ego_lane = {}, tgt_lane = {}, count = {}"
                         .format(self.lane_change_status, new_lane, tgt_lane, self.lane_change_count))
 
         # If current lane change is complete, then reset its state and counter and update its new lane ID
-        if self.lane_change_count >= self.model.lc_compl_steps:
+        if self.lane_change_count >= self.model.lc_compl_steps  and  not self.off_road:
             self.lane_change_status = "none"
             self.lane_change_count = 0
             new_lane = tgt_lane
+            expl += "H "
 
         # Update lateral state
         self.lane_id = new_lane
+        assert self.lane_id >= 0, \
+                "///// ERROR: Vehicle.advance_vehicle_accel: lane_id = {}, p = {}, LC count = {}, LC status = {}, active = {}, off_road = {}, exxpl = {}" \
+                .format(self.lane_id, self.p, self.lane_change_count, self.lane_change_status, self.active, self.off_road, expl)
 
         #
         #..........Look for error conditions
         #
 
-        # Since a vehicle may not change lanes when it needs to, we need to take them it of action if it runs off the end of a lane
+        # Since a vehicle may not change lanes when it needs to, we need to take it out of action if it runs off the end of a lane
         lane_end = self.roadway.get_lane_start_p(new_lane) + self.roadway.get_total_lane_length(new_lane)
         if new_p > lane_end:
             self.off_road = True

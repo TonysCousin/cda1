@@ -737,8 +737,22 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Merged update_roadway branch back into the part2 branch. Then created new branch lat_motion
   to work on more sophisticated lateral movement logic.
 
-* Run C36
+* Run C36 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
 	* Changed exploration initial random timesteps from 10k to 100k so it fills the buffer.
+	* Changed bot1b guidance to have slightly slower speed range (most of them will be
+	  slower than the speed limit), to further stress the agent's ACC and encourage it to
+	  do a passing maneuver if travel time becomes a goal.
+	* Changed bot1, Bridgit & embed models to recognize neighbors changing lanes from an
+	  adjacent lane into the bot's lane as candidates for nearest forward vehicle (input to
+	  the ACC algo in the bots and embed guidance), which will help it avoid rear-ending
+	  slower vehicles changing lanes in front of it.
+	* Changed reward penalty for crashes to be more selective. It gives a -3 points for
+	  rear-ending a neighbor or changing lanes into a neighbor who should be easily
+	  visible, but no penalty for crashes caused by the neighbor or by moving into the
+	  path of a fast-moving neighbor that ego couldn't see. It also gives -3 points for
+	  any undetermined crash reason.
+	* Checkpoints stored in 20240203-2301.
 
 
 

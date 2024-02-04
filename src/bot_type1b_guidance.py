@@ -12,8 +12,9 @@ from vehicle_guidance import VehicleGuidance
 
 class BotType1bGuidance(VehicleGuidance):
 
-    """Defines the guidance algorithm for the Type 1 bot vehicle, which tries to drive at a small, constant, random offset to the
-        posted speed limit, but uses crude Adaptive Cruise Control (ACC).
+    """Defines a tactical guidance algorithm for the Type 1 bot vehicle, which tries to drive at a small, constant, random offset to the
+        posted speed limit, but uses crude Adaptive Cruise Control (ACC). It also changes lanes in attempt to reach a defined target
+        destination.
     """
 
     def __init__(self,
@@ -26,7 +27,7 @@ class BotType1bGuidance(VehicleGuidance):
         super().__init__(prng, is_learning, obs_space, act_space, name)
 
         # Pick an offset from the posted speed limit that will define the target speed
-        self.speed_offset = (self.prng.random() - 0.5) * 0.2*Constants.MAX_SPEED #gives +/- 10%
+        self.speed_offset = (self.prng.random() - 0.75) * 0.2*Constants.MAX_SPEED #in a range [-15%, +5%]
 
         # Define an empty variable to hold the ID of the target destination
         self.target_id = None
@@ -112,7 +113,7 @@ class BotType1bGuidance(VehicleGuidance):
                 if lid >= 0  and  la <= 0.0  and  lb >= 0.0:
 
                     # If the sensors detect that the zones immediately to the left are unoccupied then command the change.
-                    # Randomize the initiation of the command, since most crashes happen in the first couple seconds of a scenario, when
+                    # Randomize the initiation of the command, to avoid crashes happening in the first couple seconds of a scenario, when
                     # all vehicles are trying to adjust their lateral position at the same time.
                     if obs[ObsVec.LEFT_OCCUPIED] < 0.5  and  self.prng.random() < 0.06:
                         cmd = LaneChange.CHANGE_LEFT
