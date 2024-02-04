@@ -1134,7 +1134,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         if abs(va.p - vb.p) <= 0.5*(va.model.veh_length + vb.model.veh_length):
 
                             # Check if one or both of them is changing lanes into the other's space
-                            if self._conflicting_space(va, vb):
+                            if self._conflicting_lane_change(va, vb):
 
                                 # Mark the involved vehicles as out of service
                                 va.active = False
@@ -1166,7 +1166,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return crash
 
 
-    def _conflicting_space(self,
+    def _conflicting_lane_change(self,
                            va       : Vehicle,  #the first vehicle to investigate
                            vb       : Vehicle   #the second vehicle to investigate
                           ) -> bool:
@@ -1176,18 +1176,19 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             this maneuver. Therefore, this will flag a crash if either (or both) of the adjacent vehicles is changing lanes where its
             destination lane is the one occupied by the other vehicle, even if the other vehicle is in the process of vacating that lane for
             the next one farther away.
+
+            This method ASSUMES that the two vehicles have already been determined to be at approximately the same longitudinal location.
         """
 
         # If vehicle A is changing lanes toward B then
         if (va.lane_change_status == "right"  and  vb.lane_id - va.lane_id == 1)  or  (va.lane_change_status == "left"  and  va.lane_id - vb.lane_id == 1):
 
             # Determine A's target lane (it could be B's lane or the lane it is currently in (i.e. its maneuver is almost complete))
-            va_tgt = va.lane_id #initial guess that it is already mostly in its target lane
-            if va.lane_change_count < va.model.lc_half_steps: #it is < 50% across the dividing line, so it is still registered in its originating lane
-                if va.lane_change_status == "right":
-                    va_tgt = va.lane_id + 1
-                else:
-                    va_tgt = va.lane_id - 1
+            va_tgt = va.lane_id
+            if va.lane_change_status == "right":
+                va_tgt = va.lane_id + 1
+            else: #left
+                va_tgt = va.lane_id - 1
 
             # If its target is B's lane, then it's a conflict
             if va_tgt == vb.lane_id:
@@ -1197,12 +1198,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if (vb.lane_change_status == "right"  and  va.lane_id - vb.lane_id == 1)  or  (vb.lane_change_status == "left"  and  vb.lane_id - va.lane_id == 1):
 
             # Determine B's target lane
-            vb_tgt = vb.lane_id #initial guess that it is already mostly in its target lane
-            if vb.lane_change_count < vb.model.lc_half_steps: #it is < 50% across the dividing line, so it is still registered in its originating lane
-                if vb.lane_change_status == "right":
-                    vb_tgt = vb.lane_id + 1
-                else:
-                    vb_tgt = vb.lane_id - 1
+            vb_tgt = vb.lane_id
+            if vb.lane_change_status == "right":
+                vb_tgt = vb.lane_id + 1
+            else:
+                vb_tgt = vb.lane_id - 1
 
             # If its target is A's lane, then it's a conflict
             if vb_tgt == va.lane_id:

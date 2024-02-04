@@ -12,7 +12,7 @@ class VehicleModel(ABC):
                  max_jerk   : float = 3.0,  #forward & backward, m/s^3
                  max_accel  : float = 2.0,  #forward & backward, m/s^2
                  length     : float = 5.0,  #length of the vehicle, m
-                 lc_duration: float = 3.0,  #time to complete a lane change, sec; must result in an even number when divided by time step
+                 lc_duration: float = 3.0,  #time to complete a lane change, sec; must be a multiple of time_step
                  time_step  : float = 0.1,  #duration of a single time step, sec
                 ):
 
@@ -24,11 +24,10 @@ class VehicleModel(ABC):
         # Ensure lane change attributes are reasonable
         rsteps = lc_duration/time_step
         nsteps = int(rsteps + 0.5)
-        if abs(rsteps - nsteps) > 0.01  or  nsteps % 2 != 0:
+        if abs(rsteps - nsteps) > 0.01:
             raise ValueError("///// VehicleModel constructed with illegal lc_duration = {}, time_step = {}, resulting in LC steps = {}"
                              .format(lc_duration, time_step, rsteps))
         self.lc_compl_steps = nsteps    #num time steps required to complete a lane change maneuver
-        self.lc_half_steps = nsteps//2  #num time steps for the vehicle to go exactly half way to the new lane (equally straddling the line)
 
 
     def reset(self,
