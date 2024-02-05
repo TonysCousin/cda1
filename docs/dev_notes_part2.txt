@@ -773,6 +773,23 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  regardless of LC activity (was resetting the exponential growth aftere each LC).
 	* Doubled speed deviation penalty multiplier from 0.25 to 0.5.
 	* Checkpoints stored at 20240204-1822.
+	* Training completed. Mean ep len reached 95 in 2600 iters, then stayed > 90, mostly
+	  > 96, sometimes hitting 100. rmax reached 1.7 at 9600 iters, then stayed > 1.4,
+	  mostly in 1.7 range. However, rmin started ~-8 and gradually got worse, ending in
+	  the -20s. rmean then started ~-3, and after 8000 iters hung out in -1 to -2.
+	* Inference on checkpoint 10000: no desire to change lanes. Speeds hang out ~19 m/s
+	  regardless of speed limit, accepting pretty large penalties.
+
+2/5/24
+
+* run C38
+	* Tweaked reward penalty for LC terrible choices - multiplier from 0.02 to 0.004,
+	  since it was producing crazy big values.
+	* Tweaked BridgitGuidance route planning to start degrading desirability values
+	  farther uptrack of where the LC is required to avoid two lanes showing 0.9 for
+	  a long time, making the choice more difficult.
+
+NEXT: force a lane change to watch rewards
 
 
 

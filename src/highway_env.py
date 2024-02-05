@@ -1369,7 +1369,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
-                    bonus = -0.02*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    bonus = -0.004*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
                 self.reward_lc_progress_points = bonus
