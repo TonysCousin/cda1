@@ -7,6 +7,7 @@ import numpy as np
 import argparse
 import pygame
 
+from constants import Constants
 from obs_vec import ObsVec
 from highway_env_wrapper import HighwayEnvWrapper
 from bridgit_nn import BridgitNN
@@ -125,10 +126,12 @@ def main(argv):
     PAUSE_KEY = pygame.locals.K_SPACE
     RESUME_KEY = pygame.locals.K_SPACE
     END_KEY = pygame.locals.K_ESCAPE
+    COMMAND_INPUT_KEY = pygame.locals.K_h
 
     graphics.update(action_list, raw_obs, vehicles)
     obs = env.scale_obs(raw_obs)
     step = 0
+    user_command = None
 
     print("///// inference: graphic background complete.")
     vehicles[0].print("Ego")
@@ -145,7 +148,7 @@ def main(argv):
             print("///// User aborted.")
             graphics.close()
             sys.exit()
-        key = graphics.wait_for_key_press()
+        key, _ = graphics.wait_for_key_press()
 
     # Loop on time steps until episode is complete
     while not done  and  step <= episode_len:
@@ -159,11 +162,19 @@ def main(argv):
         action = np.zeros(2)
         if not inference_only:
             if vehicles[0].active:
-                try:
-                    action = algo.compute_single_action(obs, explore = False)
-                except:
-                    print("///// Exception trapped in inference during call to algo.compute_single_action(). obs = ")
-                    print(obs)
+
+                # Use the hand-entered command list if defined
+                if user_command is not None:
+                    action = np.asarray(user_command)
+                    user_command = None #so it won't get used in the following step
+
+                # Else, get the action from the NN
+                else:
+                    try:
+                        action = algo.compute_single_action(obs, explore = False)
+                    except:
+                        print("///// Exception trapped in inference during call to algo.compute_single_action(). obs = ")
+                        print(obs)
 
         # Move the environment forward one time step
         raw_obs, reward, done, truncated, info = env.step(np.ndarray.tolist(action)) #obs returned is UNSCALED
@@ -202,16 +213,30 @@ def main(argv):
         """
 
         # Look for key press to indicate pausing the activity
-        if graphics.key_press_event() == PAUSE_KEY:
+        ev = graphics.key_press_event()
+        if ev is not None  and  ev.key == PAUSE_KEY:
 
-            # Wait for the resume signal (another key press)
+            # Wait for the resume signal or another instruction
             key = None
             while key != RESUME_KEY:
+
+                # Handle user abort key
                 if key == END_KEY:
                     print("///// User aborted.")
                     graphics.close()
                     sys.exit()
-                key = graphics.wait_for_key_press()
+
+                # Handle user input of ego commands. Since this is an unusual command intended for debugging purposes, no
+                # need to put in lots of input validation logic.
+                if key == COMMAND_INPUT_KEY:
+                    user_command = graphics.get_command_input()
+                    assert type(user_command) == list  and  len(user_command) == 2, "///// ERROR: invalid user input command: {}".format(user_command)
+                    assert -1.0 <= user_command[0] <= 1.0, "///// ERROR: Illegal speed command given: {}".format(user_command[0])
+                    assert -1.0 <= user_command[1] <= 1.0, "///// ERROR: Illegal LC command given: {}".format(user_command[1])
+                    print("///// Manual command override: {}".format(user_command))
+                    #break
+
+                key, _ = graphics.wait_for_key_press()
 
         # If we are doing a special scenario for visualizing a single lane (only runs vehicle 1), then need to check for done
         # based on when that vehicle exits its assigned lane.
@@ -222,7 +247,7 @@ def main(argv):
         # Summarize the episode
         if done:
             print("///// Episode complete: {}. Total reward = {:.2f}".format(info["reason"], episode_reward))
-            while graphics.wait_for_key_press() != END_KEY:
+            while graphics.wait_for_key_press().key != END_KEY:
                 pass
             graphics.close()
             sys.exit()
@@ -230,7 +255,7 @@ def main(argv):
     # If the episode is complete then get user approval to shut down
     if step >= episode_len:
         print("///// Terminated - reached desired episode length. Total reward = {:.2f}".format(episode_reward))
-        while graphics.wait_for_key_press() != END_KEY:
+        while graphics.wait_for_key_press().key != END_KEY:
             pass
         graphics.close()
         sys.exit()

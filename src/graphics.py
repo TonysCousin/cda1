@@ -45,6 +45,9 @@ class Graphics:
     LARGE_FONT_SIZE         = 18    #vertical pixels
     AVG_PIX_PER_CHAR_BASIC  = 5.0 #TODO need to experiment with this
     AVG_PIX_PER_CHAR_LARGE  = 7.5
+    INPUT_DIALOG_BGND       = (100, 100, 255)
+    INPUT_TEXT_COLOR        = BLACK
+    DIALOG_INSTR_COLOR      = WHITE
 
     # Other graphics constants
     WIDTH_SCALE             = 1.0       #for future use if Roadway and Graphics need to use different lane widths
@@ -54,6 +57,9 @@ class Graphics:
     REAL_TIME_RATIO         = 5.0       #Factor faster than real time
     FONT_PATH               = "docs/fonts"
     IMAGE_PATH              = "docs/images"
+    INPUT_DIALOG_WIDTH      = 300
+    INPUT_DIALOG_HEIGHT     = 50
+    INPUT_DIALOG_CORNER     = ((WINDOW_SIZE_R - INPUT_DIALOG_WIDTH)//2, WINDOW_SIZE_S//2)
 
     # Background images:
     #   r0, r1 - initial attempts
@@ -346,33 +352,67 @@ class Graphics:
         self.large_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.LARGE_FONT_SIZE)
 
 
-    def key_press_event(self) -> int:
+    def key_press_event(self) -> pygame.event.Event:
         """Determines if a keyboard key has been pressed since system event buffer was last flushed.
             Flushes the event buffer up to the point of the first detected key press, or until buffer is empty.
             Ignores key release events.
-            Returns the value of the key if one was detected, or None if no key presses in the event buffer.
+            Returns the Event of the key if one was detected, or None if no key presses in the event buffer.
                 Key value is expressed in pygame.locals keycodes (beginning with K_).
+                Note that Event.key gives the value of the key itself (an int).
         """
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 #print("      Key pressed: ", event.key)
-                return event.key
+                return event
 
         return None
 
 
-    def wait_for_key_press(self) -> int:
+    def wait_for_key_press(self) -> tuple:
         """Suspends processing until a keyboard key is pressed. Flushes the event buffer up to the point of the
             first detected key press. Ignores key release events.
             Returns the value of the key pressed, as expressed in pygame.locals keycodes (beginning with K_).
         """
 
         while True:
-            time.sleep(0.5) #avoid using otherwise idle compute resources
-            key = self.key_press_event()
-            if key is not None:
-                return key
+            time.sleep(0.1) #avoid using otherwise idle compute resources
+            event = self.key_press_event()
+            if event is not None:
+                return event.key, event.unicode
+
+
+    def get_command_input(self) -> list:
+        """Displays a dialog box for the user to type in a set of commands for the ego vehicle."""
+
+        # Display the dialog box
+        cr, cs = Graphics.INPUT_DIALOG_CORNER
+        input_rect = pygame.Rect(cr, cs, Graphics.INPUT_DIALOG_WIDTH, Graphics.INPUT_DIALOG_HEIGHT)
+        pygame.draw.rect(self.window_surface, Graphics.INPUT_DIALOG_BGND, input_rect)
+        instruction_surface = self.basic_font.render("Enter speed cmd, LC cmd (scaled to [-1, 1]):", True, Graphics.DIALOG_INSTR_COLOR)
+        self.window_surface.blit(instruction_surface, (cr+5, cs+5))
+        pygame.display.update(input_rect)
+
+        # Collect user-typed input text
+        input_str = ""
+        key = None
+        while key != pygame.K_RETURN:
+            input_surface = self.basic_font.render(input_str, True, Graphics.INPUT_TEXT_COLOR)
+            self.window_surface.blit(input_surface, (cr+5, cs+26))
+            pygame.display.update(input_rect)
+
+            key, uni = self.wait_for_key_press()
+            if key == pygame.K_BACKSPACE:
+                if len(input_str) > 0:
+                    input_str = input_str[:-1]
+            elif key != pygame.K_RETURN:
+                input_str += uni
+
+        # Remove the dialog box
+        self.window_surface.blit(self.background_image, input_rect, input_rect)
+        pygame.display.update(input_rect)
+
+        return [float(item) for item in input_str.split(',')]
 
 
     def _draw_segment(self,

@@ -782,14 +782,18 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 2/5/24
 
+* Merged the lat_motion branch back into part2.
+
+* Enhanced the inference program (& graphics) to allow manual override of the command vector
+  (action output of ego's NN) for a single time step. This allows investigating behavior &
+  rewards in lane change scenarios.
+
 * run C38
 	* Tweaked reward penalty for LC terrible choices - multiplier from 0.02 to 0.004,
 	  since it was producing crazy big values.
 	* Tweaked BridgitGuidance route planning to start degrading desirability values
 	  farther uptrack of where the LC is required to avoid two lanes showing 0.9 for
 	  a long time, making the choice more difficult.
-
-NEXT: force a lane change to watch rewards
 
 
 
