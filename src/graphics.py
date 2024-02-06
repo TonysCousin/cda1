@@ -388,15 +388,14 @@ class Graphics:
         # Display the dialog box
         cr, cs = Graphics.INPUT_DIALOG_CORNER
         input_rect = pygame.Rect(cr, cs, Graphics.INPUT_DIALOG_WIDTH, Graphics.INPUT_DIALOG_HEIGHT)
-        pygame.draw.rect(self.window_surface, Graphics.INPUT_DIALOG_BGND, input_rect)
-        instruction_surface = self.basic_font.render("Enter speed cmd, LC cmd (scaled to [-1, 1]):", True, Graphics.DIALOG_INSTR_COLOR)
-        self.window_surface.blit(instruction_surface, (cr+5, cs+5))
-        pygame.display.update(input_rect)
+        instruction_surface = self.basic_font.render("Enter scaled spd cmd, LC cmd [, rep]:", True, Graphics.DIALOG_INSTR_COLOR)
 
         # Collect user-typed input text
         input_str = ""
         key = None
         while key != pygame.K_RETURN:
+            pygame.draw.rect(self.window_surface, Graphics.INPUT_DIALOG_BGND, input_rect)
+            self.window_surface.blit(instruction_surface, (cr+5, cs+5))
             input_surface = self.basic_font.render(input_str, True, Graphics.INPUT_TEXT_COLOR)
             self.window_surface.blit(input_surface, (cr+5, cs+26))
             pygame.display.update(input_rect)
@@ -405,6 +404,7 @@ class Graphics:
             if key == pygame.K_BACKSPACE:
                 if len(input_str) > 0:
                     input_str = input_str[:-1]
+                    print("***   Detected backspace. New string is:{}.".format(input_str))
             elif key != pygame.K_RETURN:
                 input_str += uni
 

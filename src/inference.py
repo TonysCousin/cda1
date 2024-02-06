@@ -132,6 +132,8 @@ def main(argv):
     obs = env.scale_obs(raw_obs)
     step = 0
     user_command = None
+    total_override_reps = 1
+    override_reps = 0
 
     print("///// inference: graphic background complete.")
     vehicles[0].print("Ego")
@@ -163,10 +165,12 @@ def main(argv):
         if not inference_only:
             if vehicles[0].active:
 
-                # Use the hand-entered command list if defined
+                # Use the hand-entered command list, if defined, for as many reps as specified in the override
                 if user_command is not None:
                     action = np.asarray(user_command)
-                    user_command = None #so it won't get used in the following step
+                    override_reps += 1
+                    if override_reps >= total_override_reps:
+                        user_command = None #so it won't get used in the following step
 
                 # Else, get the action from the NN
                 else:
@@ -227,14 +231,23 @@ def main(argv):
                     sys.exit()
 
                 # Handle user input of ego commands. Since this is an unusual command intended for debugging purposes, no
-                # need to put in lots of input validation logic.
-                if key == COMMAND_INPUT_KEY:
-                    user_command = graphics.get_command_input()
-                    assert type(user_command) == list  and  len(user_command) == 2, "///// ERROR: invalid user input command: {}".format(user_command)
-                    assert -1.0 <= user_command[0] <= 1.0, "///// ERROR: Illegal speed command given: {}".format(user_command[0])
-                    assert -1.0 <= user_command[1] <= 1.0, "///// ERROR: Illegal LC command given: {}".format(user_command[1])
-                    print("///// Manual command override: {}".format(user_command))
-                    #break
+                # need to put in lots of input validation logic. Expected output is a list containing
+                #   speed command (scaled to [-1, 1])
+                #   LC command (in [-1, 1])
+                #   optional number of steps to repeat (default 1)
+                if key == COMMAND_INPUT_KEY  and  user_command is None:
+                    cmd_list = graphics.get_command_input()
+                    assert type(cmd_list) == list  and  len(cmd_list) >= 2, "///// ERROR: invalid user input command: {}".format(cmd_list)
+                    assert -1.0 <= cmd_list[0] <= 1.0, "///// ERROR: Illegal speed command given: {}".format(cmd_list[0])
+                    assert -1.0 <= cmd_list[1] <= 1.0, "///// ERROR: Illegal LC command given: {}".format(cmd_list[1])
+                    total_override_reps = 1
+                    if len(cmd_list) == 3:
+                        reps = int(cmd_list[2])
+                        if reps > 1:
+                            total_override_reps = reps
+                            override_reps = 0
+                    user_command = cmd_list[:2]
+                    print("///// Manual command override: {} applied to next {} steps".format(user_command, total_override_reps))
 
                 key, _ = graphics.wait_for_key_press()
 
@@ -247,16 +260,18 @@ def main(argv):
         # Summarize the episode
         if done:
             print("///// Episode complete: {}. Total reward = {:.2f}".format(info["reason"], episode_reward))
-            while graphics.wait_for_key_press().key != END_KEY:
-                pass
+            key = None
+            while key != END_KEY:
+                key, _ = graphics.wait_for_key_press()
             graphics.close()
             sys.exit()
 
     # If the episode is complete then get user approval to shut down
     if step >= episode_len:
         print("///// Terminated - reached desired episode length. Total reward = {:.2f}".format(episode_reward))
-        while graphics.wait_for_key_press().key != END_KEY:
-            pass
+        key = None
+        while key != END_KEY:
+            key, _ = graphics.wait_for_key_press()
         graphics.close()
         sys.exit()
 

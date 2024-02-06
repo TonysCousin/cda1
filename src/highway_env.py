@@ -271,7 +271,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.steps_since_reset = 0  #length of the current episode in time steps
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
-        self.reward_lc_progress_points = 0 #bonus points to be awarded during a lane change in progress
+        self.reward_lc_underway_des = 0 #bonus points to be awarded during a lane change in progress
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
         self.crash_neighbor = -1    #ID of the vehicle that crashed into the ego vehicle
         self.crash_same_lane = False#Was the crash between two vehicles in the same lane?
@@ -1351,6 +1351,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Reward for following the route planner's recommendations for lane change activity.
             # CAUTION: this code block is tightly coupled to the design of the BridgitGuidance class.
             lc_cmd = int(self.all_obs[0, ObsVec.LC_CMD]) #CAUTION! this is quantized in [-1, 1]; add 1 to use it as an index
+            lc_des_mult = 0.004
             bonus = 0.0
 
             # If a lane change is not currently underway, or just begun, give a bonus for lateral control decision proportional to the
@@ -1364,26 +1365,25 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = 0.004*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
-                    #bonus = 0.01 * des*des
+                    bonus = lc_des_mult*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
-                    bonus = -0.004*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    bonus = -lc_des_mult*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
-                self.reward_lc_progress_points = bonus
+                self.reward_lc_underway_des = des
 
             # Else, a LC maneuver is in progress, so hand out the reward based on the desirability of entering this maneuver
             else:
-                bonus = self.reward_lc_progress_points
+                bonus = lc_des_mult*(math.pow(self.reward_lc_underway_des + 1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
             explanation += "LC des {:.4f} ({:.2f} {:.2f} {:.2f}). ".format(bonus, lc_desired[0], lc_desired[1], lc_desired[2])
             reward += bonus
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
+                penalty = 0.0002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 

@@ -786,14 +786,26 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 * Enhanced the inference program (& graphics) to allow manual override of the command vector
   (action output of ego's NN) for a single time step. This allows investigating behavior &
-  rewards in lane change scenarios.
+  rewards in lane change scenarios. Used this tool to see that LC rewards were working against
+  my desires, so made some improvements.
 
-* run C38
+* Run C38 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
 	* Tweaked reward penalty for LC terrible choices - multiplier from 0.02 to 0.004,
 	  since it was producing crazy big values.
+	* Changed LC des reward to accumulate it exponentially even during the LC
+	  maneuver, so that cumulative rewards are bigger for making a good LC decision
+	  than for staying in lane.
 	* Tweaked BridgitGuidance route planning to start degrading desirability values
 	  farther uptrack of where the LC is required to avoid two lanes showing 0.9 for
-	  a long time, making the choice more difficult.
+	  a long time, making the choice more difficult. It also forces a strategic replan
+	  immediately after a LC completes so that the new desirability values are available.
+	* Reduced multiplier for LC frequency penalty from 0.002 to 0.0002, since some of
+	  the scenarios in the new roadways may require several rapid lane changes to reach
+	  the target.
+	* Enhanced inference a bit to allow manual override commands to apply for multiple
+	  steps.
+	* Checkpoints stored in 20240205-2217.
 
 
 
