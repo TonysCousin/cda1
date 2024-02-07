@@ -806,6 +806,34 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Enhanced inference a bit to allow manual override commands to apply for multiple
 	  steps.
 	* Checkpoints stored in 20240205-2217.
+	* Training completed. Performance profile similar to before. Mean ep length stayed
+	  high throughout, but rmax began to drop a lot after ~26k iters. rmean touched
+	  above -1 at ~14k iters briefly, then more solidly ~24k iters (reaching -0.7).
+	* Inference on checkpoint 24000: one run started near where it needed to LC soon,
+	  and LC desirability values, even for the best lane, were already low (0.23), so
+	  it immediately started getting penalized for all possible choices. No lane changes
+	  happening. Speeds still hanging out ~18-20 m/s, regardless of speed limit. It
+	  appears that it has not explored at all, or has somehow found any other actions
+	  to be bad choices.
+
+2/6/24
+
+* Added logging to MultiAgentReplayBuffer to confirm that the pre-populated random experiences
+  did have what appear to be a uniformly random distribution of both actions. So it seems that
+  the agent is initially exposed to a wide range of experiences & rewards. I'm starting to
+  wonder if there are too many neighbor vehicles that prevent it from taking big actions, for
+  fear of inducing a crash.
+
+* Run C39 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed the vehicles config file to only include the ego and 4 bots.
+	* Tweaked reward for LC des to apply a bonus if des (which is desirability^2) > 0.04,
+	  where it was previously > 0.2.
+	* Checkpoints stored in 20240206-2025.
+
+NEXT:
+- play with noise level
+- play with LR
 
 
 

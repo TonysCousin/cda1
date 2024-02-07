@@ -1361,7 +1361,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 des = des * des
 
                 # If desirability is modestly high then
-                if des > 0.2:
+                if des > 0.04: #because of the squaring above, this corresponds to desirability of 0.2
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0

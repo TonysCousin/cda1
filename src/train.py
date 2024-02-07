@@ -18,6 +18,8 @@ from bridgit_nn import BridgitNN
 
 def main(argv):
 
+    SINGLE_WORKER = False #set True for debugging, but use False for normal production training
+
     # Identify our custom NN model
     ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
     print("///// ModelCatalog registered.")
@@ -27,7 +29,10 @@ def main(argv):
     # cfg.rollouts sections below.
     t = datetime.now()
     DATA_PATH = "/home/starkj/ray_results/cda1/{:4d}{:02d}{:02d}-{:02d}{:02d}".format(t.year, t.month, t.day, t.hour, t.minute)
-    ray.init(storage = DATA_PATH) #, num_cpus = 1, num_gpus = 0)
+    if SINGLE_WORKER:
+        ray.init(storage = DATA_PATH, num_cpus = 1, num_gpus = 1)
+    else:
+        ray.init(storage = DATA_PATH)
 
     # Define which learning algorithm we will use and set up is default config params
     algo = "SAC"
@@ -48,7 +53,7 @@ def main(argv):
     env_config["valid_targets"]                 = "all"
     env_config["randomize_targets"]             = True
     env_config["crash_report"]                  = False
-    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_ego_training.yaml"
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_4n.yaml" #ego_training.yaml"
     env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode
@@ -79,18 +84,19 @@ def main(argv):
     #       if gpu is to be used for local workder only, then the number of gpus available need to be divided among the
     #       number of possible simultaneous trials (as well as gpu memory).
 
-    cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
-                    num_cpus_for_local_worker   = 4,
-                    num_cpus_per_worker         = 2,   #also applies to the evaluation workers
-                    num_gpus_per_worker         = 0.1, #this has to allow gpu left over for local worker & evaluation workers also
-    )
+    if not SINGLE_WORKER:
+        cfg.resources(  num_gpus                    = 0.5, #for the local worker, which does the learning & evaluation runs
+                        num_cpus_for_local_worker   = 4,
+                        num_cpus_per_worker         = 2,   #also applies to the evaluation workers
+                        num_gpus_per_worker         = 0.1, #this has to allow gpu left over for local worker & evaluation workers also
+        )
 
-    cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
-                                                     # 0 forces rollouts to be done by local worker
-                    num_envs_per_worker         = 8,
-                    rollout_fragment_length     = 32, #timesteps pulled from a sampler
-                    #batch_mode                  = "complete_episodes",
-    )
+        cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
+                                                        # 0 forces rollouts to be done by local worker
+                        num_envs_per_worker         = 8,
+                        rollout_fragment_length     = 32, #timesteps pulled from a sampler
+                        #batch_mode                  = "complete_episodes",
+        )
 
     cfg.fault_tolerance(
                     recreate_failed_workers     = True,
