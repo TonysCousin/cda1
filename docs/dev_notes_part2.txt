@@ -824,16 +824,43 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
   wonder if there are too many neighbor vehicles that prevent it from taking big actions, for
   fear of inducing a crash.
 
-* Run C39 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+* Run C39 training single BridgitNN agent from scratch, with SAC over 30k iters using 4 bots on
   roadways C & D.
 	* Changed the vehicles config file to only include the ego and 4 bots.
 	* Tweaked reward for LC des to apply a bonus if des (which is desirability^2) > 0.04,
 	  where it was previously > 0.2.
 	* Checkpoints stored in 20240206-2025.
+	* Training completed with similar reward/ep len profile as before, but rmean got a
+	  little higher for a little longer, around 26k iters, reached -0.3 for some time.
+	* Inference on checkpoint 26000 shows desire to drive a little faster (~24 m/s), but
+	  still no lane changes.
+
+2/7/24
+
+* Run C40
+	* Replaced vehicle config file with the 1n file so it is training with only a single
+	  neighbor vehicle.
+	* Checkpoints stored 20240207-1100.
+	* Training completed. Reward picture was somewhat better, with rmin ~-4 and rmean
+	  ~-0.3 and normally mean ep len = 100 for the last 15k iters.
+	* Inference on checkpoint 30000: speeds are definitely higher here, up to 27 m/s, but
+	  still won't match the highest speed limits. And still no lane changes. Note that
+	  there is no penalty for abrupt speed changes, but it does seem reluctant to change
+	  when the speed limit hits a step change.
+
+* Run C41
+	* Back to using the full 16 bot vehicle config, since that clearly isn't the only
+	  thing preventing the agent from driving at full speeds.
+	* Changed BridgitNN to use leaky_relu as the activation for all except layer 4,
+	  which still uses tanh, since its output must be constrained to [-1, 1].
 
 NEXT:
-- play with noise level
+- add evaulation steps to the training loop
+- try relu
+- play with noise level, esp entropy coefficient
 - play with LR
+- try smaller batch size to get more variation between batches
+- try initializing key weights to large values
 
 
 

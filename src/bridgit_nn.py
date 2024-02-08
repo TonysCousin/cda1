@@ -132,29 +132,29 @@ class BridgitNN(TorchModelV2, nn.Module):
 
         # Pull out the macro observations, according to the ObsVec descriptions and compute its first linear layer
         macro = x[:, 0 : ObsVec.BASE_SENSOR_DATA]
-        mo = F.tanh(self.fc1(macro))
+        mo = F.leaky_relu(self.fc1(macro))
         #print("    Macro first layer complete: mo is {}, x is {}".format(mo.shape, x.shape))
 
         # Pull out the pavement sensor data and compute its embedding
         pavement = x[:, ObsVec.BASE_SENSOR_DATA : ObsVec.BASE_SENSOR_DATA + self.PAVEMENT_DATA_SIZE]
         po = None
         with torch.no_grad():
-            po = F.tanh(self.pavement_encoder(pavement))
+            po = F.leaky_relu(self.pavement_encoder(pavement))
 
         # Pull out the vehicles sensor data and compute its embedding
         vehicles = x[:, ObsVec.BASE_OCCUPANCY : ObsVec.BASE_OCCUPANCY + self.VEHICLES_DATA_SIZE]
         vo = None
         with torch.no_grad():
-            vo = F.tanh(self.vehicles_encoder(vehicles))
+            vo = F.leaky_relu(self.vehicles_encoder(vehicles))
 
         # Assemble the first full layer input, which is an aggregate of the macro plus the two sensor embeddings outputs
         l1_out = torch.cat((mo, po, vo), dim = 1)
         x = self.dropout(l1_out)
 
         # Compute the remaining layers of the common network, bringing all of these parts together
-        x = F.tanh(self.fc2(x))
+        x = F.leaky_relu(self.fc2(x))
         x = self.dropout(x)
-        x = F.tanh(self.fc3(x))
+        x = F.leaky_relu(self.fc3(x))
         x = self.dropout(x)
         x = F.tanh(self.fc4(x))
 

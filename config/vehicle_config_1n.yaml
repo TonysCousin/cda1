@@ -1,0 +1,19 @@
+# Provides definitions for all vehicles to be used in the scenario
+title:            "Training ego with 0 neighbors"
+vehicles:
+
+  - id:           0 ########################## always the ego vehicle
+    model:        BridgitModel
+    guidance:     BridgitGuidance
+    max_jerk:     4.0     #m/s^3
+    max_accel:    3.0     #m/s^2
+    length:       5.0     #m
+    lc_duration:  3.2     #sec #needs to be an even multiple of time step 0.2 sec
+
+  - id:           1 ##########################
+    model:        BotType1Model
+    guidance:     BotType1bGuidance
+    max_jerk:     4.0     #m/s^3
+    max_accel:    4.0     #m/s^2
+    length:       5.0     #m
+    lc_duration:  2.4     #sec
