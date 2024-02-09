@@ -837,7 +837,8 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 2/7/24
 
-* Run C40
+* Run C40 training single BridgitNN agent from scratch, with SAC over 30k iters using 1 bot on
+  roadways C & D.
 	* Replaced vehicle config file with the 1n file so it is training with only a single
 	  neighbor vehicle.
 	* Checkpoints stored 20240207-1100.
@@ -848,15 +849,52 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  there is no penalty for abrupt speed changes, but it does seem reluctant to change
 	  when the speed limit hits a step change.
 
-* Run C41
+* Run C41 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
 	* Back to using the full 16 bot vehicle config, since that clearly isn't the only
 	  thing preventing the agent from driving at full speeds.
 	* Changed BridgitNN to use leaky_relu as the activation for all except layer 4,
 	  which still uses tanh, since its output must be constrained to [-1, 1].
+	* Checkpoints stored at 20240207-2149.
+	* Training completed in 9.9 hr. Mean ep len reached 98 by 9k iters and stayed there
+	  (often hitting 100) for the remainder. rmax ~1.4, rmean ended ~-1.5, but held
+	  ~-0.7 for several hundred iters around 12k. At this point, rmin peaked ~-4 also.
+	* Inference on checkpoint 12000: agent rear-ended a bot with 1.5 m/s speed diff in
+	  same lane. No lane changes, and speeds are steady & slow (~22 m/s).
+	* Ego was rear-ended by bot 5, with a speed diff of only 1.9 (bot was coming from
+	  adjacent lane with no other bots in its forward view).
+
+2/8/24
+
+* Run C42 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed all 3 LRs from 1e-5 to 1e-4.
+	* Changed replay buffer capacity from 100k to 1M.
+	* Checkpoints stored in 20240208-1007.
+	* Training completed. Mean ep len only maxed out at 98, but mostly stayed ~95, dropping
+	  into the 70s near the end. rmax stayed ~1.6, and rmin ~-3. rmean peaked slowly ~+0.2
+	  around 19k iters (stayed there for quite a while). Total time 10.4 hr.
+	* Inference on checkpoint 19000: lane 4 start on roadway C shows rapid LC between 4 & 5
+	  repeatedly, and each time it gets a new speed limit, the speed commands swing from one
+	  extreme to the other in attempt to accelerate as rapidly as possible to the new desired
+	  speed. Other lane starts acted similarly. On one it drove off the side of the road, too
+	  eager to change lanes as often as possible. The LC frequency penalties were at most
+	  equal to the speed penalties being levied every time step, so not really noticeable.
+
+* Run C43 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed all LRs from 1e-4 to 7e-5.
+	* Changed batch size from 1024 to 256 to capture more variance between batches; adjusted
+	  rollout_fragment_length from 32 to 8 accordingly.
+	* Slightly reduced the speed deviation penalty multiplier from 0.5 to 0.4 so it will
+	  relax a little.
+	* Increased penalty multiplier for LC frequency from 0.0002 to 0.0004.
+	* Reduced LC desirability bonus by 0.3 if it is not choosing the best lane.
+	* Checkpoints written to 20240208-2254.
+
 
 NEXT:
 - add evaulation steps to the training loop
-- try relu
 - play with noise level, esp entropy coefficient
 - play with LR
 - try smaller batch size to get more variation between batches

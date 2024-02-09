@@ -2,7 +2,7 @@ import sys
 from time import perf_counter as pc
 from datetime import datetime
 import ray
-import torch
+from ray import train
 from torch.utils.tensorboard import SummaryWriter
 from ray.tune.logger import pretty_print
 import ray.rllib.algorithms.sac as sac
@@ -76,6 +76,15 @@ def main(argv):
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
 
+    """ TODO: turn this on if we go back to Tuner
+    cfg.evaluation( evaluation_duration         = 10,   #num episodes
+                    evaluation_duration_unit    = "episodes",
+                    evaluation_interval         = 100,  #num iterations between evals
+                    evaluation_parallel_to_training = True,
+                    evaluation_num_workers      = 2,
+    )
+    """
+
     # Computing resources - Ray allocates 1 cpu per rollout worker and one cpu per env (2 cpus) per trial.
     # The number of workers does not equal the number of trials.
     # NOTE: if num_gpus = 0 then policies will always be built/evaluated on cpu, even if gpus are specified for workers;
@@ -94,7 +103,7 @@ def main(argv):
         cfg.rollouts(   num_rollout_workers         = 4, #num remote workers _per trial_ (remember that there is a local worker also)
                                                         # 0 forces rollouts to be done by local worker
                         num_envs_per_worker         = 8,
-                        rollout_fragment_length     = 32, #timesteps pulled from a sampler
+                        rollout_fragment_length     = 8, #timesteps pulled from a sampler
                         #batch_mode                  = "complete_episodes",
         )
 
@@ -115,9 +124,9 @@ def main(argv):
 
     # ===== Training algorithm HPs for SAC ==================================================
     opt_config = cfg_dict["optimization"]
-    opt_config["actor_learning_rate"]           = 1e-5
-    opt_config["critic_learning_rate"]          = 1e-5
-    opt_config["entropy_learning_rate"]         = 1e-5
+    opt_config["actor_learning_rate"]           = 7e-5
+    opt_config["critic_learning_rate"]          = 7e-7
+    opt_config["entropy_learning_rate"]         = 7e-7
 
     policy_config = cfg_dict["policy_model_config"]
     policy_config["custom_model"]               = "bridgit_policy_model"
@@ -128,12 +137,12 @@ def main(argv):
 
     replay_config = cfg_dict["replay_buffer_config"]
     replay_config["type"]                       = "MultiAgentPrioritizedReplayBuffer"
-    replay_config["capacity"]                   = 100_000 #1M seems to be the max allowable
+    replay_config["capacity"]                   = 1_000_000 #1M seems to be the max allowable
     replay_config["prioritized_replay"]         = True
 
     cfg.training(   twin_q                      = True,
                     gamma                       = 0.995,
-                    train_batch_size            = 1024, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
+                    train_batch_size            = 256, #must be an int multiple of rollout_fragment_length * num_rollout_workers * num_envs_per_worker
                     initial_alpha               = 0.2, #tune.choice([0.002, 0.2]),
                     tau                         = 0.005,
                     n_step                      = 1, #tune.choice([1, 2, 3]),
@@ -177,14 +186,18 @@ def main(argv):
         #    print("Sample of results from train() call:\n", pretty_print(result))
 
         # Write data to Tensorboard
+        #train.report(result)
         rmin = result["episode_reward_min"]
         rmean = result["episode_reward_mean"]
         rmax = result["episode_reward_max"]
+        #ermean = result["evaluation_reward_mean"]
+        """
         tensorboard.add_scalar("num_agent_steps_trained", result["num_agent_steps_trained"])
         tensorboard.add_scalar("timesteps_total", result["timesteps_total"])
         tensorboard.add_scalar("episode_reward_mean", rmean)
         tensorboard.add_scalar("episode_reward_min", rmin)
         tensorboard.add_scalar("episode_reward_max", rmax)
+        """
 
         # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
         if iter % chkpt_int == 0:

@@ -1358,21 +1358,27 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
-                des = des * des
+                des2 = des * des
 
                 # If desirability is modestly high then
-                if des > 0.04: #because of the squaring above, this corresponds to desirability of 0.2
+                if des > 0.2:
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = lc_des_mult*(math.pow(des+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    bonus = lc_des_mult*(math.pow(des2+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+
+                    # If the command is anything other than the best available choice, then reduce the bonus. Also reduce the
+                    # desirability constant that is used for computing bonuses while LC is underway.
+                    if des < des_max:
+                        bonus *= 0.3
+                        des2 *= 0.3
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
                     bonus = -lc_des_mult*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
-                self.reward_lc_underway_des = des
+                self.reward_lc_underway_des = des2
 
             # Else, a LC maneuver is in progress, so hand out the reward based on the desirability of entering this maneuver
             else:
@@ -1383,12 +1389,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.0002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
+                penalty = 0.0004*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.5
+            speed_mult = 0.4
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
