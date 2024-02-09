@@ -1354,31 +1354,29 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             lc_des_mult = 0.004
             bonus = 0.0
 
-            # If a lane change is not currently underway, or just begun, give a bonus for lateral control decision proportional to the
-            # desirability of that decision. With perfect control it will earn +1 point over the course of a 100-step training trajectory.
+            # If a lane change is not currently underway, or just begun, give a bonus for lateral control decision based on the
+            # relative value of the choices available. With perfect control it will earn +1 point over the course of a 100-step
+            # training trajectory. Basing the bonus on simply whether the choice is the best of the available choices gives a
+            # consistent bonus, regardless of where the vehicle is on the track and the exact desirability value at that point.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
-                des2 = des * des
+                choice_score = 1.0
+                if des < des_max:
+                    choice_score = 0.3
 
                 # If desirability is modestly high then
                 if des > 0.2:
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = lc_des_mult*(math.pow(des2+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
-
-                    # If the command is anything other than the best available choice, then reduce the bonus. Also reduce the
-                    # desirability constant that is used for computing bonuses while LC is underway.
-                    if des < des_max:
-                        bonus *= 0.3
-                        des2 *= 0.3
+                    bonus = lc_des_mult*(math.pow(choice_score+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
                     bonus = -lc_des_mult*(math.pow(2, (self.steps_since_reset + 50.0)/50.0) - 1.0)
 
                 # Store this for doling out in future time steps as a LC maneuver progresses.
-                self.reward_lc_underway_des = des2
+                self.reward_lc_underway_des = choice_score
 
             # Else, a LC maneuver is in progress, so hand out the reward based on the desirability of entering this maneuver
             else:

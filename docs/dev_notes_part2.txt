@@ -891,6 +891,25 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Increased penalty multiplier for LC frequency from 0.0002 to 0.0004.
 	* Reduced LC desirability bonus by 0.3 if it is not choosing the best lane.
 	* Checkpoints written to 20240208-2254.
+	* Training completed in 9.2 hr. Mean ep len ~98, but never hit 100. rmax ~1.6, rmean
+	  very slowly leveled out ~-1.1, and rmin ~-5.
+	* Inference on checkpoint 30000: no lane changes, but new LC des rewards seem to be
+	  working as intended. Speed control is not very good either - unresponsive. Playing
+	  with injecting LC commands, I see rewards aren't always proportional to the best choice
+	  available. When all 3 desirabilities are low (tgt is several lanes over), then rewards
+	  are small, even though it is doing the best choice available (a single LC).
+	* Realized there was a typo in 2 of the LRs, where they were e-7 instead of e-5!
+
+2/9/24
+
+* Run C44 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Changed LC desirability reward to be based only on the relative desirabilities of each
+	  of the lanes available, rather than on the desirability value itself, so rewards now
+	  grow consistently, independent of where we are on the track or where the target is, if
+	  it is not in an immediately available lane.
+	* Fixed the two erroneous LRs, so all 3 are now 7e-5.
+	* Checkpoint stored in 20240209-1247.
 
 
 NEXT:
