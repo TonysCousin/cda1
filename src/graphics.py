@@ -60,13 +60,8 @@ class Graphics:
     INPUT_DIALOG_WIDTH      = 300
     INPUT_DIALOG_HEIGHT     = 50
     INPUT_DIALOG_CORNER     = ((WINDOW_SIZE_R - INPUT_DIALOG_WIDTH)//2, WINDOW_SIZE_S//2)
-
-    # Background images:
-    #   r0, r1 - initial attempts
-    #   r2 - removed target indicators (they can now be dynamically assigned); requires +3 pix vert shift
-    #   r3 - includes extended lane 0 & 4 exit ramps;
-    BACKGROUND_IMAGE        = "/cda1_background_r3.bmp"
-    BACKGROUND_VERT_SHIFT   = -1 #num pixels it is shifted upward from where the plotting thinks it is
+    LEGEND_CORNER_R         = 0
+    LEGEND_CORNER_S         = WINDOW_SIZE_S - 3*LARGE_FONT_SIZE
 
     # Geometry of data plots
     PLOT_H          = 80        #height of each plot, pixels
@@ -114,32 +109,7 @@ class Graphics:
         self.window_surface.blit(self.background_image, (0, 0))
 
         # Display the window legend & other footer text
-        self._write_legend(0, Graphics.WINDOW_SIZE_S)
-
-        """
-        # If we're only doing a background display, then
-        if background_only:
-
-            # Loop through the lane segments and draw the left and right edge lines of each
-            for lane in env.roadway.lanes:
-                for seg in lane.segments:
-                    self._draw_segment(seg[0], seg[1], seg[2], seg[3], Graphics.LANE_WIDTH)
-
-            # Display the window legend & other footer text
-            self._write_legend(0, Graphics.WINDOW_SIZE_S)
-
-            # Display the results and exit with a warning
-            pygame.display.update()
-            print("\n///// WARNING: Background construction only!  Vehicles have not been initialized. NOT FOR OPERATIONAL USE!\n")
-            return
-
-        # Else, setting up an operational run
-        else:
-
-            # Load the canned background image that shows the track, empty data plots and legend info
-            self.background_image = pygame.image.load(Graphics.IMAGE_PATH + Graphics.BACKGROUND_IMAGE).convert_alpha()
-            self.window_surface.blit(self.background_image, (0, 0))
-        """
+        self._write_legend(Graphics.LEGEND_CORNER_R, Graphics.LEGEND_CORNER_S)
 
         # Initialize images - use convert_alpha to enable the transparent areas of the bitmaps
         self.crash_image = pygame.image.load(Graphics.IMAGE_PATH +              "/crash16.bmp").convert_alpha()
@@ -156,7 +126,7 @@ class Graphics:
         # because the image display is keyed to the upper-left corner of the image. Assumes all vehicle images are the same size.
         image_rect = list(self.vehicle_ego_image.get_rect())
         self.veh_image_r_offset = (image_rect[2] - image_rect[0])//2
-        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2 + Graphics.BACKGROUND_VERT_SHIFT
+        self.veh_image_s_offset = (image_rect[3] - image_rect[1])//2
 
         # Display the training targets (primary) and bot targets (secondary)
         self._display_targets()
@@ -199,13 +169,11 @@ class Graphics:
         self.plot_speed.add_reference_line(Graphics.HIGH_SPEED, Graphics.REFERENCE_COLOR)
 
         # Plot the lane ID of the ego vehicle
-        self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, 5, \
+        num_lanes = self.env.roadway.NUM_LANES
+        self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, num_lanes-1, \
                                 max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
-        self.plot_lane.add_reference_line(1, Graphics.REFERENCE_COLOR)
-        self.plot_lane.add_reference_line(2, Graphics.REFERENCE_COLOR)
-        self.plot_lane.add_reference_line(3, Graphics.REFERENCE_COLOR)
-        self.plot_lane.add_reference_line(4, Graphics.REFERENCE_COLOR)
-        self.plot_lane.add_reference_line(5, Graphics.REFERENCE_COLOR)
+        for i in range(1, num_lanes):
+            self.plot_lane.add_reference_line(i, Graphics.REFERENCE_COLOR)
 
 
     def update(self,
@@ -275,7 +243,7 @@ class Graphics:
         if self.env.scenario >= 90:
             pv = 1
         self.plot_speed.update(vehicles[pv].cur_speed)
-        self.plot_lane.update(5 - vehicles[pv].lane_id)
+        self.plot_lane.update(self.env.roadway.NUM_LANES - 1 - vehicles[pv].lane_id)
 
         # Repaint the surface
         pygame.display.update()
@@ -531,10 +499,25 @@ class Graphics:
                      ):
         """Creates the legend display for all the info in the window."""
 
-        # Create the text on a separate surface and copy it to the display surface
-        title = "SPACE = Start/Pause/Resume,  ESC = Exit"
-        width = len(title) * Graphics.AVG_PIX_PER_CHAR_LARGE
-        text = self.basic_font.render(title, True, Graphics.LEGEND_COLOR, Graphics.BACKGROUND_COLOR)
+        # Set the vertical spacing between adjacent lines of text.
+        spacing = int(1.5*Graphics.LARGE_FONT_SIZE)
+
+        # Roadway ID on first line
+        self._display_text_line(r, s, "Roadway: {}".format(self.env.roadway.name))
+
+        # Keyboard instructions on next line
+        self._display_text_line(r, s + spacing, "SPACE = Start/Pause/Resume,  ESC = Exit,  H = Hand enter commands")
+
+
+    def _display_text_line(self,
+                           r    : int,      #R coordinate of upper-left corner of the text
+                           s    : int,      #S coordinate of the upper-left corner of the text
+                           line : str,      #Line of text to be displayed
+                          ):
+        """Displays a line of text on the main background window in the legend color."""
+
+        width = len(line) * Graphics.AVG_PIX_PER_CHAR_LARGE
+        text = self.basic_font.render(line, True, Graphics.LEGEND_COLOR, Graphics.BACKGROUND_COLOR)
         text_rect = text.get_rect()
         text_rect.center = (r + width//2, s - Graphics.LARGE_FONT_SIZE)
         self.window_surface.blit(text, text_rect)
@@ -572,7 +555,7 @@ class Plot:
 
         self.surface = surface
         self.cr = corner_r
-        self.cs = corner_s - Graphics.BACKGROUND_VERT_SHIFT
+        self.cs = corner_s
         self.height = height
         self.width = width
         self.min_y = min_y

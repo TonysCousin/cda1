@@ -910,7 +910,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  it is not in an immediately available lane.
 	* Fixed the two erroneous LRs, so all 3 are now 7e-5.
 	* Checkpoint stored in 20240209-1247.
-	* Training completed in ? hr. Performed much better than previous. Mean ep len never
+	* Training completed in 9.4 hr. Performed much better than previous. Mean ep len never
 	  reached 100, but stayed in mid-90s the whole time. rmax ~1.7 consistently. rmean
 	  gradually increaased to as high as 0.97, but mostly hovered ~0.8. rmin touched -1
 	  a couple times, but mostly ~-3.
@@ -928,6 +928,10 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Reintroduced the speed variance penalty with multiplier of 0.005 so that it will
 	  start out with a minor impact.
 	* Checkpoints stored in 20240209-2225.
+	* Run died after 18200 iters. At that point, we had mean ep len ~94, rmax 1.6, rmean
+	  ~0.3, rmin ~-3. Apparently, checkpoint 18000 included replay buffer content with 0
+	  priorities, so can't be used. Restarted from checkpoint 17000.
+		* Continuing checkpoints are stored in 20240210-0855.
 
 
 
@@ -939,8 +943,6 @@ TODO:
 - reconsider turning noise off
 
 - Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
-- consider adding logic to abort a LC mvr.
-- make bots aware of vehicles in adjacent lane before initiating a LC mvr (esp at way different speeds).
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
@@ -958,10 +960,10 @@ TODO:
 - Refactor the vehicle configs to specify each vehicle type and the number of them.
 - Try initializing NN weights for layer 1 where the most important inputs are to large values.
 
+- Fix graphic defect in legend alignment
 - Update plot for lane ID to show all lanes for roadway D
 - update readme to reflect the multiple tracks
 - Review TODOs in graphics.py
-- graphics display the name of the roadway
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Investigate target markers initially having white border, then losing it after a car passes through.
