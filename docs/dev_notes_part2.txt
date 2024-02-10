@@ -910,14 +910,26 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  it is not in an immediately available lane.
 	* Fixed the two erroneous LRs, so all 3 are now 7e-5.
 	* Checkpoint stored in 20240209-1247.
+	* Training completed in ? hr. Performed much better than previous. Mean ep len never
+	  reached 100, but stayed in mid-90s the whole time. rmax ~1.7 consistently. rmean
+	  gradually increaased to as high as 0.97, but mostly hovered ~0.8. rmin touched -1
+	  a couple times, but mostly ~-3.
+	* Inference on checkpoint 29000: lane changes do quite well, even multiple back-to-back
+	  to reach a target lane. I saw one extraneous LC, but it was immediately corrected.
+	  Speed control needs work. It's not bad in the mid range, but can't reach the 33.5
+	  speed limit, although in other times it readily commands speeds of 35+ in order to
+	  accelerate rapidly. speed cmds tend to fluctuate greatly. It does well at avoiding a
+	  rear-end collision.
+
+* Run C45 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Increased LC frequency penalty multiplier from 0.0004 to 0.0005.
+	* Increased speed deviation penalty multiplier from 0.4 to 0.5.
+	* Reintroduced the speed variance penalty with multiplier of 0.005 so that it will
+	  start out with a minor impact.
+	* Checkpoints stored in 20240209-2225.
 
 
-NEXT:
-- add evaulation steps to the training loop
-- play with noise level, esp entropy coefficient
-- play with LR
-- try smaller batch size to get more variation between batches
-- try initializing key weights to large values
 
 
 

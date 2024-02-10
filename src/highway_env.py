@@ -1387,12 +1387,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.0004*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
+                penalty = 0.0005*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.002
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.4
+            speed_mult = 0.5
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]
@@ -1406,13 +1406,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             reward -= penalty
 
             # Penalty for widely varying speed commands
-            """
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.2 * cmd_diff
+            penalty = 0.005 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var {:.4f}. ".format(-penalty)
-            """
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"
