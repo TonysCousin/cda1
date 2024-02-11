@@ -1369,7 +1369,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
-                    bonus = lc_des_mult*(math.pow(choice_score+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    #bonus = lc_des_mult*(math.pow(choice_score+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
+                    bonus = 0.01 #TODO: update this block if this is a keeper
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
@@ -1400,14 +1401,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if fwd_vehicle_speed >= speed_limit  or  cur_speed < 0.9*fwd_vehicle_speed:
                 norm_speed = cur_speed / speed_limit #1.0 = speed limit
                 diff = abs(norm_speed - 1.0)
-                if diff > 0.02:
-                    penalty = speed_mult * diff*diff
+                penalty = speed_mult * diff*diff
+                if penalty >= 0.0001:
                     explanation += "spd {:.4f}. ".format(-penalty)
             reward -= penalty
 
             # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.005 * cmd_diff
+            penalty = 0.01 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var {:.4f}. ".format(-penalty)

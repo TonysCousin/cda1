@@ -932,6 +932,28 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  ~0.3, rmin ~-3. Apparently, checkpoint 18000 included replay buffer content with 0
 	  priorities, so can't be used. Restarted from checkpoint 17000.
 		* Continuing checkpoints are stored in 20240210-0855.
+	* Training completed in 9.4 hr. Mean ep len was in high 90s early, but gradually
+	  diminished o mid-80s by the end. rmax ~1.7 pretty consistently. rmin stayed ~-3 with
+	  occasional excursions to -1. rmean consistently in [0.4, 0.7] after 10k iters.
+	* Inference on checkpoint 10000: lots of extraneous LCs, but hit target. Speed are a
+	  little noisy, but follow speed limits well. Penalties for speed cmd variation are
+	  small & need to be ~4x larger to be noticed. Start in lane 5 with tgt in lane 0 it
+	  quickly moved over to 0 and stayed there! It consistently hits the targets.
+	* Inference on checkpoint 30000: a little more focus on correct lane choice, but still
+	  sometimes moves around too much. Speeds are more consistent, but a ~2 m/s off the
+	  target speed. It appears that speed deviation penalties (and others) are getting
+	  swamped by the LC desirability reward after 30-40 steps since LC des reward is
+	  growing and the others are not. This seems to be contributing to a bit of a noisy
+	  speed profile. This checkpoint definitely performs better than the 10000 one.
+
+2/11/24
+
+* Run C46
+	* Tweaked speed reward to not have a dead zone, which should help determine gradients.
+	* Increased penalty multiplier for speed variation from 0.005 to 0.01.
+	* Changed LC desirability bonus from exponential growth to straight value to try to
+	  better balance it with other rewards. Left the poor choice penalty to grow, however.
+	* Checkpoints stored at 20240211-1257.
 
 
 
@@ -961,7 +983,7 @@ TODO:
 - Try initializing NN weights for layer 1 where the most important inputs are to large values.
 
 - Fix graphic defect in legend alignment
-- Update plot for lane ID to show all lanes for roadway D
+- Show speed limit on speed plot
 - update readme to reflect the multiple tracks
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion

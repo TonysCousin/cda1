@@ -90,6 +90,8 @@ class BotType1Model(VehicleModel):
                 if fwd_dist > 0.0  and  fwd_dist < closest_dist:
                     closest_dist = fwd_dist
                     closest_id = i
+                    #if i == 0  and  fwd_dist < 100.0:
+                    #    print("*     bot {} model in lane {}: fwd dist to ego in lane {} is {:.1f}.".format(my_id, me.lane_id, v.lane_id, fwd_dist))
         #print("///// BotType1Model.get_obs_vector: closest neighbor ID = {}, dist = {}".format(closest_id, closest_dist))
 
         # Build the downtrack portions of the obs vector
