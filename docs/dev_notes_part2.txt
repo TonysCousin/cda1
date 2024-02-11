@@ -948,12 +948,21 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 2/11/24
 
-* Run C46
+* Run C46 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
 	* Tweaked speed reward to not have a dead zone, which should help determine gradients.
 	* Increased penalty multiplier for speed variation from 0.005 to 0.01.
 	* Changed LC desirability bonus from exponential growth to straight value to try to
 	  better balance it with other rewards. Left the poor choice penalty to grow, however.
 	* Checkpoints stored at 20240211-1257.
+	* Killed after 8k iters becasue I forgot to change one of the rewards.
+
+* Run C47 training single BridgitNN agent from run C46, checkpoint 08000, with SAC over 30k
+  iters using 16 bots on roadways C & D.
+	* Increased the penalty for lane change initiation, both multiplier & additive constant
+	  to help dissuade extraneous maneuvers. Max penalty will now be -0.0600.
+	* Continued from previous run.
+	* Checkpoints stored at 20240211-1525.
 
 
 
