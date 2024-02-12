@@ -53,7 +53,7 @@ def main(argv):
     env_config["valid_targets"]                 = "all"
     env_config["randomize_targets"]             = True
     env_config["crash_report"]                  = False
-    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_ego_training.yaml"
+    env_config["vehicle_file"]                  = "/home/starkj/projects/cda1/config/vehicle_config_multi.yaml"
     env_config["verify_obs"]                    = False
     env_config["training"]                      = True
     env_config["ignore_neighbor_crashes"]       = True  #if true, a crash between two neighbor vehicles won't stop the episode

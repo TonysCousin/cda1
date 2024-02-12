@@ -963,6 +963,9 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  to help dissuade extraneous maneuvers. Max penalty will now be -0.0600.
 	* Continued from previous run.
 	* Checkpoints stored at 20240211-1525.
+	* Inference on checkpoint 29000: Found that there was a defect in the LC desirability
+	  reward calcs. I still see some noise in the speed profile, although it follows
+	  speed limit pretty well. Still too many extraneous lane changes happening.
 
 2/12/24
 
@@ -970,6 +973,32 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
   specifies each vehicle type (and its attributes) and the max number of them to be used. The
   reset() method then chooses which of these to use in each scenario, randomizing the selection
   so that the same types of vehicles aren't always positioned closest or farthest from ego.
+
+* Run C48 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Fixed LC desirability reward defect.
+	* Increased multiplier for LC frequency penalty from 0.001 to 0.002.
+	* Increased multiplier for speed cmd variance from 0.01 to 0.02.
+	* Checkpoints stored at 20240212-0118.
+	* Training completed. Mean ep len peaked in low 90s. rmax ~1.4, rmean ~0.4, rmin ~-3
+	  with some excursions up to -1. All reward metrics seem to be slowly increasing at the
+	  end, indicating further training may be useful.
+	* Inference on checkpoint 30000: speed plot it still noisy, with commands moving quite a
+	  bit. Some extraneous LCs, but not many. One run slowly crept up on a slow bot and rear
+	  ended it, seemingly due to over-controlling the speed. Still seem to be getting speed
+	  penalties when following a slow bot, which should not happen. On one start it immediately
+	  drove into the grass; this was where initial speed and speed limit were way different,
+	  and it seemed to over-react by setting both commands to near 1 for a quick adjustment.
+	* Overall, this is pretty good!
+
+* Run C49 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways C & D.
+	* Enhanced get_fwd_vehicle_speed() to look at all sensor zones forward of the ego vehicle
+	  instead of just the nearest 6 zones.
+	* Increased penalty for speed variation multiplier from 0.02 to 0.05.
+	* Increased lane change penalty contant term from 0.005 to 0.01 and multiplier decreased
+	  from 0.002 to 0.001.
+	* Checkpoints stored in 20240212-1446.
 
 
 

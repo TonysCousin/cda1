@@ -1347,9 +1347,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # consistent bonus, regardless of where the vehicle is on the track and the exact desirability value at that point.
             if self.vehicles[0].lane_change_count <= 1:
                 des = lc_desired[lc_cmd+1] #always in [0, 1]
-                choice_score = 1.0
+                choice_score = 0.01
                 if des < des_max:
-                    choice_score = 0.3
+                    choice_score = 0.0
 
                 # If desirability is modestly high then
                 if des > 0.2:
@@ -1357,7 +1357,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     # Bonus increases exponentially to keep agent interested after lots of similar time steps.
                     # For 100 steps, gives Rtot = 1.01 if des = 1, 0 if des = 0
                     #bonus = lc_des_mult*(math.pow(choice_score+1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
-                    bonus = choice_score #TODO: update this block if this is a keeper
+                    bonus = choice_score #TODO: update this block if this is a keeper - needs some cleaning up!
 
                 # Else, this is a terrible lane to be in, give a penalty that gets exponentially larger with time.
                 else:
@@ -1369,14 +1369,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Else, a LC maneuver is in progress, so hand out the reward based on the desirability of entering this maneuver
             else:
                 #bonus = lc_des_mult*(math.pow(self.reward_lc_underway_des + 1.0, (self.steps_since_reset + 50.0)/50.0) - 1.0)
-                bonus = choice_score
+                bonus = self.reward_lc_underway_des
 
             explanation += "LC des {:.4f} ({:.2f} {:.2f} {:.2f}). ".format(bonus, lc_desired[0], lc_desired[1], lc_desired[2])
             reward += bonus
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.005
+                penalty = 0.001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.01
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
@@ -1396,7 +1396,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.01 * cmd_diff
+            penalty = 0.05 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var {:.4f}. ".format(-penalty)
@@ -1417,7 +1417,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         fwd_speed = Constants.MAX_SPEED
 
         # Loop through obs zones forward of the ego vehicle to find the first one occupied and get its speed
-        for z in range(6):
+        for z in range(ObsVec.ZONES_FORWARD):
             z_idx = 2*ObsVec.NUM_ROWS + ObsVec.ZONES_BEHIND + 1 + z
             occupied = self.all_obs[0, ObsVec.BASE_OCCUPANCY + z_idx]
             if occupied > 0.5:

@@ -123,7 +123,7 @@ class ObsVec:
     # More elements specific to the Bridgit vehicle:
     # This section represents sensor zones surrounding the host vehicle. Each zone (a physical region in space)
     # has 4 sensor values. However, for efficient processing, each sensor data type is stored in a contiguous
-    # rregion that covers all zones. This region is referred to as a layer (like layers of pixels in an image).
+    # region that covers all zones. This region is referred to as a layer (like layers of pixels in an image).
     # So there are 4 layers stored end-to-end. Each layer is stored by column, left-to-right, across the sensor
     # grid. Each column is represented from rear to front.
 
@@ -143,8 +143,6 @@ class ObsVec:
 
     # Size references for the number of elements in certain groupings defined in this file.
     # CAUTION! these need to be maintained in sync with any changes to the index structures elsewhere in this file.
-    NUM_COMMON_ELEMENTS =  8
-    NUM_BOT_ELEMENTS    =  5
     NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FUTURE1
 
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector

@@ -38,4 +38,4 @@ vehicle_types:
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
     lc_duration:  2.4     #sec
-    count:        11
+    count:        12
