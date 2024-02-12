@@ -61,7 +61,7 @@ class Graphics:
     INPUT_DIALOG_HEIGHT     = 50
     INPUT_DIALOG_CORNER     = ((WINDOW_SIZE_R - INPUT_DIALOG_WIDTH)//2, WINDOW_SIZE_S//2)
     LEGEND_CORNER_R         = 0
-    LEGEND_CORNER_S         = WINDOW_SIZE_S - 3*LARGE_FONT_SIZE
+    LEGEND_CORNER_S         = WINDOW_SIZE_S - 5*LARGE_FONT_SIZE
 
     # Geometry of data plots
     PLOT_H          = 80        #height of each plot, pixels
@@ -505,8 +505,11 @@ class Graphics:
         # Roadway ID on first line
         self._display_text_line(r, s, "Roadway: {}".format(self.env.roadway.name))
 
+        # Vehicle config on next line
+        self._display_text_line(r, s + spacing, "Vehicle configuration: {}".format(self.env.vehicle_config_title))
+
         # Keyboard instructions on next line
-        self._display_text_line(r, s + spacing, "SPACE = Start/Pause/Resume,  ESC = Exit,  H = Hand enter commands")
+        self._display_text_line(r, s + 2*spacing, "SPACE = Start/Pause/Resume,  ESC = Exit,  H = Hand enter commands")
 
 
     def _display_text_line(self,

@@ -964,6 +964,12 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Continued from previous run.
 	* Checkpoints stored at 20240211-1525.
 
+2/12/24
+
+* Refacored the environment to use a different format vehicle config file, which now only
+  specifies each vehicle type (and its attributes) and the max number of them to be used. The
+  reset() method then chooses which of these to use in each scenario, randomizing the selection
+  so that the same types of vehicles aren't always positioned closest or farthest from ego.
 
 
 
@@ -988,8 +994,6 @@ TODO:
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
 - Make guidance's plan_route() called from its step() method. No need for the env to worry about that separation of responsibilities.
-- Refactor the vehicle configs to specify each vehicle type and the number of them.
-- Try initializing NN weights for layer 1 where the most important inputs are to large values.
 
 - Fix graphic defect in legend alignment
 - Show speed limit on speed plot

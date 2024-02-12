@@ -57,7 +57,7 @@ def main(argv):
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
                     "episode_length":           episode_len,
-                    "vehicle_file":             "config/vehicle_config_ego_training.yaml", #"vehicle_config_embedding.yaml",
+                    "vehicle_file":             "config/vehicle_config_multi.yaml", #"vehicle_config_embedding.yaml",
                     "ignore_neighbor_crashes":  True,
                     "crash_report":             True,
                 }
