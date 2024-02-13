@@ -10,7 +10,7 @@ Again, as in CDA0, there is no communication between vehicles, and all sensors a
 
 This project is built on the [Ray](https://www.ray.io) platform using the [PyTorch](https://pytorch.org) framework on Ubuntu.
 
-![Lane 0 start](docs/images/cda1.1-L0.gif)
+![Lane 1 start](docs/images/cda1.1_B1.gif)
 
 
 ## Project Description
@@ -18,7 +18,7 @@ A statement of the detailed software requirements [can be found here](docs/cda1_
 
 Training and testing is currently being performed with the _Roadway B_ test track, shown here. It is a 3 km long freeway segment with several speed limits, merges and lane drops, to exercise lane change maneuvering and, eventually, cooperative behavior.
 
-![Roadway B](docs/images/Roadway_B_map.png)
+![Roadway B](docs/images/Roadway_B_map2.png)
 
 ## Installation & Running
 
@@ -119,7 +119,11 @@ This project was begun on 8/21/23, and is proceeding in the following direction:
 - Part 4:  Multi-agent training for two policies in a single vehicle, one for planning and one for control.
 
 ## More videos of Bridgit, Part 1, in action
+Two additional roadways, C and D, were created as training grounds.
+These are shown here, along with the real test track, Roadway B.
 
-![Lane 3 start](docs/images/cda1.1-L3.gif)
+![Roadway C](docs/images/cda1.1_C4.gif)
 
-![Lane 5 start](docs/images/cda1.1-L5.gif)
+![Roadway D](docs/images/cda1.1_D0.gif)
+
+![Roadway B](docs/images/cda1.1_B3.gif)
