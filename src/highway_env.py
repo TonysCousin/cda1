@@ -143,7 +143,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                  render_mode:   int             = None  #Ray rendering info, unused in this version
                 ):
 
-        """Initialize an object of this class.  Config options are documented in _set_initial_conditions()."""
+        """Initialize an object of this class.  Config options are documented in _read_config()."""
 
         # Store the arguments
         #   self.seed = seed #Ray 2.0.0 chokes on the seed() method if this is defined (it checks for this attribute also)
@@ -154,7 +154,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.prng = HpPrng(seed = seed)
         self.render_mode = render_mode
 
-        self._set_initial_conditions(config)
+        self._read_config(config)
         if self.debug > 0:
             print("\n///// HighwayEnv init: config = ", config)
             print("/////                  OBS_SIZE = ", ObsVec.OBS_SIZE)
@@ -369,12 +369,25 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.effective_scenario == 80:
             self.roadway = RoadwayC(self.debug)
 
-        # Else create the roadway geometry by random draw
+        # Else create the roadway geometry as specified in the config
         else:
-            if self.prng.random() < 0.5:
+            if self.roadway_name is None:
+                draw = self.prng.random()
+                if draw < 0.333:
+                    self.roadway = RoadwayB(self.debug)
+                elif draw < 0.666:
+                    self.roadway = RoadwayC(self.debug)
+                else:
+                    self.roadway = RoadwayD(self.debug)
+
+            elif self.roadway_name in ['B', 'b']:
+                self.roadway = RoadwayB(self.debug)
+            elif self.roadway_name in ['C', 'c']:
                 self.roadway = RoadwayC(self.debug)
-            else:
+            elif self.roadway_name in ['D', 'd']:
                 self.roadway = RoadwayD(self.debug)
+            else:
+                raise ValueError("///// ERROR specifying unknown roadway. config roadway_name = {}".format(self.roadway_name))
 
         # Decide which targets will be activated for this episode - needs to happen before vehicle reset
         self._choose_active_targets()
@@ -728,7 +741,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
     ##### internal methods #####
 
 
-    def _set_initial_conditions(self,
+    def _read_config(self,
                                 config:     EnvContext
                                ):
         """Sets the initial conditions of the ego vehicle in member variables."""
@@ -756,6 +769,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             db = None
         if db is not None  and  db != ""  and  0 <= int(db) <= 2:
             self.debug = int(db)
+
+        self.roadway_name = None #name of the roadway model to be used (None means to randomly select)
+        try:
+            rn = config["roadway_name"]
+        except KeyError:
+            pass
+        if rn in ['B', 'b', 'C', 'c', 'D', 'd']:
+            self.roadway_name = rn
 
         self.crash_report = False #should step() log the details of every crash experienced?
         try:

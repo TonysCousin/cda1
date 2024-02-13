@@ -999,6 +999,26 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Increased lane change penalty contant term from 0.005 to 0.01 and multiplier decreased
 	  from 0.002 to 0.001.
 	* Checkpoints stored in 20240212-1446.
+	* Training completed 29k iters then died. Mean ep len peaked in high 90s early,
+	  then gradually dropped to mid-80s. rmax gradually increased to 1.2 at end. rmin stayed
+	  around -3 to -4 with a few up to -1. rmean gradually increased to +0.2. It appears all
+	  rewards may improve a bit with more training.
+	* Inference on checkpoint 29000: speed control is quite good, if still a bit noisy. It
+	  follows speed limits quickly, and slows for slower vehicles in front, never rear-ending
+	  one. Lateral control is pretty good; an occasional extraneous LC, but usually heads
+	  to the target lane rapidly, while being mostly cognizant of vehicles to the side. One
+	  run it chose to drive off side of the road in first 6 time steps. One run it cut off a
+	  bot coming up in the next lane somewhat faster, but it may not have been able to see,
+	  and the bot could have been more aware. It seems to anticipate upcoming speed limit
+	  changes and adjust to them before they apply.
+		* Penalties for speed & speed variation are usually O(0.001) compared to lane
+		  desirability bonus of O(0.01), so they are about as small as it can be expected
+		  to see.
+		* Note that this evaluation was only done on roadways C & D.
+	* A few tests on roadway B also shows that it handles it well! even though it has never
+	  seen this one.
+***	* THIS IS THE ONE! It finally performs well enough to be used for the baseline Bridgit
+	  model in the MARL training.
 
 
 
@@ -1009,6 +1029,7 @@ TODO:
 - reconsider turning noise off
 
 - Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
+- Check bot awareness of fwd ego in adjacent lane.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then

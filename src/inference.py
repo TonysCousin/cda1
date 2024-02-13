@@ -32,11 +32,13 @@ def main(argv):
     epilog = "If a non-learning scenario (*) is chosen then any checkpoint specified is ignored."
     parser = argparse.ArgumentParser(prog = argv[0], description = program_desc, epilog = epilog, formatter_class = argparse.RawTextHelpFormatter)
     parser.add_argument("-c", type = str, help = "Ray checkpoint dir containing the RL model to be run for the ego vehicle.")
-    parser.add_argument("-L", type = int, default = 999999, help = "Max num time steps to run")
+    parser.add_argument("-L", type = int, default = 999999, help = "Max num time steps to run.")
+    parser.add_argument("-r", type = str, default = None, help = "Roadway description (letter code); default is random selection.")
     parser.add_argument("-s", type = int, default = 0, help = scenario_desc)
     args = parser.parse_args()
     checkpoint = args.c
     scenario = args.s
+    roadway_name = args.r
     episode_len = args.L
 
     # Verify that checkpoint & scenario are telling the same story. If we are going inference-only then erase the checkpoint.
@@ -53,6 +55,7 @@ def main(argv):
     env_config = {  "time_step_size":           0.2,
                     "debug":                    0,
                     "verify_obs":               True,
+                    "roadway_name":             roadway_name,
                     "valid_targets":            "all", #either "all" or comma-separated sequence of IDs (no brackets)
                     "randomize_targets":        True,
                     "scenario":                 scenario, #90-95 run single bot on lane 0-5, respectively; 0 = fully randomized
