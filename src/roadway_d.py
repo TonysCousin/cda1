@@ -17,7 +17,7 @@ class RoadwayD(Roadway):
                 ):
 
         super().__init__(debug)
-        self.name = "Roadway D"
+        self.name = "D"
 
         # NOTE: all values used in this geometry are lane centerlines
 

@@ -1018,7 +1018,14 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* A few tests on roadway B also shows that it handles it well! even though it has never
 	  seen this one.
 ***	* THIS IS THE ONE! It finally performs well enough to be used for the baseline Bridgit
-	  model in the MARL training.
+	  model in the MARL training. Stored the checkpoint in models/cda1.1-C49-29000.
+
+2/13/24
+
+*** Evaluation of C49 model over episodes of 100 steps and unlimited duration, and all 3
+  roadways. Very good!
+* Merged the part2 branch into develop (but kept this branch for continuing work on the real
+  part 2 stuff).
 
 
 
@@ -1054,6 +1061,7 @@ TODO:
 - Investigate target markers initially having white border, then losing it after a car passes through.
 - Add lane IDs to graphics
 - Add checkpoint name to display.
+- Add legend for car colors.
 - Review all TODOs
 - Add ego sensor display to graphics showing pvmt type/speed colors, vehicle speeds
 - Add graphic replay w/step fwd/back

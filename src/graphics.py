@@ -500,16 +500,17 @@ class Graphics:
         """Creates the legend display for all the info in the window."""
 
         # Set the vertical spacing between adjacent lines of text.
-        spacing = int(1.5*Graphics.LARGE_FONT_SIZE)
+        spacing = int(1.2*Graphics.LARGE_FONT_SIZE)
+        PAD = 8
 
         # Roadway ID on first line
-        self._display_text_line(r, s, "Roadway: {}".format(self.env.roadway.name))
+        self._display_text_line(r + PAD, s, "Roadway:  {}".format(self.env.roadway.name))
 
         # Vehicle config on next line
-        self._display_text_line(r, s + spacing, "Vehicle configuration: {}".format(self.env.vehicle_config_title))
+        self._display_text_line(r + PAD, s + spacing, "Vehicle configuration: {}".format(self.env.vehicle_config_title))
 
         # Keyboard instructions on next line
-        self._display_text_line(r, s + 2*spacing, "SPACE = Start/Pause/Resume,  ESC = Exit,  H = Hand enter commands")
+        self._display_text_line(r + PAD, s + 2*spacing, "SPACE = Start/Pause/Resume,  ESC = Exit,  H = Hand enter commands")
 
 
     def _display_text_line(self,
@@ -522,7 +523,7 @@ class Graphics:
         width = len(line) * Graphics.AVG_PIX_PER_CHAR_LARGE
         text = self.basic_font.render(line, True, Graphics.LEGEND_COLOR, Graphics.BACKGROUND_COLOR)
         text_rect = text.get_rect()
-        text_rect.center = (r + width//2, s - Graphics.LARGE_FONT_SIZE)
+        text_rect.update(r, s, width, Graphics.LARGE_FONT_SIZE)
         self.window_surface.blit(text, text_rect)
 
 

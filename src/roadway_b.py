@@ -15,7 +15,7 @@ class RoadwayB(Roadway):
                 ):
 
         super().__init__(debug)
-        self.name = "Roadway B"
+        self.name = "B"
 
         NORMAL_SL   = 29.1 #speed limit, m/s (65 mph)
         HIGH1_SL    = 31.3 #speed limit, m/s (70 mph)
