@@ -1,5 +1,4 @@
 import sys
-import copy
 from statistics import mean
 from typing import Tuple, Dict, List
 import math
@@ -18,6 +17,7 @@ from ray.tune.logger import pretty_print
 
 from constants import Constants
 from obs_vec import ObsVec
+from scaler import *
 from roadway_b import RoadwayB
 from roadway_c import RoadwayC
 from roadway_d import RoadwayD
@@ -164,6 +164,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # See the ObsVec class for detailed explanation of the observation space and how it is indexed.
+
+        # CAUTION: any changes in this part of the code may affect code in the scalars module.
 
         # Gymnasium requires a member variable named observation_space. Since we are dealing with world scale values here, we
         # will need a wrapper to scale the observations for NN input. That wrapper will also need to use self.observation_space.
@@ -601,10 +603,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
 
         # Unscale the ego action inputs (both cmd values are in [-1, 1])
-        ego_action = [None]*2
-        ego_action[0] = (cmd[0] + 1.0)/2.0 * Constants.MAX_SPEED
-        raw_lc_cmd = min(max(cmd[1], -1.0), 1.0) #command threshold is +/- 0.5
-        ego_action[1] = int(math.floor(raw_lc_cmd + 0.5))
+        ego_action = unscale_actions(torch.tensor(cmd))
         if self.steps_since_reset < 2: #force it to stay in lane for first time step
             ego_action[1] = 0.0
         #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
@@ -696,6 +695,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if crash:
             done = True
             return_info["reason"] = "Two (or more) vehicles crashed."
+
+        # If any neighbor Bridgit vehicle is inactive, log some details
+        for i in range(1, self.num_vehicles):
+            if self.vehicles[i].guidance.name == "BridgitGuidance":
+                #print("*       step: Bridgit neighbor is active? {}".format(self.vehicles[i].active))
+                if self.vehicles[i].crashed  or  self.vehicles[i].off_road  or  self.vehicles[i].stopped:
+                    print("//        Bridgit neighbor problem: crashed = {}, off_road = {}, stopped = {}"
+                            .format(self.vehicles[i].crashed, self.vehicles[i].off_road, self.vehicles[i].stopped))
 
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped, reached_tgt)
@@ -1157,8 +1164,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         va.crashed = True
                         vb.crashed = True
                         if self.crash_report:
-                            print("    / CRASH in same lane between vehicles {} and {} near {:.2f} m in lane {}"
-                                        .format(i, j, va.p, va.lane_id))
+                            print("    / CRASH in same lane between vehicles {} and {} ({} and {}) near {:.2f} m in lane {}"
+                                        .format(i, j, va.guidance.name, vb.guidance.name, va.p, va.lane_id))
 
                         # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                         if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:
@@ -1196,8 +1203,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 va.crashed = True
                                 vb.crashed = True
                                 if self.crash_report:
-                                    print("    / CRASH in adjacent lanes between vehicles {} and {} near {:.2f} m in lane {}"
-                                                .format(i, j, vb.p, va.lane_id))
+                                    print("    / CRASH in adjacent lanes between vehicles {} and {} ({} and {}) near {:.2f} m in lane {}"
+                                                .format(i, j, va.guidance.name, vb.guidance.name, vb.p, va.lane_id))
 
                                 # Mark it so only if it involves the ego vehicle or we are worried about all crashes
                                 if i == 0  or  j == 0  or  not self.ignore_neighbor_crashes:

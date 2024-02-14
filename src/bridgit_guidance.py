@@ -2,11 +2,13 @@ from typing import List, Dict
 import copy
 import math
 import numpy as np
+import torch
 from gymnasium.spaces import Box
 
 from constants import Constants
 from obs_vec import ObsVec
 from hp_prng import HpPrng
+from scaler import *
 from roadway import Roadway
 from lane_change import LaneChange
 from vehicle_guidance import VehicleGuidance
@@ -99,10 +101,26 @@ class BridgitGuidance(VehicleGuidance):
 
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands.
             This method should only be called when the vehicle is in inference-only mode.
+
+            CAUTION: the inputs and outputs are unscaled, but the NN being invoked here operates on scaled data.
         """
 
-        actions = self.tactical_model({"obs": obs})
-        print("***** BridgitNN.step returning actions ", actions)
+        # Scale the input ndarray then convert it to a dict with a tensor in it
+        assert len(obs.shape) == 1, "///// ERROR: BridgitGuidance.step: else branch should never be taken!"
+        scaled = scale_obs(obs)
+        batch_obs = {"obs": torch.from_numpy(np.expand_dims(scaled, axis = 0)).float()}
+
+        # Run the NN to generate the new action commands
+        net_out, _ = self.tactical_model(batch_obs) #scaled actions are output
+
+        # The tactical model runs the NN, which outputs a tuple, the first element of which is a tensor of
+        # action (mean, stddev) pairs. Use these to generate a tensor of chosen actions.
+        scaled_actions = torch.zeros(2, dtype = float)
+        scaled_actions[0] = self.prng.gaussian(net_out[0, 0], net_out[0, 1])
+        scaled_actions[1] = self.prng.gaussian(net_out[0, 2], net_out[0, 3])
+        scaled_actions = torch.clip(scaled_actions, -1.0, 1.0)
+        actions = unscale_actions(scaled_actions)
+
         return actions
 
 

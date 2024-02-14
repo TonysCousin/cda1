@@ -6,6 +6,7 @@ from gymnasium.spaces import Box
 from constants import Constants
 from obs_vec import ObsVec
 from highway_env import HighwayEnv
+from scaler import *
 
 
 #TODO - remove inheritance from the main env so that this class can specify its own obs space with proper boundaries
@@ -48,7 +49,7 @@ class HighwayEnvWrapper(HighwayEnv):
         """Invokes the environment's reset method, then scales the resulting observations to be usable by a NN."""
 
         obs, info = super().reset(options = options)
-        return self.scale_obs(obs), info
+        return scale_obs(obs), info
 
 
     def step(self,
@@ -70,7 +71,7 @@ class HighwayEnvWrapper(HighwayEnv):
         raw_obs, r, d, t, i = super().step(action)
         o = None
         if self.training:
-            o = self.scale_obs(raw_obs)
+            o = scale_obs(raw_obs)
         else:
             o = raw_obs
 
@@ -79,36 +80,3 @@ class HighwayEnvWrapper(HighwayEnv):
         #    print("      {:2d}:  {}".format(j, o[j]))
 
         return o, r, d, t, i
-
-
-    def scale_obs(self,
-                    obs     : np.array  #raw observation vector from the environment
-                  ) -> np.array:        #returns obs vector scaled for use by NN
-
-        """Converts a raw observation vector from the parent environment to a scaled vector usable by a NN."""
-
-        scaled = [0.0]*ObsVec.OBS_SIZE
-
-        # Scale the initial items that require special scaling
-        scaled[ObsVec.SPEED_CMD]            = obs[ObsVec.SPEED_CMD]             / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.SPEED_CMD_PREV]       = obs[ObsVec.SPEED_CMD_PREV]        / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.LC_CMD]               = obs[ObsVec.LC_CMD]
-        scaled[ObsVec.LC_CMD_PREV]          = obs[ObsVec.LC_CMD_PREV]
-        scaled[ObsVec.SPEED_CUR]            = obs[ObsVec.SPEED_CUR]             / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.SPEED_PREV]           = obs[ObsVec.SPEED_PREV]            / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.LOCAL_SPD_LIMIT]      = obs[ObsVec.LOCAL_SPD_LIMIT]       / Constants.MAX_SPEED           #range [0, 1]
-        scaled[ObsVec.STEPS_SINCE_LN_CHG]   = obs[ObsVec.STEPS_SINCE_LN_CHG]    / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
-        scaled[ObsVec.FWD_DIST]             = min(obs[ObsVec.FWD_DIST]          / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
-        scaled[ObsVec.FWD_DIST_PREV]        = min(obs[ObsVec.FWD_DIST_PREV]     / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
-        scaled[ObsVec.FWD_SPEED]            = obs[ObsVec.FWD_SPEED]             / Constants.MAX_SPEED           #range [0, 1]
-
-        # Copy the remaining contents directly, as no scaling is needed on these
-        scaled[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE] = obs[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE]
-
-        # Return the obs as an ndarray
-        vec = np.array(scaled, dtype = np.float32)
-        if self.debug > 1:
-            print("scale_obs returning vec size = ", vec.shape)
-            print(vec)
-
-        return vec

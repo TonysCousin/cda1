@@ -7,8 +7,8 @@ import numpy as np
 import argparse
 import pygame
 
-from constants import Constants
 from obs_vec import ObsVec
+from scaler import *
 from highway_env_wrapper import HighwayEnvWrapper
 from bridgit_nn import BridgitNN
 from graphics import Graphics
@@ -93,7 +93,8 @@ def main(argv):
         q_config["fcnet_activation"]                = "relu"
         cfg.training(policy_model_config = policy_config, q_model_config = q_config)
 
-        cfg.environment(env = HighwayEnvWrapper, env_config = env_config)
+        # Set up the simulation environment; note that we normally want to leave env checking enabled
+        cfg.environment(env = HighwayEnvWrapper, env_config = env_config, disable_env_checking = True)
         print("///// inference: environment specified.")
 
         # Restore the selected checkpoint file
@@ -132,14 +133,11 @@ def main(argv):
     COMMAND_INPUT_KEY = pygame.locals.K_h
 
     graphics.update(action_list, raw_obs, vehicles)
-    obs = env.scale_obs(raw_obs)
+    obs = scale_obs(raw_obs)
     step = 0
     user_command = None
     total_override_reps = 1
     override_reps = 0
-
-    print("///// inference: graphic background complete.")
-    vehicles[0].print("Ego")
 
     # Wait for user to indicate okay to begin animation
     tgt_list = []
@@ -192,7 +190,7 @@ def main(argv):
         graphics.update(action, raw_obs, vehicles)
 
         # Scale the observations to be ready for NN ingest next time step
-        obs = env.scale_obs(raw_obs)
+        obs = scale_obs(raw_obs)
 
         if inference_only:
             print("///// step {:3d}: ln {}, LC {}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"

@@ -1025,8 +1025,16 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 *** Evaluation of C49 model over episodes of 100 steps and unlimited duration, and all 3
   roadways. Very good!
 * Merged the part2 branch into develop (but kept this branch for continuing work on the real
-  part 2 stuff).
+  part 2 stuff). Updated the README for github and merged develop into master, tagging it as
+  "cda1.1.1". Merged updated develop back into part2 branch and continuing to work there.
 
+* Updating the BridgitGuidance model to work with its NN.
+	* Extracted the scaling & unscaling functions into standalone functions so that they
+	  can be used in multiple places that may not have access to the env or its wrapper.
+	* Reworked BridgitGuidance.step() to properly handle the inputs & outputs in the
+	  formats needed.
+	* Ran a few quick inferences with one Bridgit agent as a neighbor. It doesn't perform
+	  nearly as well in this role as it does as the ego vehicle.  Need to investigate.
 
 
 

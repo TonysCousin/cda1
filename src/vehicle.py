@@ -253,5 +253,8 @@ class Vehicle:
              ):
         """Prints the attributes of this vehicle object."""
 
-        print("       [{}]: active = {}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}" \
-                .format(tag, self.active, self.lane_id, self.p, self.lane_change_status, self.cur_speed))
+        if self.p is None:
+            print("       [{}]: vehicle not initialized.".format(tag))
+        else:
+            print("       [{}]: active = {}, lane_id = {:2d}, p = {:.2f}, status = {:5s}, speed = {:.2f}"
+                    .format(tag, self.active, self.lane_id, self.p, self.lane_change_status, self.cur_speed))
