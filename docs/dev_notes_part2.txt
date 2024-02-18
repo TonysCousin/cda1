@@ -1058,7 +1058,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  and not using the stddev values (no exploration).
 		* Note that the NN output vector contains all the mean values first followed
 		  by all the stddev values.
-ai:	* Found that the first time step (or two?) usually produces action outputs with
+	* Found that the first time step (or two?) usually produces action outputs with
 	  extreme values. Maybe this indicates poor selection of initial obs values?
 	* Even after applying these changes to computation of actions, the BridgitGuidance
 	  still very much likes lane changes. In fact, the raw NN output for LC cmd is
@@ -1092,35 +1092,37 @@ ai:	* Found that the first time step (or two?) usually produces action outputs w
 		  overwhelmed with the LC desirabilities pointing in all directions many
 		  times, so it constantly changes what lane it wants to try.
 
-NEXT:
-* Refactor how plan_route is called & how its output is communicated. Since it outputs LC
-  desirabilities into the obs vector, it can't be called directly from the guidance.step(),
-  since it doesn't output obs updates. But that would otherwise be the logical place to do
-  it. Doing so would require env.step() to invoke guidance.step() on ego vehicle as well,
-  and it would have to bypass its logic based on the is_learning flag.
-	* LC desirability should stay in the obs vector, as we are training a tactical
-	  guidance model to steer based on this particular input. It is also used by the
-	  reward function.
-	* When guidance.step() invokes plan_route(), the return values could be inserted
+2/18/24
+
+* Run D1 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways B, C & D.
+
+	* Refactored how plan_route is called & how its output is communicated. It
+	  outputs LC desirabilities into the obs vector. Eenv.step() now invokes
+	  guidance.step() on ego vehicle as well as on bot vehicles of that type.
+	  When guidance.step() invokes plan_route(), the return values are inserted
 	  into the obs vector that was provided. Experiment confirms this will get
 	  communicated back to the caller (env.step()) so that it will propagate to the rest
 	  of the code.
-* Make bots go to any target; done in BridgitGuidance, depending on is_learning.
-* Changed step() to not constrain the commands on first step (to avoid immediate LC). Also
-  changed reset() to initialize the 4 historical obs elements with the same value that their
-  current elements hold.
+	* Made Bridgit bots go to any target, depending on is_learning.
+	* Changed step() to not constrain the commands on first step (to avoid immediate LC).
+	  Also changed reset() to initialize the 4 historical obs elements with the same
+	  value that their current elements hold.
+	* Fixed defect in RoadwayD specification of lane 2 left separation distance.
+	* Reduced random threshold in _choose_active_targets() from 0.75 to 0.6 to
+	  encourage more episodes with more active targets. This should help when Bridgit
+	  agents are operated as bots that can see all targets.
+	* Increased LRs slightly from 7e-5 to 8e-5.
+	* Increased penalty for frequent lane changes; constant term from 0.01 to 0.02.
+	* Increased multipler for speed variation penalty from 0.05 to 0.07.
+	* Checkpoints stored at 20240218-1305.
 
 
-TODO:
-- Fix defect in roadway D where LC from 2 to 1 at p > 2200 triggers off-road detection on lc_count = 1.
 
 
 
-- Retrain with more exposure to multiple targets, and with initial time steps unconstrained actions.
 - retrace NN size expansion and addition of dropouts once success is found.
-
 - Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
-- Check bot awareness of fwd ego in adjacent lane.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
@@ -1134,11 +1136,9 @@ TODO:
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
-- Make guidance's plan_route() called from its step() method. No need for the env to worry about that separation of responsibilities.
 
-- Fix graphic defect in legend alignment
 - Show speed limit on speed plot
-- update readme to reflect the multiple tracks
+- Improve use of reference lines on speed plot
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)

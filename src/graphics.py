@@ -312,8 +312,8 @@ class Graphics:
         # If the roadway is skinny, don't cram it all the way to the top of the window
         self.display_center_s = min(int(Graphics.WINDOW_SIZE_S - 0.5*roadway_height * self.scale) - buffer, \
                                     int(0.75*Graphics.WINDOW_SIZE_S) - buffer)
-        print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
-                .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
+        #print("      Graphics init: scale = {}, display center r,s = ({:4d}, {:4d}), roadway center x,y = ({:5.0f}, {:5.0f})"
+        #        .format(self.scale, self.display_center_r, self.display_center_s, self.roadway_center_x, self.roadway_center_y))
 
         # set up fonts
         self.basic_font = pygame.font.Font(Graphics.FONT_PATH + "/FreeSans.ttf", Graphics.BASIC_FONT_SIZE)

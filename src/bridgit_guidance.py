@@ -89,7 +89,6 @@ class BridgitGuidance(VehicleGuidance):
         self.starting_points = {}
         self.lane_to_target = {}
         for idx, tgt in enumerate(self.targets):
-            print("** BridgitGuidance.reset: target {} active = {}".format(idx, tgt.active))
             if self.is_learning  and  not tgt.active:
                 continue
             self.lane_to_target[tgt.lane_id] = idx

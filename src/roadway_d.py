@@ -40,7 +40,7 @@ class RoadwayD(Roadway):
         # Lane 2
         L2_Y = L1_Y - Roadway.LANE_WIDTH
         segs = [( 900.0,    L2_Y,           3000.0,     L2_Y,          2100.0,  29.1,       PavementType.ASPHALT)]
-        lane = Lane(2, 900.0, 2100.0, segs, left_id = 1, left_join = 900.0, left_sep = 2100.0,
+        lane = Lane(2, 900.0, 2100.0, segs, left_id = 1, left_join = 900.0, left_sep = 3000.0,
                     right_id = 3, right_join = 900.0, right_sep = 3000.0)
         self.lanes.append(lane)
 

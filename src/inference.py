@@ -122,8 +122,8 @@ def main(argv):
     vehicles = env.get_vehicle_data()
     if scenario >= 90:
         vehicles[0].active = False
-    print("///// inference: after env.reset: vehicle[0] = ")
-    vehicles[0].print()
+    print("///// inference: after env.reset:")
+    vehicles[0].print("Vehicle 0")
 
     # Set up the graphic display & user interaction
     graphics = Graphics(env) #environment must have been reset prior to this call!
