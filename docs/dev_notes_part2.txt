@@ -1036,12 +1036,88 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Ran a few quick inferences with one Bridgit agent as a neighbor. It doesn't perform
 	  nearly as well in this role as it does as the ego vehicle.  Need to investigate.
 
+2/14/24
 
+* Used inference to investigate problems with the Bridgit agent as vehicle 1.
+	* Changed BridgitGuidance.step() to use deterministic actions instead of stochastic
+	  distribution from the NN. It still changes lanes left as quickly as possible.
+	* I suspect I'm not interpreting the NN outputs correctly. Need to investigate the
+	  Algorithm.compute_single_action() logic.
+	* Inference highlighted two anomalies that may not be related to the command issue:
+		1. step() shows action[0] = 36 m/s, but inference reports that
+		   raw_obs[ObsVec.SPEED_CMD] = 18.00.
+		2. Ego started in lane 2 of roadway D. In first time step it initiated a
+		   left lane change, and immediately got flagged as off-road, even though
+		   lane 1 exists there.
+
+2/17/24
+
+* Lots of investigation of Ray code for executing a NN in inference mode.
+	* Need to set the model to eval mode when inference_only.
+	* Need to "squash" the NN output actions by passing the mean values through F.tanh(),
+	  and not using the stddev values (no exploration).
+		* Note that the NN output vector contains all the mean values first followed
+		  by all the stddev values.
+ai:	* Found that the first time step (or two?) usually produces action outputs with
+	  extreme values. Maybe this indicates poor selection of initial obs values?
+	* Even after applying these changes to computation of actions, the BridgitGuidance
+	  still very much likes lane changes. In fact, the raw NN output for LC cmd is
+	  usually around +/-2.7 or so, so it doesn't even seem to be trying to stay in lane.
+	  This makes me suspect the inputs need to be somehow manipulated as well. However,
+	  some env code mods allowed direct comparison between the Ray inference results on
+	  the ego vehicle and what BridgitGuidance would have produced for that same vehicle
+	  in the same state. Results are always identical, which says there has been no
+	  input manipulation in Ray that is not going on in BridgitGuidance.
+
+* Experiments running inference on roadway D. In all cases, still have code change in env
+  to force BridgitGuidance to compute ego's actions (which happen to match those coming from
+  the Ray Algorithm object.
+	* With v1 as a normal bot, the ego vehicle performs as I had seen in training evals
+	  a few days ago. However, I do now notice that it usually initiates an LC in the
+	  first time step, with vengeance (scaled cmd near +/-0.99). This happens even when
+	  there is an active target in the same lane (it then does an immediate correction
+	  LC and stays put).
+		* It seems that training was disadvantaged by having the env ignore the
+		  LC cmd in the first time step; it didn't learn to keep it under control.
+		* Debugging shows that v1's LC desirability is 0 for all lanes always! It
+		  has seen this in training, but only when it is in a no-win situation, so
+		  it is guaranteed to get a terrible reward, so action choice doesn't
+		  matter.
+		* Actually, LC desirabilities are all 0s even for ego on step 1.
+		* Guidance plan_route is only run for the ego vehicle, since it is
+		  kludged in env.step(). Need to refactor this.
+	* With v1 set as BridgitGuidance also, ego still performs pretty well, but seems
+	  more eager to drive off-road in first time step.
+		* Since neighbor vehicles can go to any target, v1 may be getting
+		  overwhelmed with the LC desirabilities pointing in all directions many
+		  times, so it constantly changes what lane it wants to try.
+
+NEXT:
+* Refactor how plan_route is called & how its output is communicated. Since it outputs LC
+  desirabilities into the obs vector, it can't be called directly from the guidance.step(),
+  since it doesn't output obs updates. But that would otherwise be the logical place to do
+  it. Doing so would require env.step() to invoke guidance.step() on ego vehicle as well,
+  and it would have to bypass its logic based on the is_learning flag.
+	* LC desirability should stay in the obs vector, as we are training a tactical
+	  guidance model to steer based on this particular input. It is also used by the
+	  reward function.
+	* When guidance.step() invokes plan_route(), the return values could be inserted
+	  into the obs vector that was provided. Experiment confirms this will get
+	  communicated back to the caller (env.step()) so that it will propagate to the rest
+	  of the code.
+* Make bots go to any target; done in BridgitGuidance, depending on is_learning.
+* Changed step() to not constrain the commands on first step (to avoid immediate LC). Also
+  changed reset() to initialize the 4 historical obs elements with the same value that their
+  current elements hold.
 
 
 TODO:
+- Fix defect in roadway D where LC from 2 to 1 at p > 2200 triggers off-road detection on lc_count = 1.
+
+
+
+- Retrain with more exposure to multiple targets, and with initial time steps unconstrained actions.
 - retrace NN size expansion and addition of dropouts once success is found.
-- reconsider turning noise off
 
 - Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
 - Check bot awareness of fwd ego in adjacent lane.

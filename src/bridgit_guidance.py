@@ -3,6 +3,7 @@ import copy
 import math
 import numpy as np
 import torch
+from torch.nn import functional as F
 from gymnasium.spaces import Box
 
 from constants import Constants
@@ -51,11 +52,12 @@ class BridgitGuidance(VehicleGuidance):
         self.positions = None
 
         # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
-        # model here so that it can be executed.
+        # model here so that it can be executed in inference mode.
         self.tactical_model = None
         if not is_learning:
             config = {"inference_only": True}
-            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 outputs for (mean, stddev) for each of the 2 actions
+            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 outputs: all means, the ann stddevs
+            self.tactical_model.eval()
 
 
     def reset(self,
@@ -81,12 +83,14 @@ class BridgitGuidance(VehicleGuidance):
         # Ensure the strategic planning method will get executed on the first step of the episode
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
 
-        # Get all of the active targets and the starting points for each possible target destination and merge them, taking the
-        # set-wise intersection of points in each lane.
+        # Get all of the targets and the starting points for each possible target destination and merge them, taking the
+        # set-wise intersection of points in each lane. If this is a learning vehicle, then only use active targets;
+        # otherwise use every target that is defined.
         self.starting_points = {}
         self.lane_to_target = {}
         for idx, tgt in enumerate(self.targets):
-            if not tgt.active:
+            print("** BridgitGuidance.reset: target {} active = {}".format(idx, tgt.active))
+            if self.is_learning  and  not tgt.active:
                 continue
             self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
@@ -94,34 +98,44 @@ class BridgitGuidance(VehicleGuidance):
 
 
     def step(self,
-             obs    : np.array, #vector of local observations available to the instantiating vehicle
+             obs    : np.array, #vector of local observations available to the instantiating vehicle; MAY BE MODIFIED
             ) -> List:          #returns a list of action commands, such that
                                 # item 0: desired speed, m/s
                                 # item 1: lane change command (corresponds to type LaneChange)
 
         """Applies the tactical guidance algorithm for one time step to convert vehicle observations into action commands.
-            This method should only be called when the vehicle is in inference-only mode.
+            It invokes the strategic guidance algorithm as well, when appropriate. This means the input obs arg may be
+            modified by this method. If the vehicle is in inference-only mode, only the strategic guidance will be executed
+            (and obs updated). It will be up to the calling environment to provide the tactical action vector.
 
             CAUTION: the inputs and outputs are unscaled, but the NN being invoked here operates on scaled data.
         """
 
+        # Invoke the strategic guidance (route planning) every time step, and let it decide when it needs to go to work.
+        # NOTE: this may modify the obs vector in step's arg list (updated lane change desirability values).
+        obs = self.plan_route(obs)
+
+        # If this object represents a learning vehicle then return a meaningless action list
+        if self.is_learning:
+            return [0.0, 0.0]
+
         # Scale the input ndarray then convert it to a dict with a tensor in it
-        assert len(obs.shape) == 1, "///// ERROR: BridgitGuidance.step: else branch should never be taken!"
+        assert len(obs.shape) == 1, "///// ERROR: BridgitGuidance.step: input obs has incompatible shape: {}".format(obs.shape)
         scaled = scale_obs(obs)
         batch_obs = {"obs": torch.from_numpy(np.expand_dims(scaled, axis = 0)).float()}
 
-        # Run the NN to generate the new action commands
-        net_out, _ = self.tactical_model(batch_obs) #scaled actions are output
+        # Run the NN to generate the new action commands. These may not respect the required bounds on actions.
+        with torch.no_grad():
+            net_out, _ = self.tactical_model(batch_obs)
 
-        # The tactical model runs the NN, which outputs a tuple, the first element of which is a tensor of
-        # action (mean, stddev) pairs. Use these to generate a tensor of chosen actions.
-        scaled_actions = torch.zeros(2, dtype = float)
-        scaled_actions[0] = self.prng.gaussian(net_out[0, 0], net_out[0, 1])
-        scaled_actions[1] = self.prng.gaussian(net_out[0, 2], net_out[0, 3])
-        scaled_actions = torch.clip(scaled_actions, -1.0, 1.0)
-        actions = unscale_actions(scaled_actions)
+            # The tactical model runs the NN, which outputs a tuple, the first element of which is a tensor containing all
+            # the means then all the stddevs. Use these to generate a tensor of chosen (deterministic) actions, so ignore stddevs.
+            # Use tanh to squash the raw network outputs into the required scaled range of [-1, 1]
+            scaled_actions = F.tanh(net_out[0, :2])
+            actions = unscale_actions(scaled_actions)
+            #print("***   BridgitGuidance: scaled_actions = {}, returning actions = {}".format(scaled_actions, actions))
 
-        return actions
+            return actions
 
 
     def plan_route(self,

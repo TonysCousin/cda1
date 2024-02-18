@@ -429,10 +429,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             ego_p = lane_begin + self.prng.random()*lane_length
 
             # Randomly define the starting speed and initialize the vehicle data
-            speed = self.prng.random() * Constants.MAX_SPEED
-            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = speed)
+            ego_speed = self.prng.random() * Constants.MAX_SPEED
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
             if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, speed))
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
 
             # Define the neighbor vehicles closer to ego than normal to ensure we exercise the sensors well
             self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed, pack_tightly = True)
@@ -529,10 +529,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # We must do this after all vehicles have been initialized, otherwise obs from the vehicles placed first won't
         # include sensing of vehicle placed later.
 
-        # Get the obs from each vehicle
+        # Get some representative initial obs from each vehicle
         dummy_actions = [0.5*Constants.MAX_SPEED, LaneChange.STAY_IN_LANE]
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions, self.all_obs[i, :])
+
+            # Populate the historical values to show smooth trajectories
+            self.all_obs[i, ObsVec.SPEED_CMD_PREV] = self.all_obs[i, ObsVec.SPEED_CMD]
+            self.all_obs[i, ObsVec.LC_CMD_PREV] = self.all_obs[i, ObsVec.LC_CMD]
+            self.all_obs[i, ObsVec.SPEED_PREV] = self.all_obs[i, ObsVec.SPEED_CUR]
+            self.all_obs[i, ObsVec.FWD_DIST_PREV] = self.all_obs[i, ObsVec.FWD_DIST]
 
         # Other persistent data
         self.steps_since_reset = 0
@@ -604,13 +610,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Unscale the ego action inputs (both cmd values are in [-1, 1])
         ego_action = unscale_actions(torch.tensor(cmd))
-        if self.steps_since_reset < 2: #force it to stay in lane for first time step
-            ego_action[1] = 0.0
+        #if self.steps_since_reset < 2: #force it to stay in lane for first time step
+        #    ego_action[1] = 0.0
         #print("***** Entering step ", self.steps_since_reset, ": LC command = ", ego_action[1])
 
         # Loop through all active vehicles. Note that the ego vehicle is always at index 0.
         vehicle_actions = [None]*self.num_vehicles
-        action = ego_action
+        action = None
         reached_tgt = False
         for i in range(self.num_vehicles):
             if not self.vehicles[i].active:
@@ -619,15 +625,27 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Clear any alerts that may have been set in the previous time step
             self.vehicles[i].alert = False
 
-            # Exercise the tactical guidance algo to generate the next action commands for vehicles that aren't in training.
-            if i > 0  or  20 <= self.effective_scenario <= 29:
-                #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
-                #      .format(i, self.vehicles[i].lane_id, self.effective_scenario, self.vehicles[i].p, self.vehicles[i].cur_speed,
-                #                self.vehicles[i].lane_change_count))
-                action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #unscaled
-                if self.debug > 0:
-                    print("///// step: returned from vehicle guidance step for vehicle {}. Action = ".format(i), action)
-                    print("      obs fwd_dist = {:.1f}, fwd_speed = {:.1f}".format(self.all_obs[i, ObsVec.FWD_DIST], self.all_obs[i, ObsVec.FWD_SPEED]))
+            # Exercise the tactical guidance algo to generate the next action commands.
+            # Guidance.step() may modify the obs vector that is passed in, which could affect downstream calculations.
+            #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
+            #      .format(i, self.vehicles[i].lane_id, self.effective_scenario, self.vehicles[i].p, self.vehicles[i].cur_speed,
+            #                self.vehicles[i].lane_change_count))
+            if i <= 1:
+                print("***** step: ready to compute actions for v{}. LC desirability = {}"
+                        .format(i, self.all_obs[i, ObsVec.DESIRABILITY_LEFT:ObsVec.DESIRABILITY_RIGHT+1]))
+            action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #both obs and actions are unscaled
+
+            # If this is the ego vehicle, then the actions generated above are bogus and need to be replaced with those
+            # generated externally from the training algo.
+            if self.vehicles[i].guidance.is_learning:
+                print("*     step: vehicle {} is learning, so override actions with {}".format(i, ego_action))
+                action = ego_action
+
+            if self.debug > 0:
+                print("///// step: returned from vehicle guidance step for vehicle {}. Action = ".format(i), action)
+                print("      obs fwd_dist = {:.1f}, fwd_speed = {:.1f}".format(self.all_obs[i, ObsVec.FWD_DIST], self.all_obs[i, ObsVec.FWD_SPEED]))
+            if i in [0, 1]:
+                print("*     step: v{} actions [{:5.2f}, {:5.2f}], ctr des = {}".format(i, action[0], action[1], self.all_obs[i, ObsVec.DESIRABILITY_CTR]))
 
             # Store the actions for future reference
             vehicle_actions[i] = action
@@ -683,11 +701,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                   "prev_speed = {:.1f}, active = {}, off_road = {}, stopped = {}, stopped_count = {}"
                     .format(v.prev_speed, v.active, v.off_road, v.stopped, v.stopped_count))
 
-        # For the ego vehicle, run its strategic guidance algo. This call doesn't fit well here, but is needed until the planner can be
-        # replaced with a NN. This will replace a few elements in the obs vector.
-        #TODO: eventually replace this call with a NN in the guidance class.
-        if self.vehicles[0].active:
-            self.all_obs[0, :] = self.vehicles[0].guidance.plan_route(self.all_obs[0, :])
         self._verify_obs_limits("step() before collision check on step {}".format(self.steps_since_reset))
 
         # Check that none of the vehicles has crashed into another, accounting for a lane change in progress taking up both lanes.

@@ -144,7 +144,7 @@ def main(argv):
     for i, t in enumerate(env.roadway.targets):
         if t.active:
             tgt_list.append(i)
-    print("\n///// Beginning episode with env {} and active targets are: {}".format(env.rollout_id, tgt_list))
+    print("\n///// Beginning episode with env {} and active targets are: {}. inference_only = {}".format(env.rollout_id, tgt_list, inference_only))
     key = None
     while key != RESUME_KEY:
         if key == END_KEY:
