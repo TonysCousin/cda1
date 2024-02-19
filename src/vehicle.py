@@ -17,7 +17,6 @@ class Vehicle:
                     model       : VehicleModel, #describes the specific capabilities of the vehicle type
                     guidance    : VehicleGuidance, #provides the guidance algos that determines actions for this vehicle
                     prng        : HpPrng,       #the pseudo-random number generator to be used
-                    learning    : bool = False, #is this vehicle going to be learning from the experience? #TODO remove this if not used in part 2
                     step_size   : float = 0.1,  #duration of a time step, s
                     debug       : int   = 0     #debug printing level
                 ):
@@ -26,7 +25,6 @@ class Vehicle:
         self.model = model
         self.guidance = guidance
         self.prng = prng
-        self.learning = learning
         self.time_step_size = step_size
         self.debug = debug
         self.roadway = None #must be defined in reset() before any other method is called

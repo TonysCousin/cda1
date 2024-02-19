@@ -255,7 +255,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     time_step     = self.time_step_size)
                 guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
                                                                             self.observation_space, self.action_space)
-                v = Vehicle(model, guidance, self.prng, is_learning, self.time_step_size, self.debug)
+                v = Vehicle(model, guidance, self.prng, self.time_step_size, self.debug)
             except AttributeError as e:
                 print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
                 raise e
@@ -633,19 +633,21 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Clear any alerts that may have been set in the previous time step
             self.vehicles[i].alert = False
-
-            # Exercise the tactical guidance algo to generate the next action commands.
-            # Guidance.step() may modify the obs vector that is passed in, which could affect downstream calculations.
             #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
             #      .format(i, self.vehicles[i].lane_id, self.effective_scenario, self.vehicles[i].p, self.vehicles[i].cur_speed,
             #                self.vehicles[i].lane_change_count))
             #if i <= 1:
             #    print("***** step: ready to compute actions for v{}. LC desirability = {}"
             #            .format(i, self.all_obs[i, ObsVec.DESIRABILITY_LEFT:ObsVec.DESIRABILITY_RIGHT+1]))
+
+            # Exercise the tactical guidance algo to generate the next action commands.
+            # Guidance.step() may modify the obs vector that is passed in, which could affect downstream calculations.
+            # Note that this must be performed for every vehicle, even learning vehicles, as their guidance.step() may
+            # invoke logic that modifies the obs vector (e.g. runs strategic guidance that passes new obs to the tactical agent).
             action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #both obs and actions are unscaled
 
-            # If this is the ego vehicle, then the actions generated above are bogus and need to be replaced with those
-            # generated externally from the training algo.
+            # If this vehicle is in training (normally the ego vehicle), then the actions generated above are bogus and need to
+            # be replaced with those generated externally from the training algo.
             if self.vehicles[i].guidance.is_learning:
                 action = ego_action
 

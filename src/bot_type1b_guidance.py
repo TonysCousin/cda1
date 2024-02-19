@@ -24,7 +24,11 @@ class BotType1bGuidance(VehicleGuidance):
                  act_space  : Box = None,
                  name       : str = "BotType1bGuidance"
                 ):
-        super().__init__(prng, is_learning, obs_space, act_space, name)
+
+        # This cannot be a learning vehicle. But it is possible for this type to be specified in the ego
+        # slot, intended as inference only. In this case the incoming is_learning flag would be true, but
+        # we need to ignore that so the vehicle is not accidentally marked as such.
+        super().__init__(prng, False, obs_space, act_space, name)
 
         # Pick an offset from the posted speed limit that will define the target speed
         self.speed_offset = (self.prng.random() - 0.75) * 0.2*Constants.MAX_SPEED #in a range [-15%, +5%]

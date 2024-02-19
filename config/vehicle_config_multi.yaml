@@ -9,6 +9,8 @@ ego:
   length:       5.0     #m
   lc_duration:  3.2     #sec #needs to be an even multiple of time step 0.2 sec
 
+#---------- NEIGHBOR VEHICLES
+
 # The specified vehicle counts of each type will be created in the master list of neighbor vehicles.
 # The sum of their counts is the total number of vehicles available for use. Some subset of this master
 # list will be selected for any given episode.
@@ -31,7 +33,6 @@ vehicle_types:
     lc_duration:  2.4     #sec
     count:        4
 
-#  - id:           2 ########################## Bot 1b
   - model:        BotType1Model
     guidance:     BotType1bGuidance
     max_jerk:     4.0     #m/s^3

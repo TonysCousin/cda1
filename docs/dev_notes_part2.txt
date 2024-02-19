@@ -1116,14 +1116,69 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Increased penalty for frequent lane changes; constant term from 0.01 to 0.02.
 	* Increased multipler for speed variation penalty from 0.05 to 0.07.
 	* Checkpoints stored at 20240218-1305.
+	* The run died after 8600 iters, with rmin ~-3.6, rmean ~-0.8, rmax ~+0.6 and mean
+	  ep len peaking at 92 then dropping to 75.
+	* Restarted from checkpoint 08000 - continued checkpoints in 20240218-1655.
+	* Inference on new checkpoint 17000: way too eager to change lanes arbitrarily.
+
+* Planning for part 2 multi-agent training, with Bridgit vehicle(s) as some of the
+  neighbors.
+	* Neighbor Bridgits will always run as non-learning, using the static NN model.
+	* Vehicle 0 can be configured to be Bridgit, in which case it can be trained. In
+	  the inference program, if it is an inference-only scenario (20s) it will load
+	  the canned NN model like neighbor vehicles do. For any other scenarios, the
+	  program will look for the CLI-specified checkpoint file and run the vehicle in
+	  inference mode with that model.
+	* If Vehicle 0 is configured as a bot, then it will be marked as non-learning and
+	  no checkpoint loading will be attempted.
+	* Vehicle 0 is always indicated with the special yellow car + red flag.
+	* Measuring success in part 2:
+		* The baseline Bridgit model will be subjected to additional training
+		  where some of the neighbors are running copies of the previous baseline
+		  Bridgit NN model.
+		* Training success will be judged as part 1 training was, with reward
+		  profiles, episode lengths, and manual evaluation runs performing as
+		  expected.
+		* As each round succeeds, the number of neighbors operated by Bridgit will
+		  be increased. While it is not reasonable for every vehicle to be operated
+		  this way (need a mix of personalities), it will be useful to know that
+		  the model can function in such an environment.
+		* Additional measures would involve traffic flow metrics. Establish a
+		  baseline case with N bots (mix of both types), and run a sequence of M
+		  evaluation episodes (unconstrained length). New scenarios would need to
+		  be defined that place the ego vehicle at the same location near the
+		  beginning of each lane (randomize starting lane selection) so that we
+		  have consistent expectations of drive time for a give lane. Then
+		  the neighbors can be randomly placed around the ego, like for training.
+			* Bot vehicles will need to be reprogrammed to make a better
+			  attempt at following speed limits, rather than a bias below it.
+			* Only use the RoadwayB roadway model, since it better represents
+			  real-world geometry.
+			* Use a fixed set of active targets, such as originally envisioned
+			  in lanes 1 & 2.
+		* Accumulate stats on:
+			* Crashes per episode (all vehicles, as this will be an indication
+			  of unnecessary congestion).
+			* Ego vehicle travel time from each lane starting point to each
+			  target.
+			* For each neighbor vehicle, track its "speed disadvantage", which
+			  can be defined as the integral of its target_speed - actual_speed
+			  over the course of its drive. Target_speed for a bot is defined
+			  when it is created. For a Bridgit neighbor, it will be the posted
+			  speed limit. In order to compare performance between two vehicles
+			  with differing route lengths, this integral must then be
+			  normalized to route length, so units would be delta-m/s per km.
+			  This will then be a measure of congestion.
 
 
 
 
 
+TODO:
 - retrace NN size expansion and addition of dropouts once success is found.
-- Fix defect (fault) when running inference on scenario 20 (can't find checkpoint file)
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
+- Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
+  independent of model logic.
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:
@@ -1132,10 +1187,10 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	   episodes, short trajectory segments or single time steps.
 	b) Intersperse imitation episodes with normal episodes in SAC RL training. ~10% of episodes would use the 1c bot
 	   to produce the expert actions for a given time step, then adjust the full ego state to that result and repeat.
-- consider rescaling obs element so that they all use the full range of [-1, 1] (e.g. speed limit).
 - Convert Train checkpoints to msgpack format (see RLlib_notes.txt)
-- Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
-  independent of model logic.
+- Enhance Bridgit to use the FUTURE obs for performance config params. This could dial in aggressiveness for meeting the
+  speed limit, or even reaching the target asap. Increase reward for speed compliance and decrease it for lane stability,
+  and vice versa.
 
 - Show speed limit on speed plot
 - Improve use of reference lines on speed plot
