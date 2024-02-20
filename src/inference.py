@@ -193,14 +193,14 @@ def main(argv):
         obs = scale_obs(raw_obs)
 
         if inference_only:
-            print("///// step {:3d}: ln {}, LC {}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                    .format(step, vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
+            print("///// step {:3d}: ln {}, LC {}/{}, SL = {:.1f}, spd cmd = {:.1f}, spd = {:.1f}, p = {:.1f}, r = {:7.4f} {}"
+                    .format(step, vehicles[0].lane_id, int(raw_obs[ObsVec.LC_UNDERWAY]), vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
                             raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
         else:
-            print("///// step {:3d}: sc act = [{:5.2f} {:5.2f}], ln {}, LC {}, SL = {:.1f}, spd cmd = {:.2f}, spd = {:.2f}, p = {:.1f}, r = {:7.4f} {}"
-                    .format(step, action[0], action[1], vehicles[0].lane_id, vehicles[0].lane_change_count, raw_obs[ObsVec.LOCAL_SPD_LIMIT], \
-                            raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, reward, info["reward_detail"]))
-        #print("      Vehicle 1 speed = {:.1f}".format(vehicles[1].cur_speed))
+            print("///// step {:3d}: sc act = [{:5.2f} {:5.2f}], ln {}, LC {}/{}, SL = {:.1f}, spd cmd = {:.f}, spd = {:.f}, p = {:.1f}, r = {:7.4f} {}"
+                    .format(step, action[0], action[1], vehicles[0].lane_id, int(raw_obs[ObsVec.LC_UNDERWAY]), vehicles[0].lane_change_count, \
+                            raw_obs[ObsVec.LOCAL_SPD_LIMIT], raw_obs[ObsVec.SPEED_CMD], raw_obs[ObsVec.SPEED_CUR], vehicles[0].p, \
+                            reward, info["reward_detail"]))
 
         """
         # --- this section for debugging only ---

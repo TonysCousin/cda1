@@ -156,8 +156,10 @@ class BridgitGuidance(VehicleGuidance):
         """
 
         # Check for a lane change being completed in this time step. If so, then force an immediate replan to update the LC desirabilities.
+        # We need to compare the counter to total - 1 since this counter doesn't get updated until later in the time step loop (in the
+        # vehicle dynamics).
         total_lc_steps = self.my_vehicle.model.lc_compl_steps
-        if obs[ObsVec.STEPS_SINCE_LN_CHG] == total_lc_steps:
+        if obs[ObsVec.STEPS_SINCE_LN_CHG] >= total_lc_steps - 1:
             self.steps_since_plan = total_lc_steps
 
         # If not enough time steps have passed, then return the input vector

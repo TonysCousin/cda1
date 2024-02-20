@@ -38,6 +38,7 @@ class EmbedGuidance(VehicleGuidance):
         def pri(self):
             return "lane = {:2d}, tgt = {:2d}, delta_p = {:.1f}, prob = {:.3f}.  ".format(self.lane_id, self.tgt_id, self.delta_p, self.prob)
 
+    #TODO: check this logic against the BridgitGuidance code to make sure updates have been copied over
 
     def __init__(self,
                  prng       : HpPrng,

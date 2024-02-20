@@ -180,7 +180,7 @@ class Vehicle:
         # Check that an adjoining lane is available in the direction commanded until maneuver is complete
         new_lane = int(self.lane_id) #TODO: still need the int call?
         tgt_lane = new_lane
-        if self.lane_change_count > 0:
+        if self.lane_change_count > 0: #TODO: could probably do this just for == 1 to avoid repeated calls to get_target_lane
 
             # Ensure that there is a lane to change into and get its ID
             tgt_lane = self.roadway.get_target_lane(new_lane, self.lane_change_status, new_p)

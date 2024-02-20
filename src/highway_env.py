@@ -173,6 +173,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         lower_obs = np.full((ObsVec.OBS_SIZE), -1.0) #most values are -1, so only the others are explicitly set below
         lower_obs[ObsVec.SPEED_CMD]             = 0.0
         lower_obs[ObsVec.SPEED_CMD_PREV]        = 0.0
+        lower_obs[ObsVec.LC_UNDERWAY]           = 0.0
         lower_obs[ObsVec.STEPS_SINCE_LN_CHG]    = 0.0
         lower_obs[ObsVec.SPEED_CUR]             = 0.0
         lower_obs[ObsVec.SPEED_PREV]            = 0.0
@@ -187,8 +188,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         upper_obs = np.ones(ObsVec.OBS_SIZE) #most values are 1 (all values in sensor zones are limited to 1)
         upper_obs[ObsVec.SPEED_CMD]             = Constants.MAX_SPEED
         upper_obs[ObsVec.SPEED_CMD_PREV]        = Constants.MAX_SPEED
-        upper_obs[ObsVec.LC_CMD]                = LaneChange.CHANGE_RIGHT
-        upper_obs[ObsVec.LC_CMD_PREV]           = LaneChange.CHANGE_RIGHT
         upper_obs[ObsVec.STEPS_SINCE_LN_CHG]    = Constants.MAX_STEPS_SINCE_LC
         upper_obs[ObsVec.SPEED_CUR]             = Constants.MAX_SPEED
         upper_obs[ObsVec.SPEED_PREV]            = Constants.MAX_SPEED
@@ -535,10 +534,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # discourage the initial LC.
         self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG] = Constants.MAX_STEPS_SINCE_LC
 
-        # We must do this after all vehicles have been initialized, otherwise obs from the vehicles placed first won't
-        # include sensing of vehicle placed later.
-
-        # Get some representative initial obs from each vehicle
+        # Get some representative initial obs from each vehicle. We must do this after all vehicles have been initialized,
+        # otherwise obs from the vehicles placed first won't include sensing of vehicles placed later.
         dummy_actions = [0.5*Constants.MAX_SPEED, LaneChange.STAY_IN_LANE]
         for i in range(self.num_vehicles):
             self.all_obs[i, :] = self.vehicles[i].model.get_obs_vector(i, self.vehicles, dummy_actions, self.all_obs[i, :])
@@ -664,8 +661,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 print("      Vehicle {} advanced with new_speed_cmd = {:.2f}. new_speed = {:.2f}, new_p = {:.2f}, new_lane = {}"
                         .format(i, action[0], self.vehicles[i].cur_speed, self.vehicles[i].p, self.vehicles[i].lane_id))
 
-            # If the ego vehicle has reached one of its target destinations, it is a successful episode
+            # Additiional checks on the ego vehicle
             if i == 0:
+
+                # If it has reached one of its target destinations, it is a successful episode
                 for t in self.roadway.targets:
                     if t.active  and  self.vehicles[0].lane_id == t.lane_id  and  self.vehicles[0].p >= t.p:
                         reached_tgt = True
@@ -1436,7 +1435,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.5
+            speed_mult = 0.3
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

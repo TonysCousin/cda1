@@ -1098,13 +1098,13 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
   roadways B, C & D.
 
 	* Refactored how plan_route is called & how its output is communicated. It
-	  outputs LC desirabilities into the obs vector. Eenv.step() now invokes
+	  outputs LC desirabilities into the obs vector. Env.step() now invokes
 	  guidance.step() on ego vehicle as well as on bot vehicles of that type.
 	  When guidance.step() invokes plan_route(), the return values are inserted
 	  into the obs vector that was provided. Experiment confirms this will get
 	  communicated back to the caller (env.step()) so that it will propagate to the rest
 	  of the code.
-	* Made Bridgit bots go to any target, depending on is_learning.
+	* Made Bridgit neighbor vehicles go to any target, depending on is_learning.
 	* Changed step() to not constrain the commands on first step (to avoid immediate LC).
 	  Also changed reset() to initialize the 4 historical obs elements with the same
 	  value that their current elements hold.
@@ -1120,6 +1120,30 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  ep len peaking at 92 then dropping to 75.
 	* Restarted from checkpoint 08000 - continued checkpoints in 20240218-1655.
 	* Inference on new checkpoint 17000: way too eager to change lanes arbitrarily.
+	* Training completed additional 30k iters, or 47k total iters. Ending performance
+	  was rmin ~-3, rmean ~-0.1, rmax ~1.2, mean ep len ~70. Not impressive, and it
+	  hadn't changed notably in the last 7k iters.
+	* Inference on checkpoint 30000: still eager to do several extraneous LCs, even
+	  immediately before the target at a penalty of -0.0630 points. Still a few runs
+	  with large LC cmd values in first couple steps. Speed penalties can be much
+	  larger than the LC des bonuses, so it works harder to maintain speed limit, which
+	  it does well.
+		* The big revelation is that, by having guidance.step() invoke the route
+		  planning instead of doing it at the bottom of the env loop, it is now
+		  making replan decisions based on 1 step old value of the LC counter, so
+		  it waits an extra step before refreshing the LC desirabilities. This
+		  is causing the NN to still want to continue the LC in the step where
+		  the LC completes, thus initiating a new one immediately. Also, the
+		  reward completely ignores the LC cmd while a mvr is underway, allowing
+		  it to stay high, even on the final step of the mvr. This unconstrained
+		  behavior may be encouraging it to learn that large values are a good
+		  habit.
+		* Probably time to add an obs element that indicates the vehicle's LC
+		  state. The existing obs element STEPS_SINCE_LN_CHG is a continuous
+		  value that scales [0..60] -> [0..1], so doesn't provide enough
+		  precision to clearly see when the counter has reached the total number
+		  of steps in a vehicle's maneuver (which could even be different for
+		  different agents), so an additional element would be useful.
 
 * Planning for part 2 multi-agent training, with Bridgit vehicle(s) as some of the
   neighbors.
@@ -1170,15 +1194,34 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 			  normalized to route length, so units would be delta-m/s per km.
 			  This will then be a measure of congestion.
 
+2/19/24
+
+* Run D2 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways B, C & D.
+	* Changed BridgitGuidance.plan_route() so that it looks one step ahead for the end
+	  of an in-progress LC maneuver to force the replan, since it is now being execcuted
+	  at the top of the loop, where it used to be at the bottom and the counter was
+	  already updated.
+	* Added obs vector element LC_UNDERWAY so that the agent unambiguously knows when
+	  such a maneuver is in progress.
+	* Fixed a defect in scale_obs() where it was not copying the LEFT_OCCUPIED or
+	  RIGHT_OCCUPIED elements. This explains all the lane changes into neighbors where
+	  it seemed blind to them.
+	* Reduced penalty for speed deviation multiplier from 0.5 to 0.3 so that it doesn't
+	  dominate the LC rewards.
+	* Checkpoints are stored at 20240219-2137.
+
 
 
 
 
 TODO:
+- Add running average reward display to the train program.
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
+- Ensure EmbedGuidance matchess BridgitGuidance.
 - add coreographed scenarios to routine training that force certain close call situations.
 - consider using imitation learning. Create a bot (1c) that changes lanes to pass a slow forward vehicle. Then
   either:

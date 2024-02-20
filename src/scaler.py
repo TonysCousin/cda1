@@ -1,4 +1,5 @@
 from typing import List
+import copy
 import math
 import torch
 import numpy as np
@@ -19,26 +20,22 @@ def scale_obs(obs: np.array     #raw observation vector from the environment at 
         CAUTION: code in this function is tightly coupled to HighwayEnv._init().
     """
 
-    scaled = [0.0]*ObsVec.OBS_SIZE
+    # Begin by copying the full vector as-is, to ensure that all elements that don't need scaling are covered
+    scaled = copy.copy(obs)
 
-    # Scale the initial items that require special scaling
-    scaled[ObsVec.SPEED_CMD]            = obs[ObsVec.SPEED_CMD]             / Constants.MAX_SPEED           #range [0, 1]
-    scaled[ObsVec.SPEED_CMD_PREV]       = obs[ObsVec.SPEED_CMD_PREV]        / Constants.MAX_SPEED           #range [0, 1]
-    scaled[ObsVec.LC_CMD]               = obs[ObsVec.LC_CMD]
-    scaled[ObsVec.LC_CMD_PREV]          = obs[ObsVec.LC_CMD_PREV]
-    scaled[ObsVec.SPEED_CUR]            = obs[ObsVec.SPEED_CUR]             / Constants.MAX_SPEED           #range [0, 1]
-    scaled[ObsVec.SPEED_PREV]           = obs[ObsVec.SPEED_PREV]            / Constants.MAX_SPEED           #range [0, 1]
-    scaled[ObsVec.LOCAL_SPD_LIMIT]      = obs[ObsVec.LOCAL_SPD_LIMIT]       / Constants.MAX_SPEED           #range [0, 1]
-    scaled[ObsVec.STEPS_SINCE_LN_CHG]   = obs[ObsVec.STEPS_SINCE_LN_CHG]    / Constants.MAX_STEPS_SINCE_LC  #range [0, 1]
-    scaled[ObsVec.FWD_DIST]             = min(obs[ObsVec.FWD_DIST]          / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
-    scaled[ObsVec.FWD_DIST_PREV]        = min(obs[ObsVec.FWD_DIST_PREV]     / Constants.REFERENCE_DIST, 1.0)#range [0, 1]
-    scaled[ObsVec.FWD_SPEED]            = obs[ObsVec.FWD_SPEED]             / Constants.MAX_SPEED           #range [0, 1]
-
-    # Copy the remaining contents directly, as no scaling is needed on these
-    scaled[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE] = obs[ObsVec.FWD_SPEED + 1 : ObsVec.OBS_SIZE]
+    # Redo the initial items that require special scaling
+    scaled[ObsVec.SPEED_CMD]            = obs[ObsVec.SPEED_CMD]             / Constants.MAX_SPEED           #scaled range [0, 1]
+    scaled[ObsVec.SPEED_CMD_PREV]       = obs[ObsVec.SPEED_CMD_PREV]        / Constants.MAX_SPEED           #scaled range [0, 1]
+    scaled[ObsVec.STEPS_SINCE_LN_CHG]   = obs[ObsVec.STEPS_SINCE_LN_CHG]    / Constants.MAX_STEPS_SINCE_LC  #scaled range [0, 1]
+    scaled[ObsVec.SPEED_CUR]            = obs[ObsVec.SPEED_CUR]             / Constants.MAX_SPEED           #scaled range [0, 1]
+    scaled[ObsVec.SPEED_PREV]           = obs[ObsVec.SPEED_PREV]            / Constants.MAX_SPEED           #scaled range [0, 1]
+    scaled[ObsVec.LOCAL_SPD_LIMIT]      = obs[ObsVec.LOCAL_SPD_LIMIT]       / Constants.MAX_SPEED           #scaled range [0, 1]
+    scaled[ObsVec.FWD_DIST]             = min(obs[ObsVec.FWD_DIST]          / Constants.REFERENCE_DIST, 1.0)#scaled range [0, 1]
+    scaled[ObsVec.FWD_DIST_PREV]        = min(obs[ObsVec.FWD_DIST_PREV]     / Constants.REFERENCE_DIST, 1.0)#scaled range [0, 1]
+    scaled[ObsVec.FWD_SPEED]            = obs[ObsVec.FWD_SPEED]             / Constants.MAX_SPEED           #scaled range [0, 1]
 
     # Return the obs as an ndarray
-    return np.array(scaled, dtype = np.float32)
+    return scaled
 
 
 def unscale_actions(scaled_actions: torch.tensor

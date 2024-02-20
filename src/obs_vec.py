@@ -88,15 +88,16 @@ class ObsVec:
     SPEED_CMD_PREV      =  1 #desired speed from previous time step, m/s
     LC_CMD              =  2 #agent's most recent lane change command, quantized (values map to the enum class LaneChange)
     LC_CMD_PREV         =  3 #lane change command from previous time step, quantized
-    STEPS_SINCE_LN_CHG  =  4 #num time steps since the previous lane change was initiated
-    SPEED_CUR           =  5 #agent's actual forward speed, m/s
-    SPEED_PREV          =  6 #agent's actual speed in previous time step, m/s
-    LOCAL_SPD_LIMIT     =  7 #posted speed limit at the host's current location, m/s
-    FWD_DIST            =  8 #distance to nearest downtrack vehicle in same lane, m
-    FWD_DIST_PREV       =  9 #distance to downtrack vehicle from previous time step, m
-    FWD_SPEED           = 10 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
-    LEFT_OCCUPIED       = 11 #is there a vehicle immediately to the left (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
-    RIGHT_OCCUPIED      = 12 #is there a vehicle immediately to the right (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
+    LC_UNDERWAY         =  4 #is a lane change maneuver currently underway?
+    STEPS_SINCE_LN_CHG  =  5 #num time steps since the previous lane change was initiated (float, scaled by MAX_STEPS_SINCE_LC)
+    SPEED_CUR           =  6 #agent's actual forward speed, m/s
+    SPEED_PREV          =  7 #agent's actual speed in previous time step, m/s
+    LOCAL_SPD_LIMIT     =  8 #posted speed limit at the host's current location, m/s
+    FWD_DIST            =  9 #distance to nearest downtrack vehicle in same lane, m
+    FWD_DIST_PREV       = 10 #distance to downtrack vehicle from previous time step, m
+    FWD_SPEED           = 11 #relative speed of the nearest downtrack vehicle in same lane, m/s faster than ego vehicle
+    LEFT_OCCUPIED       = 12 #is there a vehicle immediately to the left (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
+    RIGHT_OCCUPIED      = 13 #is there a vehicle immediately to the right (within +/- 4 zones longitudinally)? (0 = false, 1 = true)
 
     # Elements specific to bots running ACC & changing lanes to reach a target destination
     # --there are none at this time
@@ -105,9 +106,9 @@ class ObsVec:
     #..........Elements specific to the Bridgit model is everything below here
     #
 
-    FUTURE0             = 13 #reserved for future use
-    FUTURE1             = 14
-    FUTURE2             = 15
+    FUTURE0             = 14 #reserved for future use
+    FUTURE1             = 15
+    FINAL_COMMON_ELEM   = 15
 
     # Bridgit controller lane change command outputs; relative desirability for each lane that the vehicle can choose.
     # Values are floats from 0 (don't go there) to 1 (highly desirable).
@@ -143,6 +144,6 @@ class ObsVec:
 
     # Size references for the number of elements in certain groupings defined in this file.
     # CAUTION! these need to be maintained in sync with any changes to the index structures elsewhere in this file.
-    NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FUTURE1
+    NUM_BRIDGIT_NON_SENSOR = BASE_SENSOR_DATA - FINAL_COMMON_ELEM
 
     OBS_SIZE            = FINAL_ELEMENT + 1 #number of elements in the vector

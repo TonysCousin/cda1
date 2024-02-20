@@ -217,7 +217,7 @@ def main(argv):
             remaining_hrs = 0.0
             if iter > 1:
                 remaining_hrs = (max_iterations - iter) / perf
-            print("///// Iter {} ({} steps): Rew {:7.3f} / {:7.3f} / {:7.3f}.  Ep len = {:.1f}.  "
+            print("///// Iter {} ({} steps): Rew {:5.1f} /{:5.1f} /{:5.1f}.  Ep len = {:.1f}.  "
                   .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
                   "Elapsed = {:.1f} hr @{:d} iter/hr, {:.1f} M steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, 0.001*ksteps_per_hr, remaining_hrs))
 

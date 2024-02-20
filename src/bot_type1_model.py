@@ -67,8 +67,12 @@ class BotType1Model(VehicleModel):
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC
-        if me.lane_change_count >= self.lc_compl_steps - 1: #a new LC maneuver has just completed, so a new mvr can now be considered
-            steps_since_lc = self.lc_compl_steps - 1
+        obs[ObsVec.LC_UNDERWAY] = 0.0
+        if me.lane_change_count > 0:
+            obs[ObsVec.LC_UNDERWAY] = 1.0
+            if me.lane_change_count >= self.lc_compl_steps - 1: #this is the final time step of a LC mvr, so a new mvr can now be considered
+                obs[ObsVec.LC_UNDERWAY] = 0.0
+                steps_since_lc = self.lc_compl_steps - 1
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Identify the closest neighbor downtrack of this vehicle; could be a vehicle in the same lane, or in adjacent lane and is
