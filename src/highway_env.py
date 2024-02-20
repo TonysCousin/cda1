@@ -1450,7 +1450,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Penalty for widely varying speed commands
             cmd_diff = abs(self.all_obs[0, ObsVec.SPEED_CMD] - self.all_obs[0, ObsVec.SPEED_CMD_PREV]) / Constants.MAX_SPEED #m/s
-            penalty = 0.07 * cmd_diff
+            penalty = 0.15 * cmd_diff
             reward -= penalty
             if penalty > 0.0001:
                 explanation += "Spd var {:.4f}. ".format(-penalty)

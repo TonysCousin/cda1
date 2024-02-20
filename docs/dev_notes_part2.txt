@@ -1210,6 +1210,29 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Reduced penalty for speed deviation multiplier from 0.5 to 0.3 so that it doesn't
 	  dominate the LC rewards.
 	* Checkpoints are stored at 20240219-2137.
+	* Early inference on checkpoint 11000 because I felt there is still a mistake:
+	  still showing a desire to do a lot of lane changes. Yes, there is still a delay in
+	  computing the new LC desirabilities, even though plan_route is now anticipating LC
+	  completion and running one time step earlier; because it is run before dynamics
+	  update, it still sees the vehicle in the origin lane, so LC desirabilities are the
+	  old values. Speeds are a little less consistent with speed limits, and are noisier.
+	  About half the time the LCs are going in the undesirable direction, so it is not
+	  just chasing more rewards.
+	* I killed the run based on known new defect in plan_route().
+
+2/20/24
+
+* Run D3 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways B, C & D.
+	* Changed BridgitGuidance so its LC desirability calculations anticipate the new
+	  target lane on the last time step of an LC mvr.
+	* Fixed a new defect in BridgitGuidance.plan_route() that was forcing it to run on
+	  every time step.
+	* Changed definition of obs STEPS_SINCE_LN_CHG to start counting from 1 as a mvr is
+	  initiated, instead of only being reset when the mvr is complete. This only affects
+	  input to the NN, it is not used in env calcs.
+	* Increased penalty for speed variations multiplier from 0.07 to 0.15.
+	* Checkpoints stored at 20240220-0250.
 
 
 
@@ -1217,6 +1240,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 TODO:
 - Add running average reward display to the train program.
+- consider increasing LC penalty (constant term) since each desirable LC scores 1500 pts and only costs 630 to initiate immediately.
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be

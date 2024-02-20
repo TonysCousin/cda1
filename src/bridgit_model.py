@@ -80,7 +80,7 @@ class BridgitModel(VehicleModel):
             obs[ObsVec.LC_UNDERWAY] = 1.0
             if me.lane_change_count >= self.lc_compl_steps - 1: #this is the final time step of a LC mvr, so a new mvr can now be considered
                 obs[ObsVec.LC_UNDERWAY] = 0.0
-                steps_since_lc = self.lc_compl_steps - 1
+            steps_since_lc = me.lane_change_count
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Put the lane change desired values back into place, since that planning doesn't happen every time step

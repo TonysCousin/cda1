@@ -159,7 +159,7 @@ class BridgitGuidance(VehicleGuidance):
         # We need to compare the counter to total - 1 since this counter doesn't get updated until later in the time step loop (in the
         # vehicle dynamics).
         total_lc_steps = self.my_vehicle.model.lc_compl_steps
-        if obs[ObsVec.STEPS_SINCE_LN_CHG] >= total_lc_steps - 1:
+        if obs[ObsVec.STEPS_SINCE_LN_CHG] == total_lc_steps - 1:
             self.steps_since_plan = total_lc_steps
 
         # If not enough time steps have passed, then return the input vector
@@ -242,7 +242,7 @@ class BridgitGuidance(VehicleGuidance):
             if pos.prob > max_prob:
                 max_prob = pos.prob
 
-        # If all probs are zero (no hope of reaching any target), then we want to follow center lane, but
+       # If all probs are zero (no hope of reaching any target), then we want to follow center lane, but
         # with a low probability, since this value is used by the environment to reward lane choice behavior; it is in this pickle
         # because of poor choices upstream, so don't want to scoop up reward points now. With this adjustment, we don't want to
         # normalize the values; 1.0 should only be used if a target is straight ahead.
@@ -275,10 +275,22 @@ class BridgitGuidance(VehicleGuidance):
             p.prob = 0.0
             p.tgt_id = -1
 
+        # If a lane change maneuver will be completing in the next time step, then make this plan based on its destination lane.
+        # Env dynamics record the vehicle's lane ID to be the origin lane until the final time step of the maneuver. However,
+        # since dynamics doesn't update until after this planning cycle, we have to anticipate the change.
+        reference_lane = self.my_vehicle.lane_id
+        if self.my_vehicle.lane_change_count == self.my_vehicle.model.lc_compl_steps - 1:
+            if self.my_vehicle.lane_change_status == "left":
+                reference_lane -= 1
+            else:
+                reference_lane += 1
+            assert 0 <= reference_lane < self.roadway.NUM_LANES, \
+                    "///// ERROR: BridgitGuidance._set_relative_lane_pos: illegal new ref lane {}".format(reference_lane)
+
         # Update the lane assignments for each
-        self.positions[self.CENTER].lane_id = self.my_vehicle.lane_id
-        self.positions[self.LEFT].lane_id = self.my_vehicle.lane_id - 1 #if center is 0 then this appropriately indicates no lane present
-        self.positions[self.RIGHT].lane_id = self.my_vehicle.lane_id + 1
+        self.positions[self.CENTER].lane_id = reference_lane
+        self.positions[self.LEFT].lane_id = reference_lane - 1 #if center is 0 then this appropriately indicates no lane present
+        self.positions[self.RIGHT].lane_id = reference_lane + 1
         if self.positions[self.RIGHT].lane_id >= self.roadway.NUM_LANES:
             self.positions[self.RIGHT].lane_id = -1
 
