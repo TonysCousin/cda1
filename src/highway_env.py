@@ -1206,9 +1206,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                 print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
                                         .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
                                                 self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                                print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
-                                                                                                        self.vehicles[k].lane_change_status,
-                                                                                                        self.vehicles[k].lane_change_count))
+                                print("      v{} speed = {:.1f}, prev speed = {:.1f}, lc_status = {}, lc count = {}"
+                                        .format(k, self.vehicles[k].cur_speed, self.all_obs[k, ObsVec.SPEED_PREV],
+                                                self.vehicles[k].lane_change_status, self.vehicles[k].lane_change_count))
                             break
 
                 # Else if they are in adjacent lanes, then
@@ -1245,9 +1245,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                         print("      v0 speed = {:.1f}, prev speed = {:.1f}, lc status = {}, lc count = {}"
                                               .format(self.all_obs[0, ObsVec.SPEED_CUR], self.all_obs[0, ObsVec.SPEED_PREV],
                                                       self.vehicles[0].lane_change_status, self.vehicles[0].lane_change_count))
-                                        print("      v{} speed = {:.1f}, lc_status = {}, lc count = {}".format(k, self.vehicles[k].cur_speed,
-                                                                                                               self.vehicles[k].lane_change_status,
-                                                                                                               self.vehicles[k].lane_change_count))
+                                        print("      v{} speed = {:.1f}, prev speed = {:.1f}, lc_status = {}, lc count = {}"
+                                              .format(k, self.vehicles[k].cur_speed, self.all_obs[k, ObsVec.SPEED_PREV],
+                                                      self.vehicles[k].lane_change_status, self.vehicles[k].lane_change_count))
                                     break
 
             if crash: #the previous break stmts only break out of the inner loop, so we need to break again
@@ -1338,33 +1338,34 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if crash:
                 if self.crash_same_lane:
                     if self.crash_p_dist_fwd >= 0.0:
-                        reward = -3.0
+                        reward = -5.0
                         explanation = "Rear-ended vehicle {}. ".format(self.crash_neighbor)
                     else:
                         reward = 0.0
                         explanation = "Neighbor {} rear-ended ego. ".format(self.crash_neighbor)
 
-                elif self.vehicles[0].lane_change_status == "none":
-                    reward = 0.0
-                    explanation = "Neighbor moved laterally into ego. "
-
-                elif self.crash_p_dist_fwd < 0.0  and  \
-                     self.crash_n_speed >= self.vehicles[0].cur_speed + max(4.0 - self.vehicles[0].lane_change_count, 0.0):
-                    reward = 0.0
-                    explanation = "Ego moved into fast-moving neighbor's lane & got rear-ended."
                 else:
-                    reward = -3.0
-                    explanation = "Crash for unclear reasons (neighbor {} speed {:.1f}, same lane = {}, LC status = {}, dist fwd = {:.1f})" \
-                                .format(self.crash_neighbor, self.crash_n_speed, self.crash_same_lane, self.crash_n_lc_status, self.crash_p_dist_fwd)
+                    too_fast = (ObsVec.ZONES_BEHIND - 0.5)*ObsVec.OBS_ZONE_LENGTH / self.vehicles[0].lane_change_count / self.time_step_size #m/s
+                    if self.vehicles[0].lane_change_status == "none":
+                        reward = 0.0
+                        explanation = "Neighbor moved laterally into ego. "
+                    elif self.crash_p_dist_fwd < 0.0  and  self.crash_n_speed - self.vehicles[0].cur_speed >= too_fast:
+                        reward = 0.0
+                        explanation = "Ego ({:.1f} m/s) moved into fast-moving neighbor's lane ({:.1f} m/s) & got rear-ended." \
+                                    .format(self.vehicles[0].cur_speed, self.crash_n_speed)
+                    else:
+                        reward = -5.0
+                        explanation = "Crash for unclear reasons (neighbor {} speed {:.1f}, same lane = {}, LC status = {}, dist fwd = {:.1f})" \
+                                    .format(self.crash_neighbor, self.crash_n_speed, self.crash_same_lane, self.crash_n_lc_status, self.crash_p_dist_fwd)
 
             # Else if ran off road, set a penalty
             elif off_road:
-                reward = -1.0
+                reward = -3.0
                 explanation = "Ran off road. "
 
             # Else if the vehicle just stopped in the middle of the road, set a penalty
             elif stopped:
-                reward = -1.0
+                reward = -3.0
                 explanation = "Vehicle stopped. "
 
             # Else (episode completed all desired time steps)

@@ -1233,6 +1233,21 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  input to the NN, it is not used in env calcs.
 	* Increased penalty for speed variations multiplier from 0.07 to 0.15.
 	* Checkpoints stored at 20240220-0250.
+	* Early inference on checkpoint 20000: lots of off-roading, esp in first time step. I
+	  wonder if this is in response to the normal distro of episodes with rmin < 3, since
+	  going off road early ends your life with only -1. Also, it is still common to see
+	  agent changing into the side of a neighbor, or into the path of a faster moving
+	  neighbor; looks like neighbors aren't watching out for this.
+	* Killed it early after finding a couple defects (see below).
+
+* Run D4 training single BridgitNN agent from scratch, with SAC over 30k iters using 16 bots on
+  roadways B, C & D.
+	* Fixed defect in BridgitModel that was restarting the STEPS_SINCE_LN_CHG early, thus
+	  causing a much larger than deserved penalty for beginning a LC.
+	* Fixed a defect in _get_rewards() that often didn't penalize an ego-fault crash.
+	* Changed completion penalties for crash from -3 to -5, for off-road from -1 to -3,
+	  and for stopping from -1 to -3, to encourage agent to find a driving solution.
+	* Checkpoints stored in 20240220-1045.
 
 
 

@@ -72,6 +72,10 @@ class BridgitModel(VehicleModel):
         obs[ObsVec.SPEED_CUR] = me.cur_speed
         obs[ObsVec.FWD_DIST_PREV] = prev_fwd_dist
         obs[ObsVec.LOCAL_SPD_LIMIT] = self.roadway.get_speed_limit(me.lane_id, me.p)
+
+        # Update the lane change indicators, internal and obs. LC_UNDERWAY should show true for all but final time step of the mvr.
+        # STEPS_SINCE_LN_CHG should start counting up from 2, holding its pre-mvr value during the first step of a new mvr, because
+        # it is used to compute rewards when the mvr begins.
         steps_since_lc += 1
         if steps_since_lc > Constants.MAX_STEPS_SINCE_LC:
             steps_since_lc = Constants.MAX_STEPS_SINCE_LC
@@ -80,7 +84,8 @@ class BridgitModel(VehicleModel):
             obs[ObsVec.LC_UNDERWAY] = 1.0
             if me.lane_change_count >= self.lc_compl_steps - 1: #this is the final time step of a LC mvr, so a new mvr can now be considered
                 obs[ObsVec.LC_UNDERWAY] = 0.0
-            steps_since_lc = me.lane_change_count
+            if me.lane_change_count > 1:
+                steps_since_lc = me.lane_change_count
         obs[ObsVec.STEPS_SINCE_LN_CHG] = steps_since_lc
 
         # Put the lane change desired values back into place, since that planning doesn't happen every time step
