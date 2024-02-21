@@ -1248,6 +1248,36 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Changed completion penalties for crash from -3 to -5, for off-road from -1 to -3,
 	  and for stopping from -1 to -3, to encourage agent to find a driving solution.
 	* Checkpoints stored in 20240220-1045.
+		* Code was throwing lots of divide-by-zero errors & restarting workers, which
+		  will screw up the noise schedule. So I fixed the defect in rewards and
+		  restarted from checkpoint 06000.
+	* Continuation run checkpoints stored in 20240220-1304.
+	* Training completed with rmin ~-5, rmean ~0, rmax ~1.1 and mean ep len ~98, all
+	  steady for the last 6k iters.
+	* Inference on checkpoint 29000: it mostly performs very well. 
+		* Ran ~30-40 runs spread across all 3 roadways.
+		* Speeds are a bit off of the speed limit (~2-5 m/s), but it is responsive to
+		  speed limit changes. 
+		* It hits targets in all but one run, but tends to procrastinate initiating the
+		  lane changes, then stacks all of them together, gaining max penalties,
+		  instead of spreading them out to reduce the frequency penalty. 
+		* Saw only one dumb rear-end crash, and no side crashes. Many times it appeared
+		  to be actively adjusting speed to avoid lateral crashes or rear-endings.
+		* No extraneous LCs and no off-road, except  when it missed the one target.
+***	* USE THIS as baseline for going forward with multi-agent training.
+
+* Smoke testing of using the new agent (cda1.1-D4-29000) as a neighbor. See exception raised
+  about finding speed limit on NoneType in reset() only when using scenario 1. This only happens
+  occasionally. I added 2 assertions in reset & verified that self.roadway is being defined as
+  expected. Maybe some method call is corrupting it?
+
+
+
+FIX RUN ERRORS BELOW!
+
+* Run D5 with SEVERAL CHANGES (see diff on train.py)
+	* Running with 1 Bridgit neighbor and 15 others.
+	* Reduced LR from 8e-5 to 1e-5.
 
 
 
@@ -1255,6 +1285,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 TODO:
 - Add running average reward display to the train program.
+- Investigate apparent phenomenon where neighbor vehicles are placed in order of the types listed in config, not randomly.
 - consider increasing LC penalty (constant term) since each desirable LC scores 1500 pts and only costs 630 to initiate immediately.
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).

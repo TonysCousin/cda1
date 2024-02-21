@@ -391,6 +391,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 self.roadway = RoadwayD(self.debug)
             else:
                 raise ValueError("///// ERROR specifying unknown roadway. config roadway_name = {}".format(self.roadway_name))
+        assert self.roadway is not None, "///// ERROR in reset: roadway is None with scenario {}, intended roadway_name {}" \
+                .format(self.effective_scenario, self.roadway_name)
 
         # Decide which targets will be activated for this episode - needs to happen before vehicle reset
         self._choose_active_targets()
@@ -529,6 +531,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #
         #..........Gather the observations from the appropriate vehicles & wrap up
         #
+
+        #TODO: for debugging only
+        assert self.roadway is not None, "///// ERROR in reset: roadway is None with scenario {}, intended roadway_name {}" \
+                .format(self.effective_scenario, self.roadway_name)
 
         # Initialize the num steps since previous lane change to maximum, since there is no history and we don't want to
         # discourage the initial LC.
@@ -717,12 +723,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             return_info["reason"] = "Two (or more) vehicles crashed."
 
         # If any neighbor Bridgit vehicle is inactive, log some details
-        for i in range(1, self.num_vehicles):
-            if self.vehicles[i].guidance.name == "BridgitGuidance":
-                #print("*       step: Bridgit neighbor is active? {}".format(self.vehicles[i].active))
-                if self.vehicles[i].crashed  or  self.vehicles[i].off_road  or  self.vehicles[i].stopped:
-                    print("//        Bridgit neighbor problem: crashed = {}, off_road = {}, stopped = {}"
-                            .format(self.vehicles[i].crashed, self.vehicles[i].off_road, self.vehicles[i].stopped))
+        #for i in range(1, self.num_vehicles):
+        #    if self.vehicles[i].guidance.name == "BridgitGuidance":
+        #        #print("*       step: Bridgit neighbor is active? {}".format(self.vehicles[i].active))
+        #        if self.vehicles[i].crashed  or  self.vehicles[i].off_road  or  self.vehicles[i].stopped:
+        #            print("//        Bridgit neighbor problem: crashed = {}, off_road = {}, stopped = {}"
+        #                    .format(self.vehicles[i].crashed, self.vehicles[i].off_road, self.vehicles[i].stopped))
 
         # Determine the reward resulting from this time step's action
         reward, expl = self._get_reward(done, crash, self.vehicles[0].off_road, self.vehicles[0].stopped, reached_tgt)
@@ -1345,7 +1351,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                         explanation = "Neighbor {} rear-ended ego. ".format(self.crash_neighbor)
 
                 else:
-                    too_fast = (ObsVec.ZONES_BEHIND - 0.5)*ObsVec.OBS_ZONE_LENGTH / self.vehicles[0].lane_change_count / self.time_step_size #m/s
+                    count = self.vehicles[0].lane_change_count
+                    if count == 0:
+                        count = 16
+                    too_fast = (ObsVec.ZONES_BEHIND - 0.5)*ObsVec.OBS_ZONE_LENGTH / count / self.time_step_size #m/s
                     if self.vehicles[0].lane_change_status == "none":
                         reward = 0.0
                         explanation = "Neighbor moved laterally into ego. "

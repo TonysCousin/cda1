@@ -46,7 +46,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         NUM_FC2_NEURONS = 640
         NUM_FC3_NEURONS = 128
         NUM_FC4_NEURONS = 32
-        BRIDGIT_MODEL = "/home/starkj/projects/cda1/models/cda1.1-C49-29000/policies/default_policy/model/model.pt"
+        BRIDGIT_MODEL = "/home/starkj/projects/cda1/models/cda1.1-D4-29000/policies/default_policy/model/model.pt"
 
         # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
         self.fc1 = nn.Linear(ObsVec.BASE_SENSOR_DATA, NUM_FC1_NEURONS)
