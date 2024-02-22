@@ -23,7 +23,7 @@ vehicle_types:
     max_accel:    3.0     #m/s^2
     length:       5.0     #m
     lc_duration:  3.2     #sec
-    count:        1
+    count:        4
 
   - model:        BotType1Model
     guidance:     BotType1aGuidance
@@ -31,7 +31,7 @@ vehicle_types:
     max_accel:    3.0     #m/s^2
     length:       12.0     #m
     lc_duration:  2.4     #sec
-    count:        4
+    count:        2
 
   - model:        BotType1Model
     guidance:     BotType1bGuidance
@@ -39,4 +39,4 @@ vehicle_types:
     max_accel:    4.0     #m/s^2
     length:       5.0     #m
     lc_duration:  2.4     #sec
-    count:        11
+    count:        10

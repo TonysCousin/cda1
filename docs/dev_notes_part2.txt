@@ -1285,6 +1285,21 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  vehicle types in the config file, and not fully randomizing them.
 	* Fixed defect in BridgitModel where it allowed a full reset even for an inactive
 	  vehicle, which terminated the run.
+	* Checkpoints stored at 20240221-2129.
+	* Training completed in 3.2 hr with rmin ~-5, rmean ~0.4, rmax 1.3 and mean ep len ~98.
+	  Total iters trained now 40k (70M steps).
+	* Inference on checkpoint 10000: smooth performance all around. Speed control is a bit
+	  lacking; often high or low by up to 6 m/s. Sometimes waits quite long before doing
+	  necessary LCs. Seems to anticipate speed limit changes, which is good. Following
+	  behavior is consistently conservative. Never saw an ego crash in ~30 runs.
+
+2/22/24
+
+* Run D6 training MA Bridgit from the D5 checkpoint 10000, with 4 Bridgit neighbors and 12
+  bots for 10k additional iters on all 3 roadways.
+	* Increased penalty for speed deviation; multiplier from 0.3 to 0.5.
+	* Increased penalty for speed variation; multiplier from 0.15 to 0.2.
+	* Checkpoint stored at 20240222-0941.
 
 
 
