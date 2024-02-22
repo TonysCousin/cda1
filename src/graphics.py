@@ -5,8 +5,9 @@ import pygame
 from pygame.locals import *
 from typing import List
 from constants import Constants
+from obs_vec import ObsVec
 from highway_env import HighwayEnv
-from roadway_b import Roadway
+from roadway import Roadway
 from target_destination import TargetDestination
 
 """Provides all the graphics display for the inference program.
@@ -33,13 +34,15 @@ class Graphics:
     # set up the colors & fonts
     BLACK                   = (  0,   0,   0)
     WHITE                   = (255, 255, 255)
-    BACKGROUND_COLOR        = ( 50,  50,  50)
+    BACKGROUND_COLOR        = (  0,   0,   0)
     LEGEND_COLOR            = WHITE
     LANE_EDGE_COLOR         = WHITE
     NEIGHBOR_COLOR          = ( 64, 128, 255)
     EGO_COLOR               = (168, 168, 0) #yellow
     PLOT_AXES_COLOR         = (200, 200,  50)
-    DATA_COLOR              = WHITE
+    DATA_COLOR0             = WHITE
+    DATA_COLOR1             = (192, 192, 192)
+    DATA_COLOR2             = (  0, 255,   0)
     REFERENCE_COLOR         = (120,  90,   0)
     BASIC_FONT_SIZE         = 14    #vertical pixels
     LARGE_FONT_SIZE         = 18    #vertical pixels
@@ -158,20 +161,19 @@ class Graphics:
         #..........Add live data plots to the display
         #
 
-        # Plot speed of a vehicle (ego vehicle if it is in the scenario, else vehicle 1)
+        # Plot speed & speed limit of a vehicle (ego vehicle if it is in the scenario, else vehicle 1)
+        # Speed limit will be the first curve, actual speed will be next.
         title = "Ego speed, m/s"
         if self.env.scenario >= 90:
             title = "Speed, m/s"
         self.plot_speed = Plot(self.window_surface, Graphics.PLOT1_R, Graphics.PLOT1_S, Graphics.PLOT_H, Graphics.PLOT_W, 0.0, \
-                                   Constants.MAX_SPEED, max_steps = Graphics.PLOT_STEPS, title = title)
-        self.plot_speed.add_reference_line(Graphics.LOW_SPEED, Graphics.REFERENCE_COLOR)
-        self.plot_speed.add_reference_line(Graphics.NOMINAL_SPEED, Graphics.REFERENCE_COLOR)
-        self.plot_speed.add_reference_line(Graphics.HIGH_SPEED, Graphics.REFERENCE_COLOR)
+                                   Constants.MAX_SPEED, data_colors = [Graphics.DATA_COLOR1, Graphics.DATA_COLOR2], \
+                                   num_series = 2, max_steps = Graphics.PLOT_STEPS, title = title)
 
         # Plot the lane ID of the ego vehicle
         num_lanes = self.env.roadway.NUM_LANES
         self.plot_lane = Plot(self.window_surface, Graphics.PLOT2_R, Graphics.PLOT2_S, Graphics.PLOT_H, Graphics.PLOT_W, 0, num_lanes-1, \
-                                max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
+                                data_colors = [Graphics.DATA_COLOR0], max_steps = Graphics.PLOT_STEPS, title = "Ego lane ID", show_vert_axis_scale = False)
         for i in range(1, num_lanes):
             self.plot_lane.add_reference_line(i, Graphics.REFERENCE_COLOR)
 
@@ -242,8 +244,8 @@ class Graphics:
         pv = 0
         if self.env.scenario >= 90:
             pv = 1
-        self.plot_speed.update(vehicles[pv].cur_speed)
-        self.plot_lane.update(self.env.roadway.NUM_LANES - 1 - vehicles[pv].lane_id)
+        self.plot_speed.update([obs[ObsVec.LOCAL_SPD_LIMIT], vehicles[pv].cur_speed])
+        self.plot_lane.update([self.env.roadway.NUM_LANES - 1 - vehicles[pv].lane_id])
 
         # Repaint the surface
         pygame.display.update()
@@ -542,9 +544,10 @@ class Plot:
                  width      : int,              #width of the plot, pixels
                  min_y      : float,            #min value of data to be plotted on Y axis
                  max_y      : float,            #max value of data to be plotted on Y axis
+                 data_colors: list,             #one element (a tuple) for the color of each data curve being plotted
                  max_steps  : int       = 180,  #max num time steps that will be plotted along X axis
+                 num_series : int       = 1,    #num data series (curves) to be plotted
                  axis_color : tuple     = Graphics.PLOT_AXES_COLOR, #color of the axes
-                 data_color : tuple     = Graphics.DATA_COLOR, #color of the data curve being plotted
                  title      : str       = None,  #Title above the plot
                  show_vert_axis_scale: bool = True, #should the numerical scale on the vertical axis be displayed?
                 ):
@@ -564,9 +567,10 @@ class Plot:
         self.width = width
         self.min_y = min_y
         self.max_y = max_y
+        self.data_colors = data_colors
         self.max_steps = max_steps
+        self.num_series = num_series
         self.axis_color = axis_color
-        self.data_color = data_color
 
         # Determine scale factors for the data
         self.r_scale = self.width / max_steps #pixels per time step
@@ -609,24 +613,26 @@ class Plot:
 
 
     def update(self,
-               data     : float,    #the real-world data value to be plotted (Y value)
+               data     : list,     #the real-world data value to be plotted (Y values), 1 data element for each data series
               ):
         """Adds the next sequential data point to the plot."""
 
-        # If there has been no data plotted so far, then set the first point
-        if self.prev_r is None:
-            self.prev_r = self.cr
-            self.prev_s = self.cs + Graphics.PLOT_H - data*self.s_scale
+        assert len(data) == self.num_series, "///// Error: Plot.update called with data length {}, but expected {}".format(len(data), self.num_series)
 
-        # Else draw a line from the previous point to the current point
+        # If there has been no data plotted so far, then set the first point for each curve
+        if self.prev_r is None:
+            self.prev_r = [self.cr]*self.num_series
+            self.prev_s = [self.cs + Graphics.PLOT_H - d*self.s_scale  for d in data]
+
+        # Else draw a line from the previous point to the current point for each curve
         else:
-            new_r = self.prev_r + self.r_scale
-            new_s = self.cs + Graphics.PLOT_H - data*self.s_scale
-            if new_r <= self.cr + Graphics.PLOT_W:
-                pygame.draw.line(self.surface, self.data_color, (self.prev_r, self.prev_s), (new_r, new_s))
-                self.prev_r = new_r
-                self.prev_s = new_s
-                #pygame.display.update()
+            for di, d in enumerate(data):
+                new_r = self.prev_r[di] + self.r_scale
+                new_s = self.cs + Graphics.PLOT_H - d*self.s_scale
+                if new_r <= self.cr + Graphics.PLOT_W:
+                    pygame.draw.line(self.surface, self.data_colors[di], (self.prev_r[di], self.prev_s[di]), (new_r, new_s))
+                    self.prev_r[di] = new_r
+                    self.prev_s[di] = new_s
 
 
     def _make_y_label(self,

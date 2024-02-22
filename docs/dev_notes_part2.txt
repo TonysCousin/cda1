@@ -1316,7 +1316,6 @@ TODO:
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
-- Investigate target markers initially having white border, then losing it after a car passes through.
 - Add lane IDs to graphics
 - Add checkpoint name to display.
 - Add legend for car colors.
