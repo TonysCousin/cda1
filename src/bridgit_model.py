@@ -54,16 +54,18 @@ class BridgitModel(VehicleModel):
         steps_since_lc = obs[ObsVec.STEPS_SINCE_LN_CHG]
         lane_change_des = obs[ObsVec.DESIRABILITY_LEFT : ObsVec.DESIRABILITY_RIGHT+1]
         obs = np.zeros(ObsVec.OBS_SIZE, dtype = float)
-        me = vehicles[my_id]
 
-        # If this vehicle is inactive, keep collecting data; doing so may mean an extra time step of work, but it prevents the storage
-        # of an all-zero obs vector for a key vehicle in its final time step.
+        # If this vehicle is inactive, then stop now
+        me = vehicles[my_id]
+        if not me.active:
+            return obs
 
         #
         #..........Observations common to all types of vehicle models
         #
 
         # Build the common parts of the obs vector
+        assert self.roadway is not None, "///// ERROR: BridgitModel.get_obs_vector detected undefined roadway."
         obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
         obs[ObsVec.SPEED_CMD] = actions[0]
         obs[ObsVec.LC_CMD_PREV] = prev_lc_cmd

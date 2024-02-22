@@ -57,6 +57,7 @@ class BotType1Model(VehicleModel):
             return obs
 
         # Build the common parts of the obs vector
+        assert self.roadway is not None, "///// ERROR: BotType1Model.get_obs_vector detected undefined roadway."
         obs[ObsVec.SPEED_CMD_PREV] = prev_speed_cmd
         obs[ObsVec.SPEED_CMD] = actions[0]
         obs[ObsVec.LC_CMD_PREV] = prev_lc_cmd

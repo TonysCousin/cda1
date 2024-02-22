@@ -60,6 +60,9 @@ class Vehicle:
         """
 
         # Determine roadway geometry and initial lane and P location
+        assert roadway is not None, "///// ERROR Vehicle.reset called with undefined roadway."
+        if self.roadway is not None:
+            del self.roadway
         self.roadway = roadway
         self.lane_id = init_lane_id
         self.p = init_p
@@ -77,7 +80,7 @@ class Vehicle:
         self.stopped = False
 
         # If the location appears valid, then inform the model & guidance objects of the new location
-        if roadway is not None  and  init_lane_id > -1  and  init_p is not None:
+        if init_lane_id > -1  and  init_p is not None:
             self.model.reset(self.roadway)
             self.guidance.reset(self.roadway, self.lane_id, self.p)
 

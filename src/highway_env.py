@@ -532,10 +532,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         #..........Gather the observations from the appropriate vehicles & wrap up
         #
 
-        #TODO: for debugging only
-        assert self.roadway is not None, "///// ERROR in reset: roadway is None with scenario {}, intended roadway_name {}" \
-                .format(self.effective_scenario, self.roadway_name)
-
         # Initialize the num steps since previous lane change to maximum, since there is no history and we don't want to
         # discourage the initial LC.
         self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG] = Constants.MAX_STEPS_SINCE_LC
@@ -953,19 +949,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         # Shuffle the order in which the vehicles will be placed so that we get fresh, randomized combinations of
         # vehicle types and sequences. This is needed because the first vehicles placed are always closest to the
-        # ego vehicle. After this loop, v_idx is a list of randomized  vehicle IDs, except the first one.
+        # ego vehicle. After this loop, v_idx is a list of randomized vehicle IDs, except the first one.
         v_idx = [0] #vehicle 0 (ego) is always first in the list
         for _ in range(1, episode_vehicles):
             idx = 0
             while idx in v_idx:
-                idx = int(self.prng.random() * episode_vehicles)
+                idx = int(self.prng.random() * self.num_vehicles)
             v_idx.append(idx)
 
         # Mark unused vehicles as inactive and skip over
         for j in range(1, self.num_vehicles):
             if j not in v_idx:
                 self.vehicles[j].active = False
-                continue
 
         # Loop over all neighbors used in the episode
         for i_indirect in range(1, episode_vehicles):
@@ -1049,7 +1044,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             vlen = self.vehicles[i].model.veh_length
             if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                 speed = min(speed, 1.1*self.vehicles[0].cur_speed)
-            #print("***** reset: vehicle {}, lane = {}, p = {:.1f}, min_p = {:.1f}, max_p = {:.1f}".format(i, lane_id, p, min_p, max_p))
             self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
 
 

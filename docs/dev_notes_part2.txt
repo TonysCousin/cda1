@@ -1271,13 +1271,20 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
   occasionally. I added 2 assertions in reset & verified that self.roadway is being defined as
   expected. Maybe some method call is corrupting it?
 
+2/21/24
 
-
-FIX RUN ERRORS BELOW!
-
-* Run D5 with SEVERAL CHANGES (see diff on train.py)
+* Run D5 training BridgitNN from the cda1.1-D4-29000 baseline, with 1 Bridgit (D4) neighbor +
+  15 bots on all 3 roadways for 10k iters.
 	* Running with 1 Bridgit neighbor and 15 others.
 	* Reduced LR from 8e-5 to 1e-5.
+	* Reduced Gaussian noise initial magnitude from 0.25 to 0.1; final magnitude from 0.1
+	  to 0.01 over 1M steps (was 50M); random timesteps from 100k to 0; 
+	* Fixed defect in reward calc of whether agent should've seen upcoming neighbor that
+	  it crashed.
+	* Fixed minor defect where _place_neighbor_vehicles() was always selecting the first
+	  vehicle types in the config file, and not fully randomizing them.
+	* Fixed defect in BridgitModel where it allowed a full reset even for an inactive
+	  vehicle, which terminated the run.
 
 
 
@@ -1285,7 +1292,6 @@ FIX RUN ERRORS BELOW!
 
 TODO:
 - Add running average reward display to the train program.
-- Investigate apparent phenomenon where neighbor vehicles are placed in order of the types listed in config, not randomly.
 - consider increasing LC penalty (constant term) since each desirable LC scores 1500 pts and only costs 630 to initiate immediately.
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
