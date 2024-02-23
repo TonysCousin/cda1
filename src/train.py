@@ -43,7 +43,7 @@ def main(argv):
     # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 10000
+    max_iterations      = 30000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -67,7 +67,7 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.1 #0.25 #this param is specific to GaussianNoise
+    explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
     explore_config["random_timesteps"]          = 0 #100_000 #provides random experiences to pre-populate the experience buffer
     explore_config["initial_scale"]             = 1.0
     explore_config["final_scale"]               = 0.01 #0.1
@@ -123,7 +123,7 @@ def main(argv):
     cfg.checkpointing(export_native_model_files = True)
 
     # ===== Training algorithm HPs for SAC ==================================================
-    LR                                          = 1e-5
+    LR                                          = 8e-5
     opt_config = cfg_dict["optimization"]
     opt_config["actor_learning_rate"]           = LR
     opt_config["critic_learning_rate"]          = LR

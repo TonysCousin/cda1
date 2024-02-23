@@ -1295,19 +1295,73 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 2/22/24
 
-* Run D6 training MA Bridgit from the D5 checkpoint 10000, with 4 Bridgit neighbors and 12
-  bots for 10k additional iters on all 3 roadways.
+* Run D6 training MA Bridgit from the D5 checkpoint 10000, with 4 Bridgit neighbors (also
+  running the D5 checkpoint 10000) and 12 bots for 10k additional iters on all 3 roadways.
+  Corresponds to part2 commit 1a44d5b.
+	* Note that the checkpoint policy is not permanently saved in the repo.
 	* Increased penalty for speed deviation; multiplier from 0.3 to 0.5.
 	* Increased penalty for speed variation; multiplier from 0.15 to 0.2.
-	* Checkpoint stored at 20240222-0941.
+	* Checkpoint stored at 20240222-0951.
+	* Training completed in 4.3 hr with rmin ~-5, but frequent excursions above -5,
+	  rmean ~0, rmax ~1.3, mean ep len ~99.
+	  Total training now 50k iters (83M steps).
+	* Inference on checkpoint 10000 (30 runs on all 3 roadways):
+		* Speed ctrl - maybe a little tighter than before.
+		* LCs - a couple extraneous moves. Still doing multiples as rapidly as
+		  possible, gaining bigger penalties.
+		* Crashes - rear-ended a Bridgit neighbor that was somewhat below speed
+		  limit. I suspect the neighbor had the Bridgit wavering speed ctrl, 
+		  and ego was too used to the steady motion of the bots, so didn't leave
+		  enough room to accommodate. Rear-ended a bot where spd lim dropped.
+		  Rear-ended a much slower moving Bridgit immediately after doing 2 LCs
+		  to a lane with lower speed limit; so it didn't see this coming, despite
+		  sensors to tell it so. Lateral crash into a bot while doing an extraneous
+		  LC; bot was slower, so ego didn't recognize sensor data to predict the
+		  problem.
+		* Off-road once, on first time step.
+
+* Run D7 training MA Bridgit from the D4 baseline, with 8 Bridgit neighbors (also
+  running the D4 baseline) and 8 bots for 10k additional iters on all 3 roadways.
+	* Doubled the speed variation penalty multiplier from 0.2 to 0.4.
+	* Increased LC frequency penalty linear multiplier from 0.001 to 0.004, which will 
+	  make the max penalty (for immediate LC) larger than the accumulated LC des bonus
+	  earned during the maneuver.
+	* Checkpoints stored at 20240222-1359.
+	* Training completed in 3.2 hr with rmin ~-6, rmean ~-1.3, rmax ~1.2 and recent mean
+	  ep len ~79. Ray result showed the final batch had several episodes of length 1 and
+	  very few with lengths between 3 and 100.
+	  Total iters trained is 50k (67M steps).
+	* Inference on checkpoint 10000: lots of off-roads with illegal LCs. I suspect this
+	  has been learned as, now that LCs are so expensive, it's cheaper to just die early.
+	  Had a crash where a Bridgit neighbor changed lanes immediately in front of ego,
+	  but was going slower, so ego rear-ended it.
+
+* Run D8 training MA Bridgit from the D7 checkpoint 10000, with 8 Bridgit neighbors
+  (running D4 baseline) and 8 bots for additional 10k iters on all 3 roadways.
+	* Reduced the LC frequency penalty linear multiplier from 0.004 to 0.002 to avoid
+	  LCs being too expensive compared to a crash (since it has baked in a lot of
+	  personality for doing these LCs anyway, and additional 10k iters probably won't
+	  change that much).
+	* Training completed in 3.2 hr with rmin ~-5, rmean ~-1.1, rmax 1.3, mean ep len
+	  ~70. Final batch showed lots of episodes with length 1.
+
+* Run D9 training MA Bridgit from scratch for 30k iters with 8 Bridgit neighbors (running
+  the D4 baseline) and 8 bots on all 3 roadways.
+	* Changed LR back to 8e-5 and noise initial magnitude back to 0.25, but left the
+	  other HPs the same. No changes to rewards.
+	* Hoping to see the bigger emphasis on speed and speed variation penalties, and
+	  LC frequency penalties being applied uniformly from the beginning to make for
+	  a smoother agent.
+	* Checkpoints stored at 20240222-2349.
 
 
 
 
 
 TODO:
+- Make a toggle in train prgm to switch all HPs from new training to continuation learning.
+- Consider a train prgm HP to switch the Bridgit NN model more easily.
 - Add running average reward display to the train program.
-- consider increasing LC penalty (constant term) since each desirable LC scores 1500 pts and only costs 630 to initiate immediately.
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots).
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
@@ -1326,8 +1380,6 @@ TODO:
   speed limit, or even reaching the target asap. Increase reward for speed compliance and decrease it for lane stability,
   and vice versa.
 
-- Show speed limit on speed plot
-- Improve use of reference lines on speed plot
 - Review TODOs in graphics.py
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
