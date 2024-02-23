@@ -1353,6 +1353,26 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  LC frequency penalties being applied uniformly from the beginning to make for
 	  a smoother agent.
 	* Checkpoints stored at 20240222-2349.
+	* Training completed. Performance was disappointing, with rmin steady ~-6, but
+	  rmean peaking ~-0.2 @6k iters then gradually dropping to -2.3. rmax steady
+	  ~1.0, but mean ep len peaked at 100 @5k iters, then gradually dropped into
+	  the 30s by the end.
+	* Quick inference on checkpoint 30000: loves to dive into the grass immediately.
+	* Inference on checkpoint 10000: seems to have learned the basics quickly, but
+	  speed control is pretty poor where SL changes are occurring, earning huge
+	  penalties often. Reluctant to change lanes, often missing targets.
+	* Noise was essentially non-existent, as the schedule had it down to 0.01 in 1M
+	  steps, which occurred by iter 800. I am starting to believe that added noise
+	  is essential to this learning.
+
+2/23/24
+
+* Run D10 training MA Bridgit from scratch for 30k iters with 8 Bridgit neighbors (running
+  the D4 baseline) and 8 bots on all 3 roadways.
+	* Reinstated the initial training noise HPs: initial random timesteps 100k;
+	  final scale from 0.01 to 0.1; scale timesteps from 1M to 50M. (Kept initial
+	  scale at 1.0 and stddev magnitude at 0.25.)
+	* Checkpoints stored at 20240223-1117.
 
 
 

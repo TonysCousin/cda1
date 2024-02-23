@@ -1,6 +1,8 @@
 import sys
 from time import perf_counter as pc
 from datetime import datetime
+from collections import deque
+from statistics import mean
 import ray
 from ray import train
 from torch.utils.tensorboard import SummaryWriter
@@ -68,10 +70,10 @@ def main(argv):
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
     explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
-    explore_config["random_timesteps"]          = 0 #100_000 #provides random experiences to pre-populate the experience buffer
+    explore_config["random_timesteps"]          = 100_000 #provides random experiences to pre-populate the experience buffer
     explore_config["initial_scale"]             = 1.0
-    explore_config["final_scale"]               = 0.01 #0.1
-    explore_config["scale_timesteps"]           = 1_000_000 #50_000_000
+    explore_config["final_scale"]               = 0.1
+    explore_config["scale_timesteps"]           = 50_000_000
     exp_switch                                  = True
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
@@ -159,8 +161,15 @@ def main(argv):
     #print("\n///// {} training params are:\n".format(algo))
     #print(pretty_print(cfg.to_dict()))
 
-    # Set up starting counters to handle possible checkpoint start
+    # Set up starting counter to handle possible checkpoint start
     starting_step_count = 0
+
+    # Set up queues for measuring moving average performance
+    MA_SIZE = 100
+    ma_rmin = deque(maxlen = MA_SIZE)
+    ma_rmean = deque(maxlen = MA_SIZE)
+    ma_rmax = deque(maxlen = MA_SIZE)
+    ma_eplen = deque(maxlen = MA_SIZE)
 
     # Build the algorithm object, and load the starting checkpoint if one was specified
     algo = cfg.build()
@@ -191,6 +200,7 @@ def main(argv):
         rmin = result["episode_reward_min"]
         rmean = result["episode_reward_mean"]
         rmax = result["episode_reward_max"]
+        eplen = result["episode_len_mean"]
         #ermean = result["evaluation_reward_mean"]
         """
         tensorboard.add_scalar("num_agent_steps_trained", result["num_agent_steps_trained"])
@@ -199,6 +209,10 @@ def main(argv):
         tensorboard.add_scalar("episode_reward_min", rmin)
         tensorboard.add_scalar("episode_reward_max", rmax)
         """
+        ma_rmin.append(rmin)
+        ma_rmean.append(rmean)
+        ma_rmax.append(rmax)
+        ma_eplen.append(eplen)
 
         # use RLModule.save_to_checkpoint(<dir>) to save a checkpoint
         if iter % chkpt_int == 0:
@@ -218,8 +232,8 @@ def main(argv):
             remaining_hrs = 0.0
             if iter > 1:
                 remaining_hrs = (max_iterations - iter) / perf
-            print("///// Iter {} ({} steps): Rew {:5.1f} /{:5.1f} /{:5.1f}.  Ep len = {:.1f}.  "
-                  .format(iter, steps, rmin, rmean, rmax, result["episode_len_mean"]), \
+            print("///// Iter {} ({} steps): MA rew{:5.1f} /{:5.1f} /{:5.1f} len {:5.1f}. "
+                  .format(iter, steps, mean(ma_rmin), mean(ma_rmean), mean(ma_rmax), mean(ma_eplen)), \
                   "Elapsed = {:.1f} hr @{:d} iter/hr, {:.1f} M steps/hr. Rem hr: {:.1f}".format(elapsed_hr, perf, 0.001*ksteps_per_hr, remaining_hrs))
 
     print("\n///// Training completed.  Final iteration results:\n")
