@@ -143,7 +143,7 @@ class Vehicle:
         self.prev_accel = new_accel
 
         # If vehicle has been stopped for several time steps, then declare the episode done as a failure
-        if new_speed < 0.5:
+        if new_speed < 5.0:
             self.stopped_count += 1
             if self.stopped_count > 3:
                 self.stopped = True

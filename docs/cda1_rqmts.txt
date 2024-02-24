@@ -8,6 +8,7 @@ and possibly with instances of one other policy (the non-RL "policy N", which wi
 very simplistic model of a human driving an ACC-equipped vehicle. Since this is developed
 by a one-person team, the documentation can be very informal.
 
+
 Training
 --------
 * Use the Ray platform, as that provides the most promising pathway to future RL work
@@ -32,6 +33,7 @@ Training
   desired.
 	* Each training episode will be N time steps unless the agent reaches a
 	  designated end point earlier.
+
 
 Environment Model
 -----------------
@@ -122,6 +124,7 @@ Environment Model
 	  slower or faster than the local speed limit at the vehicle's current
 	  location.
 
+
 Inference
 ---------
 * An inference program will allow configuration and running of a single episode with
@@ -133,6 +136,92 @@ Inference
 * An inference episode will run until all vehicles reach a designated course end point.
   If one or more vehicles is terminated early (e.g. a crash), then the remaining
   vehicles will continue to drive until they reach an endpoint or are terminated.
+
+
+Multi-agent Performance Evaluation
+----------------------------------
+* Episodes will be scored for success based on the following metrics, which are applied
+  to the whole scenario, not to an individual participant.
+	* Any crash or off-road event terminates the episode with a score of 0. For
+	  simplicity here, both will be referred to as a crash.
+	* If there is no crash, then each vehicle contributes to the episode score.
+	  We capture the integral of its speed_disadvantage, which is target_speed
+	  minus actual speed (limited to no less than 0, so that going faster can't
+	  offset a slow spell). Since episodes will have differing numbers of vehicles,
+	  and each vehicle will have a different path length to travel, the speed
+	  disadvantage must be normallized. So the final episode score will be
+		score = 1 - F*sum[ SDi/Li ]/N
+	  where SDi is the speed disadvantage of vehicle i, Li is the length of
+	  vehicle i's path in that episode, and N is the number of vehicles in the
+	  episode. F is a constant multiplier to be determined, that scales the
+	  results readily into [0.5, 1]. Therefore, an ideal episode would score 1
+	  and the lower the score, the worse the traffic performance. We target F
+	  so that an episode without a crash will very unlikely score worse than 0.5.
+	  In this way, the negative impact of a crash is highlighted.
+* In addition to episode scoring rules, we need a basis for making significant
+  statistical comparisons over a wide variety of situations. Total randomization will
+  not be appropriate, since one would expect a scenario with only one or two vehicles
+  to demonstrate no congestion and no crashes, we can't learn much from them. The more
+  vehicles, the more chance for problems to occur, and episode scores to go down.
+  Therefore, to compare models, they must be on an equal footing, as such:
+	* Scores will be compiled over a series of 120 episodes, looking at the mean
+	  and standard deviation of scores across the suite, or within subsets.
+	* Scenarios will be defined to offer some repeatability to the evaluation, by
+	  defining the starting location of the ego vehicle (a BridgitGuidance model),
+	  the roadway, the active target locations, and the numbers of each type of
+	  neighbor vehicle. However, the exact placement of those neighbors will be
+	  randomized (accepting the possibility that occasionally they won't all fit
+	  so one or more may be left out of the episode).
+	* Ego staring location will be specified by lane ID, with longitudinal location
+	  exactly 100 m downtrack of the start of that lane. This allows room for
+	  at least one neighbor to start behind it, and provides a uniform experience
+	  for runs where the speed limit changes early in the lane.
+	* Ego starting speed will be set to the speed limit at its starting location.
+	* During evaluation, all Bridgit vehicles must be running the same guidance
+	  model, including the ego vehicle, which is always a Bridgit.
+	* Roadway B episodes with targets 1, 2 active:
+
+			      Numbers of neighbors
+     Roadway   Targets Lane  Bridgit  Bot1a   Bot1b Episodes Scenario
+     -------   ------- ----  -------  -----   ----- -------- --------
+	B	1, 2	0	8	3	5	10	50
+			1				10	51
+			2				10	52
+			3				10	53
+			4				10	54
+			5				10	55
+
+	B	1, 2	0	10	5	10	3	56
+			3				3	57
+			5				3	58
+
+	B	1, 2	0	16	0	0	3	59
+			3				3	60
+			5				3	61
+
+	B	1, 2	0	4	1	1	3	62
+			3				3	63
+			5				3	64
+
+	B	0	1	8	3	5	6	65
+			5				6	66
+
+	C	3	0	8	3	5	3	67
+			3				3	68
+		0	2				3	69
+			5				3	70
+
+	D	2	1	8	3	5	3	71
+			3				3	72
+			5				3	73
+						    -------
+						      120
+
+* It will be acceptable for bots to set target speeds either above or below the
+  posted speed limits, since we are comparing their performance against that target
+  speed, and not against the speed limit, per se. Bridgit vehicles, however, will be
+  judged on ability to match the speed limit, as that is their design goal.
+
 
 Scenario Definitions
 --------------------
@@ -162,9 +251,14 @@ Scenario Definitions
 
 29    - embedding run like 20-25, but where vehicle 0's location is fully randomized.
 
-=== The following are highly constrained special situations for testing purposes ===
+=====================================================================================
+=== The following are highly constrained special situations for testing purposes. ===
+
+50-79 - Various conditions for traffic flow evaluations; see previous section.
 
 80    - RoadwayC, ego starting in lane 2 at p = 550 m. Bots are randomly distributed.
+
+81    - RoadwayD, ego starting in lane 2 at p = 2200 m and speed = 22.5 m/s.
 
 90-98 - Runs a single bot vehicle (vehicle index 1) starting in the lane identified by
 	the last digit. No other vehicles will be present. The bot will drive the given

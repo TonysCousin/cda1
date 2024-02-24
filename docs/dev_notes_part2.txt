@@ -1172,7 +1172,7 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		  evaluation episodes (unconstrained length). New scenarios would need to
 		  be defined that place the ego vehicle at the same location near the
 		  beginning of each lane (randomize starting lane selection) so that we
-		  have consistent expectations of drive time for a give lane. Then
+		  have consistent expectations of drive time for a given lane. Then
 		  the neighbors can be randomly placed around the ego, like for training.
 			* Bot vehicles will need to be reprogrammed to make a better
 			  attempt at following speed limits, rather than a bias below it.
@@ -1389,6 +1389,38 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Added reward clipping for underway penalties, which guarantees that an episode
 	  won't experience worse penalties than an undesirable termination.
 	* Checkpoints stored at 20240223-2115.
+	* Training completed. After a dip, mean ep len came back to 96. rmin finally got
+	  positive, up to 0.6, but rmean ended a -0.8.
+	* Inference on checkpoint 30000 on roadway D: never wants to change lanes. Clipping
+	  has a major impact here - the first time step that LC desirability is poor, its
+	  penalty is well larger than the clip limit, and grows from there. So agent never
+	  learns how bad it is to stay in lane. It does learn to slow way down (just above
+	  the threshold) when approaching end of lane, so it never goes off road.
+
+2/24/24
+
+* Run D12 training MA Bridgit from scratch for 30k iters with 8 Bridgit neighbors (running
+  the D4 baseline) and 8 bots on all 3 roadways.
+	* Removed reward clipping, but scaled all penalties by 0.1 to mostly avoid them 
+	  accumulating too much. Left all terminating penalties at -5.
+	* Modified Vehicle's definition of stopped to 5 m/s instead of 0.5 (for 4 steps).
+	* Checkpoints stored in 20240224-0958.
+	* Killed training early - no good. Mean ep len settled ~80, rmean ~-1.0, rmin ~-5.
+	* Quick inference on checkpoint 18000 shows that it rarely changes lanes, preferring
+	  to slow to a stop if target is not easy to reach. It does like to LC left, but
+	  not right. Speed control is almost non-existent, loving to go fast always.
+	  Penalties shown just don't compete with the LC desirability rewards and episode
+	  end bonuses. Not sure they need to be 10x more, but they need more.
+
+* Run D13 training MA Bridgit from scratch for 30k iters with 8 Bridgit neighbors (running
+  the D4 baseline) and 8 bots on all 3 roadways.
+	* Increased LC des penalty multiplier from 0.0004 to 0.004 to match that used in
+	  baseline D4 run.
+	* Increased penalty for LC frequency: constant from 0.002 to 0.02, linear multiplier
+	  from 0.0002 to 0.001 to match run D4.
+	* Increased speed mult from 0.03 to 0.3 to match run D4.
+	* Increased speed variation multiplier from 0.015 to 0.15 to match run D4.
+	* Checkpoints stored at 20240224-1629.
 
 
 

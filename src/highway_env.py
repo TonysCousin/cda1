@@ -367,7 +367,13 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             del self.roadway
 
         # If a special scenario is used, assign its designated roadway
-        if self.effective_scenario == 80:
+        if 50 <= self.effective_scenario <= 66:
+            self.roadway = RoadwayB(self.debug)
+        elif 67 <= self.effective_scenario <= 70:
+            self.roadway = RoadwayC(self.debug)
+        elif 71 <= self.effective_scenario <= 73:
+            self.roadway = RoadwayD(self.debug)
+        elif self.effective_scenario == 80:
             self.roadway = RoadwayC(self.debug)
         elif self.effective_scenario == 81:
             self.roadway = RoadwayD(self.debug)
@@ -1363,12 +1369,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Else if ran off road, set a penalty
             elif off_road:
-                reward = -3.0
+                reward = -5.0
                 explanation = "Ran off road. "
 
             # Else if the vehicle just stopped in the middle of the road, set a penalty
             elif stopped:
-                reward = -3.0
+                reward = -5.0
                 explanation = "Vehicle stopped. "
 
             # Else (episode completed all desired time steps)
@@ -1381,7 +1387,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                 # Else, the agent wouldn't be able to reach an active target if the trajectory were allowed to continue, so assign a penalty.
                 else:
-                    reward = -0.5
+                    reward = -1.0
                     explanation = "Complete episode, but unable to reach a target from here."
 
         # Handle inactive ego vehicle
@@ -1434,7 +1440,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.002*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.02
+                penalty = 0.001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.02
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
@@ -1461,9 +1467,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Limit total underway penalties to -0.02. Doing so ensures that accumulation of these over a training episode
             # of 100 steps will never be as bad as any of the negative terminal conditions.
-            if reward < -0.02:
-                reward = -0.02
-                explanation += "Clipped"
+            #if reward < -0.02:
+            #    reward = -0.02
+            #    explanation += "Clipped"
 
         if self.debug > 0:
             print("///// reward returning {:.4f} due to crash = {}, off_road = {}, stopped = {}. {}"
