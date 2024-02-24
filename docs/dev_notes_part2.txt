@@ -1372,7 +1372,23 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Reinstated the initial training noise HPs: initial random timesteps 100k;
 	  final scale from 0.01 to 0.1; scale timesteps from 1M to 50M. (Kept initial
 	  scale at 1.0 and stddev magnitude at 0.25.)
-	* Checkpoints stored at 20240223-1117.
+	* Checkpoints stored at 20240223-1141.
+	* Training almost completed (27k iters) before I killed it for poor performance.
+	  mean ep len hovered in the 20s for most of the training (started dropping after
+	  5k iters), and rmax never broke above 0. rmin never broke above -5, indicating
+	  that the agent learned to prefer suicide to running a full episode.
+	* Quick inference on checkpoint 26000: most of the time agent chooses immediate LC
+	  so lots of off-roads. Indeed, even in easy cruising situations, penalties for
+	  speed and speed variation are similar magnitude to the bonus for good lane choice
+	  so lane choice is not getting much attention.
+
+* Run D11 training MA Bridgit from scratch for 30k iters with 8 Bridgit neighbors (running
+  the D4 baseline) and 8 bots on all 3 roadways.
+	* Reinstated the speed & speed variation penalties used in run D4 (speed mult 0.3,
+	  speed variation mult = 0.15).
+	* Added reward clipping for underway penalties, which guarantees that an episode
+	  won't experience worse penalties than an undesirable termination.
+	* Checkpoints stored at 20240223-2115.
 
 
 
