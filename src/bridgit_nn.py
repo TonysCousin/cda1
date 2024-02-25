@@ -96,7 +96,7 @@ class BridgitNN(TorchModelV2, nn.Module):
 
         # If this model will be run in inference-only mode, then we need to load the model params. If not, then
         # we will let the training apparatus manage them.
-        print("///// BridgitNN model prepared to load weights. inference_only = {}.".format(inference_only))
+        #print("///// BridgitNN model prepared to load weights. inference_only = {}.".format(inference_only))
         if inference_only:
 
             # Load the weights for the main Bridgit model's actor network (since this will be used for inference only)
@@ -117,7 +117,7 @@ class BridgitNN(TorchModelV2, nn.Module):
                 self._actor_head[0].weight.copy_(sd["action_model._actor_head.0.weight"])
                 self._actor_head[0].bias.copy_(sd["action_model._actor_head.0.bias"])
 
-            print("///// BridgeitNN weights loaded successfully.")
+            #print("///// BridgeitNN weights loaded successfully.")
 
 
     def forward(self,

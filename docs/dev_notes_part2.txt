@@ -1420,7 +1420,43 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  from 0.0002 to 0.001 to match run D4.
 	* Increased speed mult from 0.03 to 0.3 to match run D4.
 	* Increased speed variation multiplier from 0.015 to 0.15 to match run D4.
+	* This is now like run D4 except a couple defect fixes and now using 8 Bridgit
+	  neighbors.
 	* Checkpoints stored at 20240224-1629.
+	* Training complete in 9.9 hr. rmin ended ~-6.2, rmean grew slowly to -1.1,
+	  rmax 0.5, mean ep len dropped to mid-70s then recovered to mid-90s.
+	* Inference on checkpoint 30000: 
+		* Speed control - okay, not great. It takes a couple hundred meters to
+		  lock into a target, with sometimes large swings at the beginning, as
+		  if it has some memory. Maybe 1 step history is somehow amplifying
+		  this feedback loop? Sometimes with constant SL it still stabilizes
+		  way off the mark.
+		* Lane change - several extraneous one, but it seems to be trying to
+		  spread out the necessary ones to minimize penalty. It often wants to
+		  do a LC early, seemingly just to do one.
+		* Crashes - 1 rear-end of a bot right after ego LC. 2 lateral into a
+		  Bridgit going slightly slower and slightly in front going from lane
+		  5 where there is much urgency; should've been avoided. All of these
+		  were late in the maneuver, so it had to do a lot of prediction.
+		* Targets - never missed a target. It likes to slow substantially just
+		  before a target sometimes.
+	* WORTH KEEPING around for possible consideration as the next iteration.
+
+* Began modifying code to handle formal traffic performance evaluations.
+	* Completed all of the HighwayEnv code mods to define the new scenarios, per
+	  the updated software rqmts doc.
+	TODO:
+	* All vehicle guidances - add logic to capture metrics
+
+2/25/24
+
+* Run D14 training MA Bridgit from the D13 checkpoint 30000 for an additional 15k iters
+  with 8 Bridgit neighbors (running the D4 baseline) and 8 bots on all 3 roadways.
+	* Increased lane change penalty constant term fro 0.02 to 0.03 to discourage
+	  extraneous mvrs.
+	* Adjusted speed deviation penalty slightly, multiplier from 0.3 to 0.35.
+	* Reduced LR from 8e-5 to 4e-5.
+	* Checkpoints stored at 20240225-0945.
 
 
 
@@ -1429,9 +1465,9 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 TODO:
 - Make a toggle in train prgm to switch all HPs from new training to continuation learning.
 - Consider a train prgm HP to switch the Bridgit NN model more easily.
-- Add running average reward display to the train program.
+- Add 2nd prev speed command to allow penalizing of jerky commands
 - retrace NN size expansion and addition of dropouts once success is found.
-- Add ability for agents to abort a LC mvr (both Bridgit and bots).
+- Add ability for agents to abort a LC mvr (both Bridgit and bots). Requires knowledge of neighbor LC activity.
 - Decouple BridgitGuidance.plan_route logic from reward structure (see handling of low max_prob near bottom). Env reward should be
   independent of model logic.
 - Ensure EmbedGuidance matchess BridgitGuidance.

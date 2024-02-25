@@ -178,7 +178,7 @@ Multi-agent Performance Evaluation
 	  for runs where the speed limit changes early in the lane.
 	* Ego starting speed will be set to the speed limit at its starting location.
 	* During evaluation, all Bridgit vehicles must be running the same guidance
-	  model, including the ego vehicle, which is always a Bridgit.
+	  model version, including the ego vehicle, which is always a Bridgit.
 	* Roadway B episodes with targets 1, 2 active:
 
 			      Numbers of neighbors

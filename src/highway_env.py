@@ -212,73 +212,14 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             print("///// action_space = ", self.action_space)
 
         #
-        #..........Vehicles
-        #
-
-        # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0.
-        vc = self.vehicle_config
-        v_data = []
-        try:
-            ego_vehicle = vc["ego"] #dict of type info
-            v_types = vc["vehicle_types"] #a list of dicts of type info
-        except KeyError:
-            vc["title"] = "NO VEHICLE FILE FOUND" #allow running with no vehicle file (no vehicles defined)
-
-        # Build the master list of specific vehicles from the types & counts loaded from the config file. Ego is always vehicle 0.
-        v_data = []
-        v_data.append(ego_vehicle)
-        for type_idx in range(len(v_types)):
-            type = v_types[type_idx]
-            for i in range(type["count"]):
-                v_data.append(type)
-
-        self.num_vehicles = len(v_data)
-        self.vehicle_config_title = vc["title"]
-
-        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
-        self.vehicles = []
-        print("///// Building vehicles from {}".format(self.vehicle_config_title))
-        for i in range(self.num_vehicles):
-
-            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
-            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
-
-            v = None
-            spec = v_data[i]
-            try:
-                model = getattr(sys.modules[__name__], spec["model"])(
-                                    max_jerk      = spec["max_jerk"],
-                                    max_accel     = spec["max_accel"],
-                                    length        = spec["length"],
-                                    lc_duration   = spec["lc_duration"],
-                                    time_step     = self.time_step_size)
-                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
-                                                                            self.observation_space, self.action_space)
-                v = Vehicle(model, guidance, self.prng, self.time_step_size, self.debug)
-            except AttributeError as e:
-                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
-                raise e
-            except Exception as e:
-                print("///// HighwayEnv.__init__: problem creating vehicle model, guidance, or the vehicle itself: ", e)
-                raise e
-
-            self.vehicles.append(v)
-            guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
-            print("///// Vehicle {} model: {}, guidance: {}".format(i, spec["model"], spec["guidance"]))
-
-        if self.debug > 1:
-            print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
-
-        #
         #..........Remaining initializations
         #
 
-        # Build the full observation matrix and verify that all observations have been initialized properly
-        self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE)) #one row for each vehicle
-        self._verify_obs_limits("init after space defined")
-
         # Other persistent data
         self.roadway = None         #defined in reset()
+        self.vehicles = None        #defined in reset()
+        self.num_vehicles = 0       #defined in reset()
+        self.all_obs = None         #defined in reset()
         self.total_steps = 0        #num time steps for this trial (worker), across all episodes; NOTE that this is different from the
                                     # total steps reported by Ray tune, which is accumulated over all rollout workers
         self.steps_since_reset = 0  #length of the current episode in time steps
@@ -291,7 +232,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.crash_n_speed = 0.0    #speed of the neighbor vehicle involved in the crash, m/s
         self.crash_n_lc_status = "UNDEF" #LC status of the neighbor vehicle involved in the crash
         self.crash_p_dist_fwd = 0.0 #distance that the neighbor vehicle is in front of the ego vehicle at time of crash, m
-        print("///// Initializing env environment ID {} with configuration: {}".format(self.rollout_id, vc["title"]))
 
         """
         If human-rendering is used, `self.window` will be a reference
@@ -404,132 +344,122 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self._choose_active_targets()
 
         #
-        #..........Set the initial conditions for each vehicle, depending on the scenario config
+        #..........Vehicle creation
+        #
+
+        # Get config data for the vehicles used in this scenario - the ego vehicle (where the agent lives) is index 0.
+        vc = self.vehicle_config
+        v_data = []
+        try:
+            ego_vehicle = vc["ego"] #dict of type info
+            v_types = vc["vehicle_types"] #a list of dicts of type info
+            self.vehicle_config_title = vc["title"]
+        except KeyError:
+            self.vehicle_config_title = "NO VEHICLE FILE FOUND" #allow running with no vehicle file (no vehicles defined)
+
+        # Start the master list of specific vehicles with ego always as vehicle 0.
+        v_data = []
+        v_data.append(ego_vehicle)
+
+        # Some scenarios require special vehicle counts; if we are running one of those, then build the vehicle list accordingly
+        if 50 <= self.effective_scenario <= 79:
+            for type_idx in range(len(v_types)):
+                type = v_types[type_idx]
+                type_name = type["guidance"]
+                num_type = 0
+                if type_name == "BridgitGuidance":
+                    if 50 <= self.effective_scenario <= 55  or  65 <= self.effective_scenario <= 73:
+                        num_type = 8
+                    elif 56 <= self.effective_scenario <= 58:
+                        num_type = 10
+                    elif 59 <= self.effective_scenario <= 61:
+                        num_type = 16
+                    else:
+                        num_type = 4
+
+                elif type_name == "BotType1aGuidance":
+                    if 50 <= self.effective_scenario <= 55  or  65 <= self.effective_scenario <= 73:
+                        num_type = 3
+                    elif 56 <= self.effective_scenario <= 58:
+                        num_type = 5
+                    elif 62 <= self.effective_scenario <= 64:
+                        num_type = 1
+
+                elif type_name == "BotType1bGuidance":
+                    if 50 <= self.effective_scenario <= 55  or  65 <= self.effective_scenario <= 73:
+                        num_type = 5
+                    elif 56 <= self.effective_scenario <= 58:
+                        num_type = 10
+                    elif 62 <= self.effective_scenario <= 64:
+                        num_type = 1
+
+                else:
+                    raise ValueError("///// HighwayEnv.reset: unknown vehicle guidance name: {}".format(type_name))
+
+                for i in range(num_type):
+                    v_data.append(type)
+
+        # Else, use the default counts in the vehicle config file
+        else:
+            for type_idx in range(len(v_types)):
+                type = v_types[type_idx]
+                for i in range(type["count"]):
+                    v_data.append(type)
+
+        self.num_vehicles = len(v_data)
+
+        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
+        if self.vehicles is not None:
+            del self.vehicles
+        self.vehicles = []
+        print("///// Building vehicles from {}".format(self.vehicle_config_title))
+        for i in range(self.num_vehicles):
+
+            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
+            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
+
+            v = None
+            spec = v_data[i]
+            try:
+                model = getattr(sys.modules[__name__], spec["model"])(
+                                    max_jerk      = spec["max_jerk"],
+                                    max_accel     = spec["max_accel"],
+                                    length        = spec["length"],
+                                    lc_duration   = spec["lc_duration"],
+                                    time_step     = self.time_step_size)
+                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
+                                                                            self.observation_space, self.action_space)
+                v = Vehicle(model, guidance, self.prng, self.time_step_size, self.debug)
+            except AttributeError as e:
+                print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
+                raise e
+            except Exception as e:
+                print("///// HighwayEnv.__init__: problem creating vehicle model, guidance, or the vehicle itself: ", e)
+                raise e
+
+            self.vehicles.append(v)
+            guidance.set_vehicle(v) #let the new guidance object know about the vehicle it is driving
+            if self.debug > 0:
+                print("///// Vehicle {} model: {}, guidance: {}".format(i, spec["model"], spec["guidance"]))
+
+        if self.debug > 1:
+            print("///// HighwayEnv.__init__: {} vehicles constructed.".format(len(self.vehicles)))
+
+        #
+        #..........Set the initial conditions for each vehicle, depending on the scenario
         #
 
         # Clear any lingering observations from the previous episode
+        if self.all_obs is not None:
+            del self.all_obs
         self.all_obs = np.zeros((self.num_vehicles, ObsVec.OBS_SIZE))
 
         # Reset the states of all vehicles to get them out of the way for the random placement below
         for i in range(self.num_vehicles):
             self.vehicles[i].reset(self.roadway)
 
-        ego_p = None
-        ego_lane_id = None
-
-        # All inference - this doesn't train anything, so vehicle 0 is in inference mode, but is still the center
-        # of attention here, so we can call it the ego vehicle. These scenarios are used for embedding data
-        # collection, but can be used for any general-purpose inference runs.
-        if 20 <= self.effective_scenario <= 29:
-
-            if self.effective_scenario != 29  and  self.effective_scenario - 20 >= self.roadway.NUM_LANES:
-                raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
-
-            # Ego's initial lane is random or specified by the scenario
-            ego_lane_id = 0
-            if self.effective_scenario == 29:
-                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
-            else:
-                ego_lane_id = self.effective_scenario - 20
-
-            # Define ego's starting P coordinate - randomize anywhere along the chosen lane
-            lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
-            lane_length = self.roadway.get_total_lane_length(ego_lane_id)
-            ego_p = lane_begin + self.prng.random()*lane_length
-
-            # Randomly define the starting speed and initialize the vehicle data
-            ego_speed = self.prng.random() * Constants.MAX_SPEED
-            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
-            if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
-
-            # Define the neighbor vehicles closer to ego than normal to ensure we exercise the sensors well
-            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed, pack_tightly = True)
-
-        # Special test case 80 for debugging LC desirability
-        elif self.effective_scenario == 80:
-            ego_lane_id = 2
-            ego_p = 550.0
-            ego_speed = 30.9
-            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
-            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
-
-        # Special test case 81 for degubbing off-road errors
-        elif self.effective_scenario == 81:
-            ego_lane_id = 2
-            ego_p = 2200.0
-            ego_speed = 22.5
-            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
-            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
-
-        # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
-        elif self.effective_scenario >= 90:
-
-            if self.effective_scenario - 90 >= self.roadway.NUM_LANES:
-                raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
-
-            for i in range(self.num_vehicles):
-                self.vehicles[i].active = False
-
-            lane_id = self.effective_scenario - 90
-            p = self.roadway.get_lane_start_p(lane_id)
-            self.vehicles[1].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = self.roadway.lanes[lane_id].segments[0][5])
-
-        # All other scenarios: trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
-        else:
-
-            # If scenario is specified as 0 and we are in training mode, then randomly change to scenarios 1 or 2 to
-            # properly train for various empty lane situations.
-            if self.effective_scenario == 0  and  self.training:
-                draw = self.prng.random()
-                if draw < 0.05:
-                    self.effective_scenario = 1 #all neighbors in ego's lane
-                elif draw < 0.25:
-                    self.effective_scenario = 2 #no neighbors in ego's lane
-
-            # Loop until a good starting location is found (i.e. one that has a chance to reach at least one active target)
-            good_location = False
-            while not good_location:
-
-                # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
-                # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
-                # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
-                # vehicle's starting lane.
-                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
-
-                # Scenarios 10-19:  specify ego vehicle starting lane
-                if 10 <= self.effective_scenario < 10 + self.roadway.NUM_LANES:
-                    ego_lane_id = self.effective_scenario - 10
-
-                # Define the starting P coordinate - randomize throughout the length of the lane, but far enough from the end
-                # that it will be rare for it to drive off the end of the lane within a 100 step episode (at 35 m/s and 0.2 s/step
-                # that's 700 m)
-                lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
-                lane_length = self.roadway.get_total_lane_length(ego_lane_id)
-                ego_p = lane_begin + self.prng.random() * max(lane_length - 700.0, 1.0)
-
-                if not self.training: #encourage it to start closer to beginning of the track for inference runs
-                    ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
-
-                # Determine if the chosen location can reach a target
-                good_location = self.roadway.is_any_target_reachable_from(ego_lane_id, ego_p)
-
-            # Randomly define the starting speed and initialize the vehicle data
-            ego_speed = None
-            if self.prng.random() > 0.1:
-                ego_speed = min(self.prng.gaussian(29.0, 3.0), Constants.MAX_SPEED) #mostly in [23, 35]
-            else:
-                ego_speed = self.prng.random() * 15.0 + 10.0 #in [10, 25]
-
-            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
-            if self.debug > 0:
-                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
-
-            # Define the neighbor vehicles
-            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
-
-        #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
-        #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
+        # Place the initial location & speed of each vehicle in the scenario
+        self._initialize_vehicles()
 
         if self.debug > 0:
             print("///// HighwayEnv.reset: all vehicle starting configs defined using roadway {}.".format(self.roadway.name))
@@ -563,8 +493,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.crash_n_lc_status = "UNDEF"
         self.crash_p_dist_fwd = 0.0
 
-        if self.debug > 1:
-            print("///// End of reset(). Returning obs ", self.all_obs[0, :])
         return self.all_obs[0, :], {} #only return the row for the ego vehicle
 
 
@@ -908,9 +836,25 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     raise ValueError("///// ERROR: Config valid_targets contains illegal entry. Items must be between 0 and {}"
                                      .format(self.roadway.NUM_TARGETS))
 
-        # If we are to randomize the target destinations then
-        #print("**     choose_active_targets entered with valid_targets = ", self.valid_targets)
-        if self.randomize_targets:
+        # Mark all valid targets inactive to start with a clean slate
+        for t_idx in range(self.roadway.NUM_TARGETS):
+            self.roadway.targets[t_idx].active = False
+
+        # If we are running an evaluation or test scenario that requires specific targets to be valid, then set them
+        if 50 <= self.effective_scenario <= 64: #assumes RoadwayB
+            self.roadway.targets[1].active = True
+            self.roadway.targets[2].active = True
+        elif 65 <= self.effective_scenario <= 66: #assumes RoadwayB
+            self.roadway.targets[0].active = True
+        elif 67 <= self.effective_scenario <= 68: #assumes RoadwayC
+            self.roadway.targets[3].active = True
+        elif 69 <= self.effective_scenario <= 70: #assumes RoadwayC
+            self.roadway.targets[0].active = True
+        elif 71 <= self.effective_scenario <= 73: #assumes RoadwayD
+            self.roadway.targets[2].active = True
+
+        # Else if we are to randomize the target destinations then
+        elif self.randomize_targets:
 
             # Loop through each target marked valid and decide if it will be active. Use a random threshold > 0.5
             # to limit the total number of active targets (prefer to not have all of them active very often). Threshold
@@ -920,7 +864,6 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             at_least_one_active = False
             for t_idx in range(self.roadway.NUM_TARGETS):
                 tgt = self.roadway.targets[t_idx]
-                tgt.active = False
                 if t_idx in self.valid_targets  and  self.prng.random() > 0.6:
                     tgt.active = True
                     at_least_one_active = True
@@ -934,9 +877,164 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         # Else, mark all valid targets active
         else:
             for t_idx in range(self.roadway.NUM_TARGETS):
-                self.roadway.targets[t_idx].active = False
                 if t_idx in self.valid_targets:
                     self.roadway.targets[t_idx].active = True
+
+
+    def _initialize_vehicles(self):
+        """Sets the initial location and speed of each vehicle in the scenario."""
+
+        ego_p = None
+        ego_lane_id = None
+
+        # All inference - this doesn't train anything, so vehicle 0 is in inference mode, but is still the center
+        # of attention here, so we can call it the ego vehicle. These scenarios are used for embedding data
+        # collection, but can be used for any general-purpose inference runs.
+        if 20 <= self.effective_scenario <= 29:
+
+            if self.effective_scenario != 29  and  self.effective_scenario - 20 >= self.roadway.NUM_LANES:
+                raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
+
+            # Ego's initial lane is random or specified by the scenario
+            ego_lane_id = 0
+            if self.effective_scenario == 29:
+                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+            else:
+                ego_lane_id = self.effective_scenario - 20
+
+            # Define ego's starting P coordinate - randomize anywhere along the chosen lane
+            lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
+            lane_length = self.roadway.get_total_lane_length(ego_lane_id)
+            ego_p = lane_begin + self.prng.random()*lane_length
+
+            # Randomly define the starting speed and initialize the vehicle data
+            ego_speed = self.prng.random() * Constants.MAX_SPEED
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+
+            # Define the neighbor vehicles closer to ego than normal to ensure we exercise the sensors well
+            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed, pack_tightly = True)
+
+        # Traffic evaluation scenarios require specific conditions on ego
+        elif 50 <= self.effective_scenario <= 79:
+
+            if 50 <= self.effective_scenario <= 55: #RoadwayB
+                ego_lane_id = self.effective_scenario - 50
+            elif self.effective_scenario in [56, 59, 62]: #RoadwayB
+                ego_lane_id = 0
+            elif self.effective_scenario in [57, 60, 63]: #RoadwayB
+                ego_lane_id = 3
+            elif self.effective_scenario in [58, 61, 64]: #RoadwayB
+                ego_lane_id = 5
+            elif self.effective_scenario == 65: #RoadwayB
+                ego_lane_id = 1
+            elif self.effective_scenario == 66: #RoadwayB
+                ego_lane_id = 5
+            elif self.effective_scenario == 67: #RoadwayC
+                ego_lane_id = 0
+            elif self.effective_scenario == 68: #RoadwayC
+                ego_lane_id = 3
+            elif self.effective_scenario == 69: #RoadwayC
+                ego_lane_id = 2
+            elif self.effective_scenario == 70: #RoadwayC
+                ego_lane_id = 5
+            elif self.effective_scenario == 71: #RoadwayD
+                ego_lane_id = 1
+            elif self.effective_scenario == 72: #RoadwayD
+                ego_lane_id = 3
+            elif self.effective_scenario == 73: #RoadwayD
+                ego_lane_id = 5
+            else:
+                raise ValueError("///// HighwayEnv._initialize_vehicles: unknown scenario {}".format(self.effective_scenario))
+
+            ego_p= self.roadway.get_lane_start_p(ego_lane_id) + 100.0
+            ego_speed = self.roadway.get_speed_limit(ego_lane_id, ego_p)
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
+
+        # Special test case 80 for debugging LC desirability
+        elif self.effective_scenario == 80:
+            ego_lane_id = 2
+            ego_p = 550.0
+            ego_speed = 30.9
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
+
+        # Special test case 81 for degubbing off-road errors
+        elif self.effective_scenario == 81:
+            ego_lane_id = 2
+            ego_p = 2200.0
+            ego_speed = 22.5
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
+
+        # Solo bot vehicle that runs a single lane at its speed limit (useful for inference only)
+        elif self.effective_scenario >= 90:
+
+            if self.effective_scenario - 90 >= self.roadway.NUM_LANES:
+                raise ValueError("///// ERROR: attempting to reset to unknown scenario {}".format(self.effective_scenario))
+
+            for i in range(self.num_vehicles):
+                self.vehicles[i].active = False
+
+            lane_id = self.effective_scenario - 90
+            p = self.roadway.get_lane_start_p(lane_id)
+            self.vehicles[1].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = self.roadway.lanes[lane_id].segments[0][5])
+
+        # All other scenarios: trainee ego vehicle involved with bot vehicles - randomize, depending on the specific scenario called for
+        else:
+
+            # If scenario is specified as 0 and we are in training mode, then randomly change to scenarios 1 or 2 to
+            # properly train for various empty lane situations.
+            if self.effective_scenario == 0  and  self.training:
+                draw = self.prng.random()
+                if draw < 0.05:
+                    self.effective_scenario = 1 #all neighbors in ego's lane
+                elif draw < 0.25:
+                    self.effective_scenario = 2 #no neighbors in ego's lane
+
+            # Loop until a good starting location is found (i.e. one that has a chance to reach at least one active target)
+            good_location = False
+            while not good_location:
+
+                # Define the ego vehicle's location - since it's the first vehicle to be placed, anywhere will be acceptable,
+                # as long as it has enough room to run at least half an episode before reaching end of lane (note that the two
+                # ego targets are 100 m beyond the ends of their respective lanes). For scenarios 10-19 use it to specify the ego
+                # vehicle's starting lane.
+                ego_lane_id = int(self.prng.random() * self.roadway.NUM_LANES)
+
+                # Scenarios 10-19:  specify ego vehicle starting lane
+                if 10 <= self.effective_scenario < 10 + self.roadway.NUM_LANES:
+                    ego_lane_id = self.effective_scenario - 10
+
+                # Define the starting P coordinate - randomize throughout the length of the lane, but far enough from the end
+                # that it will be rare for it to drive off the end of the lane within a 100 step episode (at 35 m/s and 0.2 s/step
+                # that's 700 m)
+                lane_begin = self.roadway.get_lane_start_p(ego_lane_id)
+                lane_length = self.roadway.get_total_lane_length(ego_lane_id)
+                ego_p = lane_begin + self.prng.random() * max(lane_length - 700.0, 1.0)
+
+                if not self.training: #encourage it to start closer to beginning of the track for inference runs
+                    ego_p = self.prng.random() * 0.7*max(lane_length - 150.0, 1.0) + lane_begin
+
+                # Determine if the chosen location can reach a target
+                good_location = self.roadway.is_any_target_reachable_from(ego_lane_id, ego_p)
+
+            # Randomly define the starting speed and initialize the vehicle data
+            ego_speed = None
+            if self.prng.random() > 0.1:
+                ego_speed = min(self.prng.gaussian(29.0, 3.0), Constants.MAX_SPEED) #mostly in [23, 35]
+            else:
+                ego_speed = self.prng.random() * 15.0 + 10.0 #in [10, 25]
+
+            self.vehicles[0].reset(self.roadway, init_lane_id = ego_lane_id, init_p = ego_p, init_speed = ego_speed)
+            if self.debug > 0:
+                print("    * reset: ego lane = {}, p = {:.1f}, speed = {:4.1f}".format(ego_lane_id, ego_p, ego_speed))
+
+            # Define the neighbor vehicles
+            self._place_neighbor_vehicles(ego_lane_id, ego_p, ego_speed)
+
+        #print("   ** reset: ego lane = {}, p = {:.0f}, speed = {:.1f}, neighbors = {}, targets = {}"
+        #      .format(ego_lane_id, ego_p, ego_speed, episode_vehicles - 1 - deactivated_count, self.roadway.get_active_target_list()))
 
 
     def _place_neighbor_vehicles(self,
@@ -1056,7 +1154,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
     def _decide_num_vehicles(self) -> int:
         """Uses a weighted random draw to decide how many vehicles to use in the episode, favoring a small number in early
             training episodes, gradually favoring more as the number of epsisodes increases. For inference, we will push the
-            favored band to the highest level.
+            favored band to the highest level. This logic applies to normal training scenarios.
+
+            Many of the special test & evaluation scenarios specify the number of neighbors to attempt to place.
 
             Return value is the total number of vehicles in the episode, including the ego vehicle.
         """
@@ -1068,32 +1168,39 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         if self.num_vehicles == 1:
             return 1
 
-        nv = self.num_vehicles
-        nv23 = max(2*nv//3, 1)
-        nv3 = max(nv//3, 1)
-        fav_low = float(nv23) #max out the range for inference runs
-        fav_high = float(nv)
+        # For evaluation scenarios, use all the defined vehicles, always
+        if 50 <= self.effective_scenario <= 79:
+            episode_vehicles = self.num_vehicles
 
-        if self.training:
-            fraction = min(self.episode_count/MANY_EPISODES, 1.0)
-            fav_low = min(float(nv23 - 1.0)*fraction + 1.0, float(nv23)) #lower bound for the favorite number range
-            fav_high = min(float(nv - nv3)*fraction + nv3, float(nv)) #upper bound for the favorite number range
-        #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high))
-        assert fav_high >= fav_low, "///// ERROR in _decide_num_vehicles(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
-        episode_vehicles = 1
-        draw1 = self.prng.random() #determines if we are in the favored band or not
-        draw2 = self.prng.random() #chooses the value from within the selected band
-        if draw1 > 0.2: #we are in the favored band
-            episode_vehicles = int(draw2*(fav_high - fav_low) + fav_low + 0.5)
-        else: #below the favored band
-            episode_vehicles = max(int(draw2*(fav_low - 1.0) + 1.0 + 0.5), 1)
+        # Otherwise, we have lattitude to decide on each episode
+        else:
+            nv = self.num_vehicles
+            nv23 = max(2*nv//3, 1)
+            nv3 = max(nv//3, 1)
+            fav_low = float(nv23) #max out the range for inference runs
+            fav_high = float(nv)
 
-        # Limit the number if we are running scenario 1, which places all vehicles in the same lane
-        if self.effective_scenario == 1:
-            episode_vehicles = min(episode_vehicles, 6)
+            if self.training:
+                fraction = min(self.episode_count/MANY_EPISODES, 1.0)
+                fav_low = min(float(nv23 - 1.0)*fraction + 1.0, float(nv23)) #lower bound for the favorite number range
+                fav_high = min(float(nv - nv3)*fraction + nv3, float(nv)) #upper bound for the favorite number range
+            #print("///// decide_num_vehicles: nv23 = {}, nv3 = {}, fav_low = {}, fav_high = {}".format(nv23, nv3, fav_low, fav_high))
+            assert fav_high >= fav_low, "///// ERROR in _decide_num_vehicles(): fav_high = {}, fav_low = {}".format(fav_high, fav_low)
+            episode_vehicles = 1
+            draw1 = self.prng.random() #determines if we are in the favored band or not
+            draw2 = self.prng.random() #chooses the value from within the selected band
+            if draw1 > 0.2: #we are in the favored band
+                episode_vehicles = int(draw2*(fav_high - fav_low) + fav_low + 0.5)
+            else: #below the favored band
+                episode_vehicles = max(int(draw2*(fav_low - 1.0) + 1.0 + 0.5), 1)
 
-        #print("      draw1 = {:.2f}, draw2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles))
-        #print("*     episode {}, episode_vehicles = {}".format(self.episode_count, episode_vehicles))
+            # Limit the number if we are running scenario 1, which places all vehicles in the same lane
+            if self.effective_scenario == 1:
+                episode_vehicles = min(episode_vehicles, 6)
+
+            #print("      draw1 = {:.2f}, draw2 = {:.2f}, episode_vehicles = {}".format(draw1, draw2, episode_vehicles))
+            #print("*     episode {}, episode_vehicles = {}".format(self.episode_count, episode_vehicles))
+
         return episode_vehicles
 
 
@@ -1440,12 +1547,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # If a lane change was initiated, apply a penalty depending on how soon after the previous lane change
             if self.vehicles[0].lane_change_count == 1:
-                penalty = 0.001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.02
+                penalty = 0.001*(Constants.MAX_STEPS_SINCE_LC - self.all_obs[0, ObsVec.STEPS_SINCE_LN_CHG]) + 0.03
                 reward -= penalty
                 explanation += "Ln chg {:.4f}. ".format(-penalty)
 
             # Penalty for deviating from roadway speed limit only if there isn't a slow vehicle nearby in front
-            speed_mult = 0.3
+            speed_mult = 0.35
             speed_limit = self.roadway.get_speed_limit(self.vehicles[0].lane_id, self.vehicles[0].p)
             fwd_vehicle_speed = self._get_fwd_vehicle_speed() #large value if no fwd vehicle
             cur_speed = self.all_obs[0, ObsVec.SPEED_CUR]

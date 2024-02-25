@@ -11,7 +11,8 @@ ego:
 
 #---------- NEIGHBOR VEHICLES
 
-# The specified vehicle counts of each type will be created in the master list of neighbor vehicles.
+# The specified vehicle counts of each type are default values. Certain scenarios override them. If no
+# such override occurs, vehicles will be created in the master list of neighbor vehicles in these numbers.
 # The sum of their counts is the total number of vehicles available for use. Some subset of this master
 # list will be selected for any given episode.
 # count = 0 is a valid selection.

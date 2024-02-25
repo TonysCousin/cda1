@@ -45,7 +45,7 @@ def main(argv):
     # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 30000
+    max_iterations      = 15000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -125,7 +125,7 @@ def main(argv):
     cfg.checkpointing(export_native_model_files = True)
 
     # ===== Training algorithm HPs for SAC ==================================================
-    LR                                          = 8e-5
+    LR                                          = 4e-5
     opt_config = cfg_dict["optimization"]
     opt_config["actor_learning_rate"]           = LR
     opt_config["critic_learning_rate"]          = LR
