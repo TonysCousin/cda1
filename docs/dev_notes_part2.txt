@@ -1457,6 +1457,20 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Adjusted speed deviation penalty slightly, multiplier from 0.3 to 0.35.
 	* Reduced LR from 8e-5 to 4e-5.
 	* Checkpoints stored at 20240225-0952.
+	* Training completed in 5.2 hr. Rewards increased smoothly to rmin ~-5.3,
+	  rmean ~-0.3, rmax 0.9, mean ep len ~99.
+	* Total 45k iters (42M steps).
+	* Inference on checkpoint 15000: 
+		* Speed control: seems a bit tighter than before.
+		* Lane change: seems more reluctant to do these, but still an occasional
+		  extraneous mvr.
+		* Crash: 1 rear-end of a slower Bridgit beside; tried to slow, but not
+		  enough; step 16 from lane 5. 1 lateral trying to cut in front of
+		  another Bridgit.
+		* Targets: missed 1 on roadway C, too slow to LC, then was blocked and
+		  refused to crash into the neighbor.
+	* I believe this is the best agent I've seen yet. It's a KEEPER! Storing it as
+	  models/cda1.2-D14-15000 and set it as the new default model for BridgitNN.
 
 * Started building the traffic_eval program
 	* Enhanced BridgitNN to allow injection of a main model file if desired.
@@ -1490,6 +1504,7 @@ TODO:
   and vice versa.
 
 - Review TODOs in graphics.py
+- Add ego's fwd distance plot
 - Display lane change as a gradual motion
 - Investigate speed overshoot when speed limit changes (with bot1a controller)
 - Add lane IDs to graphics

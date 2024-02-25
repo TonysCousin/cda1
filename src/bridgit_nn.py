@@ -47,7 +47,7 @@ class BridgitNN(TorchModelV2, nn.Module):
         NUM_FC2_NEURONS = 640
         NUM_FC3_NEURONS = 128
         NUM_FC4_NEURONS = 32
-        BRIDGIT_MODEL = "/home/starkj/projects/cda1/models/cda1.1-D4-29000/policies/default_policy/model/model.pt"
+        BRIDGIT_MODEL = "/home/starkj/projects/cda1/models/cda1.2-D14-15000/policies/default_policy/model/model.pt"
 
         # Override the model if one was explicitly provided
         if model_file is not None:

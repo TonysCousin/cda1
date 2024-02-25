@@ -902,7 +902,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             at_least_one_active = False
             for t_idx in range(self.roadway.NUM_TARGETS):
                 tgt = self.roadway.targets[t_idx]
-                if t_idx in self.valid_targets  and  self.prng.random() > 0.6:
+                if t_idx in self.valid_targets  and  self.prng.random() > 0.65:
                     tgt.active = True
                     at_least_one_active = True
 
