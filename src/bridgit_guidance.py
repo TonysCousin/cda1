@@ -45,7 +45,8 @@ class BridgitGuidance(VehicleGuidance):
                  is_learning: bool = True,
                  obs_space  : Box = None,
                  act_space  : Box = None,
-                 name       : str = "BridgitGuidance"
+                 name       : str = "BridgitGuidance",
+                 model_file : str = None,               #specifies override of the NN model checkpoint file; not part of parent ctor
                 ):
         super().__init__(prng, is_learning, obs_space, act_space, name)
 
@@ -56,7 +57,7 @@ class BridgitGuidance(VehicleGuidance):
         self.tactical_model = None
         if not is_learning:
             config = {"inference_only": True}
-            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit") #4 outputs: all means, the ann stddevs
+            self.tactical_model = BridgitNN(obs_space, act_space, 4, config, "Bridgit", model_file) #4 outputs: all means, then all stddevs
             self.tactical_model.eval()
 
 
@@ -94,6 +95,7 @@ class BridgitGuidance(VehicleGuidance):
             self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
             self.starting_points = self._dict_intersection(self.starting_points, starts)
+        print("***   BridgitGuidance.reset: lane_to_target = ", self.lane_to_target)
 
 
     def step(self,

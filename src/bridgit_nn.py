@@ -24,6 +24,7 @@ class BridgitNN(TorchModelV2, nn.Module):
                  num_outputs    : int,
                  model_config   : ModelConfigDict,
                  name           : str,
+                 model_file     : str = None,
                 ):
 
         TorchModelV2.__init__(self, obs_space, action_space, num_outputs, model_config, name)
@@ -47,7 +48,11 @@ class BridgitNN(TorchModelV2, nn.Module):
         NUM_FC3_NEURONS = 128
         NUM_FC4_NEURONS = 32
         BRIDGIT_MODEL = "/home/starkj/projects/cda1/models/cda1.1-D4-29000/policies/default_policy/model/model.pt"
-        #BRIDGIT_MODEL = "/home/starkj/ray_results/cda1/20240221-2129/10000/policies/default_policy/model/model.pt"
+
+        # Override the model if one was explicitly provided
+        if model_file is not None:
+            BRIDGIT_MODEL = model_file
+            print("***   BridgitNN created with model file override: {}".format(model_file)) #TODO debug
 
         # Define the structure for early processing of the macroscopic data (everything prior to sensor data) - this will be trainable
         self.fc1 = nn.Linear(ObsVec.BASE_SENSOR_DATA, NUM_FC1_NEURONS)

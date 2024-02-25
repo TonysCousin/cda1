@@ -1456,7 +1456,12 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  extraneous mvrs.
 	* Adjusted speed deviation penalty slightly, multiplier from 0.3 to 0.35.
 	* Reduced LR from 8e-5 to 4e-5.
-	* Checkpoints stored at 20240225-0945.
+	* Checkpoints stored at 20240225-0952.
+
+* Started building the traffic_eval program
+	* Enhanced BridgitNN to allow injection of a main model file if desired.
+	* Updated specification of targets for evaluation scenarios.
+	* Created partially functiona traffic_eval code that can run one episode.
 
 
 

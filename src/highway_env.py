@@ -232,6 +232,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.crash_n_speed = 0.0    #speed of the neighbor vehicle involved in the crash, m/s
         self.crash_n_lc_status = "UNDEF" #LC status of the neighbor vehicle involved in the crash
         self.crash_p_dist_fwd = 0.0 #distance that the neighbor vehicle is in front of the ego vehicle at time of crash, m
+        self.bridgit_model_file = None #if not None this will override the hard-coded BridgitNN model weights filename
 
         """
         If human-rendering is used, `self.window` will be a reference
@@ -408,18 +409,22 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
         self.num_vehicles = len(v_data)
 
-        # Instantiate model and guidance objects for each vehicle, then use them to construct the vehicle object
+        # Create a new list of vehicle objects and loop through each to begin creating them
         if self.vehicles is not None:
             del self.vehicles
         self.vehicles = []
-        print("///// Building vehicles from {}".format(self.vehicle_config_title))
         for i in range(self.num_vehicles):
 
-            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode
+            # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode.
+            # Calling vehicle 0 a learner in evaluation scenarios allows its guidance to only look at active targets
+            # instead of all of them.
             is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
 
-            v = None
+            # Get the config specification for this vehicle type
             spec = v_data[i]
+
+            # Instantiate model and guidance objects for the vehicle, then use them to construct the vehicle object
+            v = None
             try:
                 model = getattr(sys.modules[__name__], spec["model"])(
                                     max_jerk      = spec["max_jerk"],
@@ -427,8 +432,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                                     length        = spec["length"],
                                     lc_duration   = spec["lc_duration"],
                                     time_step     = self.time_step_size)
-                guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
-                                                                            self.observation_space, self.action_space)
+
+                # If this vehicle is using Bridgit guidance and it is a non-learner, then inform it of a possible
+                # model file override. Otherwise, instantiate the object with no model file info.
+                guidance = None
+                if spec["guidance"] == "BridgitGuidance"  and  not is_learning:
+                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
+                                                                                self.observation_space, self.action_space, \
+                                                                                model_file = self.bridgit_model_file)
+                else:
+                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
+                                                                                self.observation_space, self.action_space)
+
                 v = Vehicle(model, guidance, self.prng, self.time_step_size, self.debug)
             except AttributeError as e:
                 print("///// HighwayEnv.__init__: problem with config for vehicle ", i, " model or guidance: ", e)
@@ -680,6 +695,25 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         return self.all_obs[0, :], reward, done, truncated, return_info
 
 
+    def set_bridgit_model_file(self,
+                               filename,    #fully qualified path/filename for the checkpoint file with the NN weights
+                              ):
+        """Allows specifying the NN model file that is to be used by all non-learning copies of Bridgit guidance models.
+            This needs to be called prior to reset(), as that method recreates all vehicles to set up each episode.
+        """
+        self.bridgit_model_file = filename
+
+
+    def set_scenario(self,
+                     scenario,  #the new scenario number
+                    ):
+        """Allows changing the scenario in between episodes (it is normally set in the constructor). This needs to be
+            called prior to reset() for it to apply to the upcoming episode. Calling it in the middle of an episode
+            will have unpredictable consequences.
+        """
+        self.scenario = scenario
+
+
     def get_stopper(self):
         """Returns the stopper object."""
         return self.stopper
@@ -821,6 +855,23 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
     def _choose_active_targets(self):
         """Makes random choices, where appropriate, and marks target destinations as active or inactive for the episode."""
 
+        # If we are running an evaluation or test scenario that requires specific targets to be valid, then set them.
+        # Defining the list of valid targets allows vehicle guidances to use the active flag to decide whether to pay
+        # attention to them, based on learning mode.
+        if 50 <= self.scenario <= 79:
+            self.all_targets_valid = False
+            self.randomize_targets = False
+            if 50 <= self.effective_scenario <= 64: #assumes RoadwayB
+                self.valid_targets = [1, 2]
+            elif 65 <= self.effective_scenario <= 66: #assumes RoadwayB
+                self.valid_targets = [0]
+            elif 67 <= self.effective_scenario <= 68: #assumes RoadwayC
+                self.valid_targets = [3]
+            elif 69 <= self.effective_scenario <= 70: #assumes RoadwayC
+                self.valid_targets = [0]
+            elif 71 <= self.effective_scenario <= 73: #assumes RoadwayD
+                self.valid_targets = [2]
+
         # If "all" targets were indicated valid (in the config params), then ensure that everything in the current roadway
         # is included in the valid list. Otherwise, use the list as provided in the config param.
         if self.all_targets_valid:
@@ -840,21 +891,8 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         for t_idx in range(self.roadway.NUM_TARGETS):
             self.roadway.targets[t_idx].active = False
 
-        # If we are running an evaluation or test scenario that requires specific targets to be valid, then set them
-        if 50 <= self.effective_scenario <= 64: #assumes RoadwayB
-            self.roadway.targets[1].active = True
-            self.roadway.targets[2].active = True
-        elif 65 <= self.effective_scenario <= 66: #assumes RoadwayB
-            self.roadway.targets[0].active = True
-        elif 67 <= self.effective_scenario <= 68: #assumes RoadwayC
-            self.roadway.targets[3].active = True
-        elif 69 <= self.effective_scenario <= 70: #assumes RoadwayC
-            self.roadway.targets[0].active = True
-        elif 71 <= self.effective_scenario <= 73: #assumes RoadwayD
-            self.roadway.targets[2].active = True
-
-        # Else if we are to randomize the target destinations then
-        elif self.randomize_targets:
+        # If we are to randomize the target destinations then
+        if self.randomize_targets:
 
             # Loop through each target marked valid and decide if it will be active. Use a random threshold > 0.5
             # to limit the total number of active targets (prefer to not have all of them active very often). Threshold
