@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List
 import numpy as np
 import argparse
+from ray.rllib.env.apis.task_settable_env import TaskSettableEnv
 
 from obs_vec import ObsVec
 from scaler import *
@@ -42,12 +43,25 @@ def main(argv):
     # Pass in any NN model weights file that may have been specified, in case an override is desired
     env.set_bridgit_model_file(bridgit_weights)
 
+    run_episode(env, 50)
+    run_episode(env, 69)
+
+    # If the episode is complete then get user approval to shut down
+    print("///// All episodes complete.")
+
+
+def run_episode(env         : TaskSettableEnv,
+                scenario    : int,
+               ):
+    """Executes a single episode of the specified scenario."""
+
     # Prepare for a complete episode
-    env.set_scenario(50)
+    env.set_scenario(scenario)
     episode_reward = 0
     done = False
     raw_obs, _ = env.unscaled_reset()
-    print("***** Using roadway {}, targets {}, num_vehicles = {}".format(env.roadway.name, env.roadway.get_active_target_list(), env.num_vehicles))
+    print("\n***** Running scenario {} with roadway {}, targets {}, num_vehicles = {}"
+          .format(scenario, env.roadway.name, env.roadway.get_active_target_list(), env.num_vehicles))
 
     # Loop on time steps until episode is complete
     step = 0
@@ -94,11 +108,7 @@ def main(argv):
         # Summarize the episode
         if done:
             print("///// Episode complete: {}. Total reward = {:.2f}".format(info["reason"], episode_reward))
-            sys.exit()
-
-    # If the episode is complete then get user approval to shut down
-    print("///// Terminated - reached desired episode length. Total reward = {:.2f}".format(episode_reward))
-    sys.exit()
+            return
 
 
 ######################################################################################################

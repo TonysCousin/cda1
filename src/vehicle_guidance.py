@@ -11,7 +11,8 @@ class VehicleGuidance(ABC):
 
     def __init__(self,
                  prng       : HpPrng,       #pseudo-random number generator
-                 is_learning: bool = True,  #is the guidance algorithm an RL agent under training?
+                 is_ego     : bool = False, #does this guidance belong to the ego vehicle?
+                 is_learning: bool = False, #is the guidance algorithm an RL agent under training?
                  obs_space  : Box = None,   #the observation space used by the environment model
                  act_space  : Box = None,   #the action space used by the environment model
                  name       : str = "Unknown", #a descriptive name for this instance (or class)
@@ -19,6 +20,7 @@ class VehicleGuidance(ABC):
 
         self.prng = prng
         self.my_vehicle = None
+        self.is_ego = is_ego
         self.is_learning = is_learning
         self.name = name
         self.roadway = None #this must be defined in reset() before any other methods are called

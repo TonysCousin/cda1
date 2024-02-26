@@ -26,6 +26,7 @@ def main(argv):
     10-18:  ego starts in lane 0-5, respectively; neighbor vehicles are randomized.
     20-28*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in lanes 0-5 (primarily testing).
        29*: embedding run where vehicle 0 has Embed guidance but Bridgit model, starting in a random location.
+    50-79*: traffic evaulations - see software requirements doc.
     80-89:  special test configurations.
     90-98*: no ego; a single bot vehicle starts in lane 0-5, respectively, and drives to end of that lane (primarily testing).
     '''

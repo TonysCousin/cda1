@@ -418,7 +418,9 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             # Mark this vehicle as a learner if it is index 0 and it is not in embed collection mode.
             # Calling vehicle 0 a learner in evaluation scenarios allows its guidance to only look at active targets
             # instead of all of them.
-            is_learning =  i == 0  and  (self.scenario < 20  or  self.scenario > 29)
+            is_ego =  i == 0
+            is_learning = is_ego  and  (self.scenario < 20  or  self.scenario > 79)
+            guidance = None
 
             # Get the config specification for this vehicle type
             spec = v_data[i]
@@ -435,13 +437,12 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
                 # If this vehicle is using Bridgit guidance and it is a non-learner, then inform it of a possible
                 # model file override. Otherwise, instantiate the object with no model file info.
-                guidance = None
                 if spec["guidance"] == "BridgitGuidance"  and  not is_learning:
-                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
+                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_ego, is_learning, \
                                                                                 self.observation_space, self.action_space, \
                                                                                 model_file = self.bridgit_model_file)
                 else:
-                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_learning, \
+                    guidance = getattr(sys.modules[__name__], spec["guidance"])(self.prng, is_ego, is_learning, \
                                                                                 self.observation_space, self.action_space)
 
                 v = Vehicle(model, guidance, self.prng, self.time_step_size, self.debug)
@@ -581,21 +582,16 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
 
             # Clear any alerts that may have been set in the previous time step
             self.vehicles[i].alert = False
-            #print("***   step: guiding vehicle {:2d} at lane {}, scenario {}, p {:.1f}, speed {:.1f}, LC count {}"
-            #      .format(i, self.vehicles[i].lane_id, self.effective_scenario, self.vehicles[i].p, self.vehicles[i].cur_speed,
-            #                self.vehicles[i].lane_change_count))
-            #if i <= 1:
-            #    print("***** step: ready to compute actions for v{}. LC desirability = {}"
-            #            .format(i, self.all_obs[i, ObsVec.DESIRABILITY_LEFT:ObsVec.DESIRABILITY_RIGHT+1]))
 
             # Exercise the tactical guidance algo to generate the next action commands.
-            # Guidance.step() may modify the obs vector that is passed in, which could affect downstream calculations.
             # Note that this must be performed for every vehicle, even learning vehicles, as their guidance.step() may
             # invoke logic that modifies the obs vector (e.g. runs strategic guidance that passes new obs to the tactical agent).
             action = self.vehicles[i].guidance.step(self.all_obs[i, :]) #both obs and actions are unscaled
+            #print("***** step: vehicle {}, is_ego = {}, is_learning = {}, scn = {}, action = {}"
+            #      .format(i, self.vehicles[i].guidance.is_ego, self.vehicles[i].guidance.is_learning, self.effective_scenario, action))
 
-            # If this vehicle is in training (normally the ego vehicle), then the actions generated above are bogus and need to
-            # be replaced with those generated externally from the training algo.
+            # If the vehicle is in training, then the actions
+            # generated above are bogus and need to be replaced with those generated externally from the training algo.
             if self.vehicles[i].guidance.is_learning:
                 action = ego_action
 

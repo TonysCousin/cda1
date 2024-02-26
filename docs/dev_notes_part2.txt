@@ -1471,6 +1471,8 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 		  refused to crash into the neighbor.
 	* I believe this is the best agent I've seen yet. It's a KEEPER! Storing it as
 	  models/cda1.2-D14-15000 and set it as the new default model for BridgitNN.
+		* Ran more inference runs with this new agent in all Bridgits and it
+		  works well.
 
 * Started building the traffic_eval program
 	* Enhanced BridgitNN to allow injection of a main model file if desired.

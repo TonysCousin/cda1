@@ -42,17 +42,18 @@ class BridgitGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 is_learning: bool = True,
+                 is_ego     : bool = False,
+                 is_learning: bool = False,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "BridgitGuidance",
                  model_file : str = None,               #specifies override of the NN model checkpoint file; not part of parent ctor
                 ):
-        super().__init__(prng, is_learning, obs_space, act_space, name)
+        super().__init__(prng, is_ego, is_learning, obs_space, act_space, name)
 
         self.positions = None
 
-        # If this also is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
+        # If this is a non-learning AI agent (running in inference mode only), then we need to explicitly instantiate that
         # model here so that it can be executed in inference mode.
         self.tactical_model = None
         if not is_learning:
@@ -85,17 +86,16 @@ class BridgitGuidance(VehicleGuidance):
         self.steps_since_plan = self.PLAN_EVERY_N_STEPS
 
         # Get all of the targets and the starting points for each possible target destination and merge them, taking the
-        # set-wise intersection of points in each lane. If this is a learning vehicle, then only use active targets;
+        # set-wise intersection of points in each lane. If this is the ego vehicle, then only use active targets;
         # otherwise use every target that is defined.
         self.starting_points = {}
         self.lane_to_target = {}
         for idx, tgt in enumerate(self.targets):
-            if self.is_learning  and  not tgt.active:
+            if self.is_ego  and  not tgt.active:
                 continue
             self.lane_to_target[tgt.lane_id] = idx
             starts = tgt.get_starting_points()
             self.starting_points = self._dict_intersection(self.starting_points, starts)
-        print("***   BridgitGuidance.reset: lane_to_target = ", self.lane_to_target)
 
 
     def step(self,

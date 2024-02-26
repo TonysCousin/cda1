@@ -18,16 +18,16 @@ class BotType1aGuidance(VehicleGuidance):
 
     def __init__(self,
                  prng       : HpPrng,
-                 is_learning: bool = True,
+                 is_ego     : bool = False,
+                 is_learning: bool = False,
                  obs_space  : Box = None,
                  act_space  : Box = None,
                  name       : str = "BotType1aGuidance"
                 ):
 
         # This cannot be a learning vehicle. But it is possible for this type to be specified in the ego
-        # slot, intended as inference only. In this case the incoming is_learning flag would be true, but
-        # we need to ignore that so the vehicle is not accidentally marked as such.
-        super().__init__(prng, False, obs_space, act_space, name)
+        # slot, intended as inference only.
+        super().__init__(prng, is_ego, False, obs_space, act_space, name)
 
         # Pick an offset from whatever the posted speed limit
         self.speed_offset = 0.0 #follow the speed limit exactly
