@@ -112,9 +112,12 @@ Latest working code is on the _develop_ branch. It may be lacking complete funct
 
 In-work features & fixes are on other branches off of _develop_.
 
+Part 2 has completed with the successful running of up to 16 copies of the Bridgit model running simultaneously, with or without additional bot vehicles in the traffic.
+At this point, I will be taking a break for a while before jumping into part 3.
+
 This project was begun on 8/21/23, and is proceeding in the following direction:
 - Part 1:  Train a single agent to drive the new track to suitable destinations with several bots attempting to do the same thing. **COMPLETE ON 12/29/23**
-- Part 2:  Expand the training to include several instances of the agent (replacing some bots) as pseudo-multi-agent training (iterative).
+- Part 2:  Expand the training to include several instances of the agent (replacing some bots) as pseudo-multi-agent training (iterative). **COMPLETE on 2/27/24**
 - Part 3:  True multi-agent training, with several untrained agents (same policy) learning simultaneously using Ray multi-agent facilities.
 - Part 4:  Multi-agent training for two policies in a single vehicle, one for planning and one for control.
 
