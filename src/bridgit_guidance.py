@@ -116,6 +116,9 @@ class BridgitGuidance(VehicleGuidance):
         # NOTE: this may modify the obs vector in step's arg list (updated lane change desirability values).
         obs = self.plan_route(obs)
 
+        # Provide metrics to the owning vehicle
+        self.my_vehicle.target_speed_callback(self.roadway.get_speed_limit(self.my_vehicle.lane_id, self.my_vehicle.p))
+
         # If this object represents a learning vehicle then return a meaningless action list
         if self.is_learning:
             return [0.0, 0.0]

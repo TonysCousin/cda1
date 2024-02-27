@@ -225,6 +225,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         self.steps_since_reset = 0  #length of the current episode in time steps
         self.stopped_count = 0      #num consecutive time steps in an episode where vehicle speed is almost zero
         self.episode_count = 0      #number of training episodes (number of calls to reset())
+        self.num_vehicles_actually_used = None #num vehicles used in an episode
         self.reward_lc_underway_des = 0 #bonus points to be awarded during a lane change in progress
         self.rollout_id = hex(int(self.prng.random() * 65536))[2:].zfill(4) #random int to ID this env object in debug logging
         self.crash_neighbor = -1    #ID of the vehicle that crashed into the ego vehicle
@@ -475,6 +476,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             self.vehicles[i].reset(self.roadway)
 
         # Place the initial location & speed of each vehicle in the scenario
+        self.num_vehicles_actually_used = 1 #ego is always going to be define
         self._initialize_vehicles()
 
         if self.debug > 0:
@@ -724,6 +726,15 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
         """Returns a list of all the vehicles in the scenario, with the ego vehicle as the first item."""
 
         return self.vehicles
+
+
+    def get_num_vehicles_used(self) -> int:
+        """Returns the number of vehicles actually used in an episode (including ego). Some intended neighbors
+            may not actually be used because there was not room to place them, or because a randomly smaller number
+            was chosen.
+        """
+
+        return self.num_vehicles_actually_used
 
 
     def close(self):
@@ -1095,15 +1106,18 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 idx = int(self.prng.random() * self.num_vehicles)
             v_idx.append(idx)
 
-        # Mark unused vehicles as inactive and skip over
+        # Mark unused vehicles as unused and inactive and skip over
         for j in range(1, self.num_vehicles):
             if j not in v_idx:
+                self.vehicles[j].used = False
                 self.vehicles[j].active = False
 
         # Loop over all neighbors used in the episode
+        self.num_vehicles_actually_used = 1 #assume ego vehicle has already been placed
         for i_indirect in range(1, episode_vehicles):
 
             i = v_idx[i_indirect] #this is now the index of the vehicle being used
+            assert self.vehicles[i].used, "///// place_neighbor_vehicles: vehicle {} is supposed to be marked used, but is not".format(i)
             assert self.vehicles[i].active, "///// place_neighbor_vehicles: vehicle {} is supposed to be active, but is not".format(i)
 
             # Iterate until a suitable location is found for it
@@ -1171,9 +1185,11 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     space_found = self._verify_safe_location(i, lane_id, p)
                 #print("***** vehicle {}, lane {}, p = {:.1f}, space_found = {}".format(i, lane_id, p, space_found))
 
+            # After all attempts have been used up, if no space is found, mark this vehicle as unused and go to the next one
             if not space_found:
+                self.vehicles[i].used = False
                 self.vehicles[i].active = False
-                #print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
+                print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
                 continue
 
             # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
@@ -1183,6 +1199,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if i > 0  and  lane_id == self.vehicles[0].lane_id  and  3.0*vlen <= self.vehicles[0].p - p <= 8.0*vlen:
                 speed = min(speed, 1.1*self.vehicles[0].cur_speed)
             self.vehicles[i].reset(self.roadway, init_lane_id = lane_id, init_p = p, init_speed = speed)
+            self.num_vehicles_actually_used += 1
 
 
     def _decide_num_vehicles(self) -> int:
@@ -1486,10 +1503,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                 if self.crash_same_lane:
                     if self.crash_p_dist_fwd >= 0.0:
                         reward = -5.0
-                        explanation = "Rear-ended vehicle {}. ".format(self.crash_neighbor)
+                        explanation = "Crash: rear-ended vehicle {}. ".format(self.crash_neighbor)
                     else:
                         reward = 0.0
-                        explanation = "Neighbor {} rear-ended ego. ".format(self.crash_neighbor)
+                        explanation = "Crash: neighbor {} rear-ended ego. ".format(self.crash_neighbor)
 
                 else:
                     count = self.vehicles[0].lane_change_count
@@ -1498,10 +1515,10 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
                     too_fast = (ObsVec.ZONES_BEHIND - 0.5)*ObsVec.OBS_ZONE_LENGTH / count / self.time_step_size #m/s
                     if self.vehicles[0].lane_change_status == "none":
                         reward = 0.0
-                        explanation = "Neighbor moved laterally into ego. "
+                        explanation = "Crash: neighbor moved laterally into ego. "
                     elif self.crash_p_dist_fwd < 0.0  and  self.crash_n_speed - self.vehicles[0].cur_speed >= too_fast:
                         reward = 0.0
-                        explanation = "Ego ({:.1f} m/s) moved into fast-moving neighbor's lane ({:.1f} m/s) & got rear-ended." \
+                        explanation = "Crash: ego ({:.1f} m/s) moved into fast-moving neighbor's lane ({:.1f} m/s) & got rear-ended." \
                                     .format(self.vehicles[0].cur_speed, self.crash_n_speed)
                     else:
                         reward = -5.0

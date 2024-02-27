@@ -1445,8 +1445,6 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 * Began modifying code to handle formal traffic performance evaluations.
 	* Completed all of the HighwayEnv code mods to define the new scenarios, per
 	  the updated software rqmts doc.
-	TODO:
-	* All vehicle guidances - add logic to capture metrics
 
 2/25/24
 
@@ -1483,9 +1481,11 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 
 
+
 TODO:
 - Make a toggle in train prgm to switch all HPs from new training to continuation learning.
 - Consider a train prgm HP to switch the Bridgit NN model more easily.
+- Ensure speed variation penalty is larger than 2-3 consecutive speed penalties in order to make it worth slowing the accel.
 - Add 2nd prev speed command to allow penalizing of jerky commands
 - retrace NN size expansion and addition of dropouts once success is found.
 - Add ability for agents to abort a LC mvr (both Bridgit and bots). Requires knowledge of neighbor LC activity.

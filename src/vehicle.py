@@ -37,7 +37,8 @@ class Vehicle:
         self.prev_accel = 0.0                   #forward actual acceleration in previous time step, m/s^2
         self.lane_change_status = "none"        #initialized to no lane change underway; legal values are "left", "right", "none"
         self.lane_change_count = 0              #num consecutive time steps since a lane change was begun; 0 indicates no lc maneuver underway
-        self.active = True                      #is the vehicle an active part of the scenario? If false, it cannot move and cannot be reactivated until reset
+        self.used = True                        #is the vehicle assigned for use in this scenario?
+        self.active = True                      #is the vehicle currently actively driving? If false, it cannot move and cannot be reactivated until reset
         self.crashed = False                    #has this vehicle crashed into another?
         self.off_road = False                   #has this vehicle driven off-road?
         self.stopped_count = 0                  #num consecutive time steps that the vehicle's speed is very close to 0
@@ -73,6 +74,7 @@ class Vehicle:
         self.prev_accel = 0.0
         self.lane_change_status = "none"
         self.lane_change_count = 0
+        self.used = True
         self.active = True
         self.crashed = False
         self.off_road = False
@@ -83,6 +85,13 @@ class Vehicle:
         if init_lane_id > -1  and  init_p is not None:
             self.model.reset(self.roadway)
             self.guidance.reset(self.roadway, self.lane_id, self.p)
+
+            # Initialize variables used for performance metrics
+            self.target_speed = None #set by the guidance object each time step
+            self.prev_p = init_p
+            self.total_distance = 0.0       #trajectory traveled, m
+            self.speed_disadvantage = 0.0   #how far could have traveled if speed was as high as target speed, m
+            self.accel_integral = 0.0       #integral of positive accelerations, m/s
 
         elif roadway is None:
             raise ValueError("///// ERROR in Vehicle.reset: roadway undefined. lane = {}, p = {}".format(init_lane_id, init_p))
@@ -108,7 +117,17 @@ class Vehicle:
         cur_accel_cmd = (new_speed_cmd - self.cur_speed) / self.time_step_size
         #print("///// Vehicle.advance_vehicle_spd: new_speed_cmd = {:.1f}, cur_speed = {:.1f}, prev_speed = {:.1f}, cur_accel_cmd = {:.2f}, prev_accel = {:.2f}"
         #      .format(new_speed_cmd, cur_speed, prev_speed, cur_accel_cmd, prev_accel))
-        return self.advance_vehicle_accel(cur_accel_cmd, new_lc_cmd)
+        reason = self.advance_vehicle_accel(cur_accel_cmd, new_lc_cmd)
+
+        # Accumulate performance metrics
+        if self.target_speed is not None:
+            self.total_distance += self.p - self.prev_p
+            self.speed_disadvantage += max((self.target_speed - self.cur_speed)*self.time_step_size, 0.0)
+            self.accel_integral += max((self.cur_speed - self.prev_speed), 0.0) #capture even if speed is above target speed
+
+        self.prev_p = self.p
+
+        return reason
 
 
     def advance_vehicle_accel(self,
@@ -130,7 +149,7 @@ class Vehicle:
         #..........Update longitudinal motion
         #
 
-        # Determine new longitudinal jerk, accel, speed & location of the vehicle
+        # Determine new longitudinal jerk, accel, speed & location of the vehicle #TODO: account for x != p on angled segments; gives a 13% error
         new_jerk = min(max((new_accel_cmd - self.prev_accel) / self.time_step_size, -self.model.max_jerk), self.model.max_jerk)
         new_accel = min(max(self.prev_accel + self.time_step_size*new_jerk, -self.model.max_accel), self.model.max_accel)
         new_speed = min(max(self.cur_speed + self.time_step_size*new_accel, 0.0), Constants.MAX_SPEED) #vehicle won't start moving backwards
@@ -239,6 +258,22 @@ class Vehicle:
         """
 
         return reason
+
+
+    def target_speed_callback(self,
+                              target_speed
+                             ):
+        """A callback that an instantiated vehicle's guidance object must use to record its desired (target) speed
+            for each time step. This will be used for monitoring traffic performance.
+        """
+
+        self.target_speed = target_speed
+
+
+    def get_performance_metrics(self):
+        """Returns a tuple of [total distance traveled (m), total speed disadvantage (m), total acceleration integral (m/s)]"""
+
+        return self.total_distance, self.speed_disadvantage, self.accel_integral
 
 
     def print(self,

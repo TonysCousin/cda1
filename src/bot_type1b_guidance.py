@@ -135,6 +135,9 @@ class BotType1bGuidance(VehicleGuidance):
         action[1] = cmd
         self.prev_lc_cmd = cmd
 
+        # Provide metrics to the owning vehicle
+        self.my_vehicle.target_speed_callback(tgt)
+
         return action
 
 

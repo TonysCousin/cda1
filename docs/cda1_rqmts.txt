@@ -144,20 +144,29 @@ Multi-agent Performance Evaluation
   to the whole scenario, not to an individual participant.
 	* Any crash or off-road event terminates the episode with a score of 0. For
 	  simplicity here, both will be referred to as a crash.
+	* Ego vehicle crawls to a near-stop or is unable to reach a suitable target
+	  is considered as bad as a crash and will score 0.
 	* If there is no crash, then each vehicle contributes to the episode score.
-	  We capture the integral of its speed_disadvantage, which is target_speed
+	* We capture the integral of its speed_disadvantage, which is target_speed
 	  minus actual speed (limited to no less than 0, so that going faster can't
 	  offset a slow spell). Since episodes will have differing numbers of vehicles,
 	  and each vehicle will have a different path length to travel, the speed
-	  disadvantage must be normallized. So the final episode score will be
-		score = 1 - F*sum[ SDi/Li ]/N
-	  where SDi is the speed disadvantage of vehicle i, Li is the length of
-	  vehicle i's path in that episode, and N is the number of vehicles in the
+	  disadvantage must be normalized. So the final episode score will be
+		score = 1 - F*sum_over_vehicles[ SDi/Li ]
+	  where SDi is the integrated speed disadvantage of vehicle i, Li is the length
+	  of vehicle i's path in that episode, and N is the number of vehicles in the
 	  episode. F is a constant multiplier to be determined, that scales the
 	  results readily into [0.5, 1]. Therefore, an ideal episode would score 1
 	  and the lower the score, the worse the traffic performance. We target F
 	  so that an episode without a crash will very unlikely score worse than 0.5.
 	  In this way, the negative impact of a crash is highlighted.
+	* Capture the integral of the vehicle's acceleration (positive values only)
+	  over the course of its trajectory. This will be a rough indicator of fuel
+	  economy and rewards vehicles that can stay on a steady speed better. The
+	  instantaneous acceleration can be approximated by simply capturing the 
+	  beginning and ending actual speed for a given time step and dividing by the
+	  time step duration. If this is positive, it indicates unfavorable fuel use.
+	  If it is negative, it can be considered 0 for this purpose.
 * In addition to episode scoring rules, we need a basis for making significant
   statistical comparisons over a wide variety of situations. Total randomization will
   not be appropriate, since one would expect a scenario with only one or two vehicles

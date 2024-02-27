@@ -49,6 +49,9 @@ class BotType1aGuidance(VehicleGuidance):
         action[0] = self._acc_speed_control(tgt, obs[ObsVec.FWD_DIST], obs[ObsVec.FWD_SPEED] + obs[ObsVec.SPEED_CUR])
         action[1] = LaneChange.STAY_IN_LANE
 
+        # Provide metrics to the owning vehicle
+        self.my_vehicle.target_speed_callback(tgt)
+
         return action
 
 
