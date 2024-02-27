@@ -193,38 +193,38 @@ Multi-agent Performance Evaluation
 			      Numbers of neighbors
      Roadway   Targets Lane  Bridgit  Bot1a   Bot1b Episodes Scenario
      -------   ------- ----  -------  -----   ----- -------- --------
-	B	1, 2	0	8	3	5	10	50
-			1				10	51
-			2				10	52
-			3				10	53
-			4				10	54
-			5				10	55
+	B	1, 2	0	8	3	5	20	50
+			1				20	51
+			2				20	52
+			3				20	53
+			4				20	54
+			5				20	55
 
-	B	1, 2	0	10	5	10	3	56
-			3				3	57
-			5				3	58
+	B	1, 2	0	10	5	10	5	56
+			3				5	57
+			5				5	58
 
-	B	1, 2	0	16	0	0	3	59
-			3				3	60
-			5				3	61
+	B	1, 2	0	16	0	0	15	59
+			3				15	60
+			5				15	61
 
-	B	1, 2	0	4	1	1	3	62
-			3				3	63
-			5				3	64
+	B	1, 2	0	4	1	1	5	62
+			3				5	63
+			5				5	64
 
-	B	0	1	8	3	5	6	65
-			5				6	66
+	B	0	1	8	3	5	10	65
+			5				10	66
 
-	C	3	0	8	3	5	3	67
-			3				3	68
-		0	2				3	69
-			5				3	70
+	C	3	0	8	3	5	5	67
+			3				5	68
+		0	2				5	69
+			5				5	70
 
-	D	2	1	8	3	5	3	71
-			3				3	72
-			5				3	73
+	D	2	1	8	3	5	5	71
+			3				5	72
+			5				5	73
 						    -------
-						      120
+						      250
 
 * It will be acceptable for bots to set target speeds either above or below the
   posted speed limits, since we are comparing their performance against that target

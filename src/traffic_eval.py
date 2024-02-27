@@ -86,9 +86,25 @@ class StatsAccumulator:
         return sum(self.vehicle_counts)
 
 
-    def compute_score(self):
-        """Computes a performance score for the set of episodes represented in this accumulator"""
-        pass
+    def total_distance(self) -> float: #return distance is in km
+        """Returns the total distance driven by all vehicles in all episodes."""
+
+        return sum(self.dist_vals)
+
+
+    def weighted_score(self) -> float:
+        """Returns the average performance score for the set of episodes represented in this accumulator,
+            weighted by the number of vehicles participating in each episode.
+        """
+
+        assert len(self.score_vals) == len(self.vehicle_counts), "///// ERROR: accumulator has {} score values and {} vehicle counts. Should be the same." \
+                                                                    .format(len(self.score_vals), len(self.vehicle_counts))
+
+        sum_score = 0.0
+        for i in range(len(self.score_vals)):
+            sum_score += self.score_vals[i] * self.vehicle_counts[i]
+
+        return sum_score / sum(self.vehicle_counts)
 
 
     def _distro(self,
@@ -99,8 +115,8 @@ class StatsAccumulator:
         if self.num_episodes == 0:
             raise ValueError("///// ERROR: StatsAccumulator attempting to compute results on an empty set.")
 
-        mean = sum(self.sd_vals) / self.num_episodes
-        stddev = statistics.stdev(self.sd_vals)
+        mean = sum(values) / float(len(values))
+        stddev = statistics.stdev(values)
         return mean, stddev
 
 
@@ -131,30 +147,30 @@ def main(argv):
     # Define the schedule of episodes to be run, per the software rqmts doc
     #           Scenario ID     Num iterations
     #           -----------     --------------
-    scenarios = [   (50,            10),#RoadwayB, targets 1,2, 16 neighbors
-                    (51,            10),
-                    (52,            10),
-                    (53,            10),
-                    (54,            10),
-                    (55,            10),
-                    (56,            3), #RoadwayB, targets 1,2, 25 neighbors
-                    (57,            3),
-                    (58,            3),
-                    (59,            3), #RoadwayB, targets 1,2, all Bridgits
-                    (60,            3),
-                    (61,            3),
-                    (62,            3), #RoadwayB, targets 1,2, only 6 neighbors
-                    (63,            3),
-                    (64,            3),
-                    (65,            6), #RoadwayB, target 0
-                    (66,            6),
-                    (67,            3), #RoadwayC
-                    (68,            3),
-                    (69,            3),
-                    (70,            3),
-                    (71,            3), #RoadwayD
-                    (72,            3),
-                    (73,            3),
+    scenarios = [   (50,            20),#RoadwayB, targets 1,2, 16 neighbors
+                    (51,            20),
+                    (52,            20),
+                    (53,            20),
+                    (54,            20),
+                    (55,            20),
+                    (56,            5), #RoadwayB, targets 1,2, 25 neighbors
+                    (57,            5),
+                    (58,            5),
+                    (59,            15), #RoadwayB, targets 1,2, all Bridgits
+                    (60,            15),
+                    (61,            15),
+                    (62,            5), #RoadwayB, targets 1,2, only 6 neighbors
+                    (63,            5),
+                    (64,            5),
+                    (65,            10), #RoadwayB, target 0
+                    (66,            10),
+                    (67,            5), #RoadwayC
+                    (68,            5),
+                    (69,            5),
+                    (70,            5),
+                    (71,            5), #RoadwayD
+                    (72,            5),
+                    (73,            5),
                 ]
 
     # Scale factors for computing episode scores
@@ -179,11 +195,6 @@ def main(argv):
     all_eval_stats = StatsAccumulator()
 
     # Loop through each of the scenarios
-    eval_score = 0.0
-    eval_vehicles = 0
-    eval_episodes = 0
-    eval_distance = 0.0
-    num_successes = 0
     for item in scenarios:
         scenario_id, total_iters = item
 
@@ -219,7 +230,6 @@ def main(argv):
             score = 0.0
             if success:
                 score = 1.0 - SD_SCALE* sd - ACC_SCALE*acc
-                num_successes += 1
             print("///// Scenario {}, episode {}: {} vehicles, total driven {:4.1f} km, normalized sd = {:5.1f} m/km, acc = {:5.1f} m/s/km, score = {:.2f}"
                     .format(scenario_id, iter, env.get_num_vehicles_used(), distance, sd, acc, score))
 
@@ -245,7 +255,7 @@ def main(argv):
                     elif scenario_id == 55:
                         b_lane5_stats.add(sd, acc, distance, success, nv, score)
 
-                elif 56 <= scenario_id <= 59:
+                elif 56 <= scenario_id <= 58:
                     b_25_neighbor_stats.add(sd, acc, distance, success, nv, score)
                     b_mixed_type_stats.add(sd, acc, distance, success, nv, score)
                     if scenario_id == 56:
@@ -291,18 +301,48 @@ def main(argv):
             else:
                 raise ValueError("///// ERROR: scenario_id {} is unknown".format(scenario_id))
 
+    # Display final summary info
+    #print("\n///// All episodes complete. Total evaluation score = {:.3f}, {} of {} episodes successful ({:.0f}%) using {} vehicles, {:.0f} km of travel"
+    #      .format(eval_score, num_successes, eval_episodes, 100.0*float(num_successes)/eval_episodes, eval_vehicles, eval_distance))
 
-            eval_vehicles += nv
-            eval_score += score*nv
-            eval_episodes += 1
-            eval_distance += distance #km
+    # Display stats for each accumulator group
+    print("\n/////                    Num          Num       Total       Total       Wgted       Score         Speed disadvantage     Integ accel")
+    print("///// Data sample      episodes    successes   vehicles  distance, km   score   mean    std dev    mean    std dev     mean    std dev")
+    print("///// -----------      --------    ---------   --------  ------------   -----   -----   -------   ------   -------     ----    -------")
+    # Name length limited to 14:        "12345678901234"
+    print_dataset(all_eval_stats,       "Full eval")
+    print_dataset(road_b_stats,         "Roadway B all")
+    print_dataset(road_c_stats,         "Roadway C all")
+    print_dataset(road_d_stats,         "Roadway D all")
+    print_dataset(b_7_neighbor_stats,   "B 7 neighbors")
+    print_dataset(b_16_neighbor_stats,  "B 16 neighbors")
+    print_dataset(b_25_neighbor_stats,  "B 25 neighbors")
+    print_dataset(b_mixed_type_stats,   "B mixed types")
+    print_dataset(b_all_bridgit_stats,  "B all Bridgit")
+    print_dataset(b_lane0_stats,        "B Lane 0")
+    print_dataset(b_lane1_stats,        "B Lane 1")
+    print_dataset(b_lane2_stats,        "B Lane 2")
+    print_dataset(b_lane3_stats,        "B Lane 3")
+    print_dataset(b_lane4_stats,        "B Lane 4")
+    print_dataset(b_lane5_stats,        "B Lane 5")
 
-    # Compute the final score for the entire eval set, weighted by the number of vehicles in each episode
-    eval_score /= eval_vehicles
 
-    # If the episode is complete then get user approval to shut down
-    print("\n///// All episodes complete. Total evaluation score = {:.3f}, {} of {} episodes successful ({:.0f}%) using {} vehicles, {:.0f} km of travel"
-          .format(eval_score, num_successes, eval_episodes, 100.0*float(num_successes)/eval_episodes, eval_vehicles, eval_distance))
+def print_dataset(dataset   : StatsAccumulator, #the dataset to be printed
+                  name      : str,              #the name of the dataset
+                 ):
+    """Prints all of the data required from the specified dataset, according to the required table format."""
+
+    if dataset.num_episodes == 0:
+        print("      {:14s}       0".format(name))
+        return
+
+    percent_success = 100.0*dataset.num_successes() / dataset.num_episodes
+    s_mean, s_std = dataset.score_distro()
+    d_mean, d_std = dataset.sd_distro()
+    a_mean, a_std = dataset.acc_distro()
+    print("      {:14s}     {:3d}       {:3d} ({:2.0f}%)     {:4d}       {:6.1f}      {:5.3f}   {:5.3f}    {:5.3f}    {:5.1f}     {:5.2f}     {:5.1f}     {:5.2f}"
+          .format(name, dataset.num_episodes, dataset.num_successes(), percent_success, dataset.num_vehicles(), dataset.total_distance(),
+                  dataset.weighted_score(), s_mean, s_std, d_mean, d_std, a_mean, a_std))
 
 
 def run_episode(env         : TaskSettableEnv,  #the highway environment model

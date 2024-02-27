@@ -1477,6 +1477,21 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	* Updated specification of targets for evaluation scenarios.
 	* Created partially functiona traffic_eval code that can run one episode.
 
+2/27/24
+
+* Completed buildiing the traffic_eval program and ran it against the D14 baseline
+  Bridgit model. Evaluation over 250 episodes. Report stored as
+	docs/D14_eval_report.txt
+
+	* It appears that the biggest problem with the Bridgit model right now is
+	  the tendency to crash. It is not clear from this evaluation how many crashes
+	  are the fault of any given vehicle type, but my graphical inference runs
+	  show that Bridgit could definitely do better. The biggest approach to
+	  solving this, I think, is to give Bridgit (and the bots) visibility into
+	  neighbor vehicles' LC status while it is underway (a new sensor layer for
+	  Bridgit), and the ability to abort a LC once begun.
+	* I also want to create an evaluation of an all-bot traffic to serve as a
+	  baseline to compare to.
 
 
 
