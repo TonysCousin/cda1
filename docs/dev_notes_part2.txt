@@ -1498,6 +1498,19 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 
 TODO:
+- Initial steps to consider for part 3:
+	* The primary performance hit is caused by way too many crashes.
+	* Build a set of eval scenarios that establish a baseline with Bot1bs used everywhere Bridgit is now, so that
+	  no Bridgit vechicles are in use. I suspect this will perform with way fewer crashes. If so, then...
+	* Expand Bridgit sensor inputs to include a layer for neighbor lateral motion (e.g. LC counter, and or which lane
+	  it is detected in).
+	* Expand Bridgit sensor grid to as long in the rear as it is in the front.
+	* Consider expanding the length of the sensor grid to be > 100 m.
+	* Revise reward function:  ?
+	* Give bots full knowledge of the its neighbors' lateral motion (counter/state).
+	* Enhance graphics to show icon for each vehicle type that indicates its lateral motion (highlighting which side
+	  it is moving toward).
+	* Enhance graphics to also (not instead of) gradually move vehicles laterally instead of a jump at the end.
 - Make a toggle in train prgm to switch all HPs from new training to continuation learning.
 - Consider a train prgm HP to switch the Bridgit NN model more easily.
 - Ensure speed variation penalty is larger than 2-3 consecutive speed penalties in order to make it worth slowing the accel.
