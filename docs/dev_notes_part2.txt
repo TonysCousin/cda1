@@ -1506,6 +1506,10 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  only 1000 initial random time steps.
 	* Reduced LR from 4e-5 to 1e-5
 	* Checkpoints stored at 20240306-2132.
+	* Run died due to power failure after 35k episodes. Quick inference at that point
+	  shows that it still looks like promising results, so started a new continuation
+	  training job from checkpoint 35000, for an additional 50k iters. New checkpoints
+	  stored at 20240307-1054.
 
 
 

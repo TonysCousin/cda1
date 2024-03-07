@@ -1189,7 +1189,7 @@ class HighwayEnv(TaskSettableEnv):  #based on OpenAI gymnasium API; TaskSettable
             if not space_found:
                 self.vehicles[i].used = False
                 self.vehicles[i].active = False
-                print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
+                #print("///// reset: no space found for vehicle {}; deactivating it.".format(i))
                 continue
 
             # Pick a speed, then initialize this vehicle - if this vehicle is close behind ego then limit its speed to be similar
