@@ -21,6 +21,7 @@ from bridgit_nn import BridgitNN
 def main(argv):
 
     SINGLE_WORKER = False #set True for debugging, but use False for normal production training
+    TRAINING_NEW = False #are we training from scratch?
 
     # Identify our custom NN model
     ModelCatalog.register_custom_model("bridgit_policy_model", BridgitNN)
@@ -45,7 +46,7 @@ def main(argv):
     # Define training control
     status_int          = 200    #num iters between status logs
     chkpt_int           = 1000    #num iters between storing new checkpoints
-    max_iterations      = 15000
+    max_iterations      = 15000 if TRAINING_NEW else 50000
 
     # Define the custom environment for Ray
     env_config = {}
@@ -69,11 +70,11 @@ def main(argv):
     explore_config = cfg_dict["exploration_config"]
     #print("///// Explore config:\n", pretty_print(explore_config))
     explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-    explore_config["stddev"]                    = 0.25 #this param is specific to GaussianNoise
-    explore_config["random_timesteps"]          = 100_000 #provides random experiences to pre-populate the experience buffer
+    explore_config["stddev"]                    = 0.25 if TRAINING_NEW else 0.05 #this param is specific to GaussianNoise
     explore_config["initial_scale"]             = 1.0
-    explore_config["final_scale"]               = 0.1
+    explore_config["final_scale"]               = 0.1 if TRAINING_NEW else 1.0
     explore_config["scale_timesteps"]           = 50_000_000
+    explore_config["random_timesteps"]          = 100_000 if TRAINING_NEW else 1000 #random experiences to pre-populate the buffer
     exp_switch                                  = True
     cfg.exploration(explore = exp_switch, exploration_config = explore_config)
     #cfg.exploration(explore = False)
@@ -125,7 +126,7 @@ def main(argv):
     cfg.checkpointing(export_native_model_files = True)
 
     # ===== Training algorithm HPs for SAC ==================================================
-    LR                                          = 4e-5
+    LR                                          = 4e-5 if TRAINING_NEW else 1e-5
     opt_config = cfg_dict["optimization"]
     opt_config["actor_learning_rate"]           = LR
     opt_config["critic_learning_rate"]          = LR

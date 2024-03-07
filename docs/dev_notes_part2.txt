@@ -1479,6 +1479,8 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 
 2/27/24
 
+***** PART 2 COMPLETE *****
+
 * Completed buildiing the traffic_eval program and ran it against the D14 baseline
   Bridgit model. Evaluation over 250 episodes. Report stored as
 	docs/D14_eval_report.txt
@@ -1492,6 +1494,18 @@ John's notes on development of the CDA1 project for the Part 2 goal: multiple ag
 	  Bridgit), and the ability to abort a LC once begun.
 	* I also want to create an evaluation of an all-bot traffic to serve as a
 	  baseline to compare to.
+
+3/6/24
+
+----- Additional exploratory training just for fun. Attempting to see what might
+	improve eval scores.
+
+* Run E1 training MA Bridgit from the D14 baseline checkpoint for an additional 50k iters
+  with 8 Bridgit neighbors (running the D14 baseline) and 8 bots on all 3 roadways.
+	* Changed noise params so that it is constant Gaussian magnitude of 0.05, with
+	  only 1000 initial random time steps.
+	* Reduced LR from 4e-5 to 1e-5
+	* Checkpoints stored at 20240306-2132.
 
 
 
